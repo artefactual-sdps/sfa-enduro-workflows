@@ -47,6 +47,11 @@
       "version": "0.6.0"
     },
     {
+      "name": "ogen",
+      "go_package": "github.com/ogen-go/ogen/cmd/ogen",
+      "version": "1.20.3"
+    },
+    {
       "name": "shfmt",
       "url": "https://github.com/mvdan/sh",
       "version": "3.13.0",

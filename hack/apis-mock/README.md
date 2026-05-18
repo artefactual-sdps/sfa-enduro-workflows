@@ -104,7 +104,7 @@ integration issues.
 ## Regenerate after spec changes
 
 ```bash
-go generate ./internal/gen
+(cd ../.. && make gen-apis-mock)
 ```
 
 This regenerates all files in `internal/gen` from `../../apis/openapi3.json`.

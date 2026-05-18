@@ -52,11 +52,11 @@ gen-apis: # @HELP Generate APIS client and mock server code from the shared Open
 	$(MAKE) gen-apis-client
 	$(MAKE) gen-apis-mock
 
-gen-apis-client: # @HELP Generate APIS client from the shared OpenAPI spec.
-	go generate ./internal/apis/gen
+gen-apis-client: tool-ogen # @HELP Generate APIS client from the shared OpenAPI spec.
+	ogen --config internal/apis/gen/ogen.yml --target internal/apis/gen --package gen --clean apis/openapi3.json
 
-gen-apis-mock: # @HELP Generate APIS mock server from the shared OpenAPI spec.
-	(cd ./hack/apis-mock && go generate ./internal/gen)
+gen-apis-mock: tool-ogen # @HELP Generate APIS mock server from the shared OpenAPI spec.
+	ogen --config hack/apis-mock/internal/gen/ogen.yml --target hack/apis-mock/internal/gen --package gen --clean apis/openapi3.json
 
 gen-ent: # @HELP Generate Ent assets.
 gen-ent: tool-ent
