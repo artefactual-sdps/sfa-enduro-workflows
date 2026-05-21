@@ -94,12 +94,7 @@
                     "format": "binary"
                   },
                   "importBehaviour": {
-                    "$ref": "#/components/schemas/ImportBehaviourType",
-                    "description": "What kind of behaviour should be applied when importing the data,\r\ne.g. OverwriteAndAppend or AppendOnly.\r\n\r\n\r\nEnum values:\r\n- `OverwriteAndAppend`\r\n- `AppendOnly`",
-                    "x-enumDescriptions": [
-                      "",
-                      ""
-                    ]
+                    "$ref": "#/components/schemas/ImportBehaviourType"
                   },
                   "username": {
                     "type": "string",
@@ -145,17 +140,7 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
               "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -165,17 +150,7 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
               "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -185,17 +160,7 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
               "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -205,17 +170,7 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
               "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -248,14 +203,7 @@
                     "format": "binary"
                   },
                   "sipType": {
-                    "$ref": "#/components/schemas/SipType",
-                    "description": "The source or type of the import, e.g. \"MigrationAccession\", \"MigrationDigitalisation\", \"Accession\" or \"Digitalisation\".\r\nThis is required for processing reasons.\r\n\r\n\r\nEnum values:\r\n- `DigitizedAIP`\r\n- `DigitizedSIP`\r\n- `BornDigitalAIP`\r\n- `BornDigitalSIP`",
-                    "x-enumDescriptions": [
-                      "",
-                      "",
-                      "",
-                      ""
-                    ]
+                    "$ref": "#/components/schemas/SipType"
                   },
                   "username": {
                     "type": "string",
@@ -291,7 +239,7 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -301,7 +249,7 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -311,7 +259,7 @@
           "415": {
             "description": "Unsupported Media Type",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -321,7 +269,7 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -382,17 +330,7 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -402,17 +340,7 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -422,17 +350,7 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -474,7 +392,7 @@
           "401": {
             "description": "Unauthorized",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -484,7 +402,7 @@
           "404": {
             "description": "Not Found",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -494,7 +412,7 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "application/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -526,32 +444,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CancelImportTaskRequest"
-                  }
-                ],
-                "description": "Request to cancel an import task."
+                "$ref": "#/components/schemas/CancelImportTaskRequest"
               }
             },
             "text/json": {
               "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CancelImportTaskRequest"
-                  }
-                ],
-                "description": "Request to cancel an import task."
+                "$ref": "#/components/schemas/CancelImportTaskRequest"
               }
             },
             "application/*+json": {
               "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CancelImportTaskRequest"
-                  }
-                ],
-                "description": "Request to cancel an import task."
+                "$ref": "#/components/schemas/CancelImportTaskRequest"
               }
             }
           }
@@ -563,17 +466,7 @@
           "401": {
             "description": "The user is not authorized.",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -583,17 +476,7 @@
           "404": {
             "description": "The specified import task was not found.",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -603,17 +486,7 @@
           "409": {
             "description": "The import task cannot be cancelled in its current state.",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -623,17 +496,7 @@
           "500": {
             "description": "Internal Server Error",
             "content": {
-              "text/plain": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              },
-              "text/json": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -784,24 +647,7 @@
         "type": "object",
         "properties": {
           "status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ImportStatus"
-              }
-            ],
-            "description": "The current status of the import run.\r\n\r\n\r\nEnum values:\r\n- `RequestStart`\r\n- `RequestCancel`\r\n- `Started`\r\n- `Failed`\r\n- `Canceled`\r\n- `Completed`\r\n- `UndoStarted`\r\n- `UndoCompleted`\r\n- `Created`\r\n- `Preparing`",
-            "x-enumDescriptions": [
-              "",
-              "",
-              "",
-              "",
-              "",
-              "",
-              "",
-              "",
-              "",
-              ""
-            ]
+            "$ref": "#/components/schemas/ImportStatus"
           },
           "progressPercent": {
             "type": "integer",
@@ -815,7 +661,7 @@
                 "$ref": "#/components/schemas/ImportResult"
               }
             ],
-            "description": "Gets the result of the import operation, if available.\r\n\r\n\r\nEnum values:\r\n- `Erfolgreich`: The import was successfull\r\n- `Fehler`: The import failed and has errors",
+            "description": "Enum values:\r\n- `Erfolgreich`: The import was successfull\r\n- `Fehler`: The import failed and has errors",
             "nullable": true,
             "x-enumDescriptions": [
               "The import was successfull",
@@ -893,20 +739,7 @@
         "type": "object",
         "properties": {
           "status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ImportTaskStatus"
-              }
-            ],
-            "description": "The overall status of the import task.\r\n\r\n\r\nEnum values:\r\n- `Neu`: The initial status of an import task\r\n- `InAnalyse`: The status during the analyisis process\r\n- `Analysiert`: The status after the analyisis process has ended\r\n- `WirdImportiert`: The status during the import process\r\n- `Importiert`: The status after the import process has ended\r\n- `Abgebrochen`: Indicates that the import task was canceled",
-            "x-enumDescriptions": [
-              "The initial status of an import task",
-              "The status during the analyisis process",
-              "The status after the analyisis process has ended",
-              "The status during the import process",
-              "The status after the import process has ended",
-              "Indicates that the import task was canceled"
-            ]
+            "$ref": "#/components/schemas/ImportTaskStatus"
           },
           "analysisResult": {
             "allOf": [
@@ -914,7 +747,7 @@
                 "$ref": "#/components/schemas/AnalysisResult"
               }
             ],
-            "description": "Gets the result of the analysis, if available.\r\n\r\n\r\nEnum values:\r\n- `AlleGleich`: The title of all series are the same\r\n- `AlleNeu`: The titles of all series are new\r\n- `Konflikte`: There are conflicts between titles of existing and new series\r\n- `Fehler`: There are errors in the analysis",
+            "description": "Enum values:\r\n- `AlleGleich`: The title of all series are the same\r\n- `AlleNeu`: The titles of all series are new\r\n- `Konflikte`: There are conflicts between titles of existing and new series\r\n- `Fehler`: There are errors in the analysis",
             "nullable": true,
             "x-enumDescriptions": [
               "The title of all series are the same",
@@ -940,7 +773,7 @@
                 "$ref": "#/components/schemas/ImportResult"
               }
             ],
-            "description": "Contains the result of the import operation, after the import has finished.\r\n\r\n\r\nEnum values:\r\n- `Erfolgreich`: The import was successfull\r\n- `Fehler`: The import failed and has errors",
+            "description": "Enum values:\r\n- `Erfolgreich`: The import was successfull\r\n- `Fehler`: The import failed and has errors",
             "nullable": true,
             "x-enumDescriptions": [
               "The import was successfull",

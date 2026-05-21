@@ -132,10 +132,6 @@ func (s *Server) decodeAPIImporttasksIDCancelPostRequest(r *http.Request) (
 			return req, rawBody, close, err
 		}
 		return &request, rawBody, close, nil
-	case ct == "text/json":
-		reader := r.Body
-		request := APIImporttasksIDCancelPostReqTextJSON{Data: reader}
-		return &request, rawBody, close, nil
 	default:
 		return req, rawBody, close, validate.InvalidContentType(ct)
 	}

@@ -47,11 +47,6 @@ func encodeAPIImporttasksIDCancelPostRequest(
 		encoded := e.Bytes()
 		ht.SetBody(r, bytes.NewReader(encoded), contentType)
 		return nil
-	case *APIImporttasksIDCancelPostReqTextJSON:
-		const contentType = "text/json"
-		body := req
-		ht.SetBody(r, body, contentType)
-		return nil
 	default:
 		return errors.Errorf("unexpected request type: %T", req)
 	}

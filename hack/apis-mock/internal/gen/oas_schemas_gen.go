@@ -3,8 +3,6 @@
 package gen
 
 import (
-	"io"
-
 	"github.com/go-faster/errors"
 	"github.com/go-faster/jx"
 	ht "github.com/ogen-go/ogen/http"
@@ -39,23 +37,6 @@ type APIImporttasksIDCancelPostReqEmptyBody struct{}
 
 func (*APIImporttasksIDCancelPostReqEmptyBody) aPIImporttasksIDCancelPostReq() {}
 
-// Request to cancel an import task.
-type APIImporttasksIDCancelPostReqTextJSON struct {
-	Data io.Reader
-}
-
-// Read reads data from the Data reader.
-//
-// Kept to satisfy the io.Reader interface.
-func (s APIImporttasksIDCancelPostReqTextJSON) Read(p []byte) (n int, err error) {
-	if s.Data == nil {
-		return 0, io.EOF
-	}
-	return s.Data.Read(p)
-}
-
-func (*APIImporttasksIDCancelPostReqTextJSON) aPIImporttasksIDCancelPostReq() {}
-
 type APIImporttasksIDCancelPostUnauthorized ProblemDetails
 
 func (*APIImporttasksIDCancelPostUnauthorized) aPIImporttasksIDCancelPostRes() {}
@@ -70,12 +51,7 @@ func (*APIImporttasksIDImportrunsPostNotFound) aPIImporttasksIDImportrunsPostRes
 
 type APIImporttasksIDImportrunsPostReq struct {
 	// The METS file required for the import.
-	File ht.MultipartFile `json:"file"`
-	// What kind of behaviour should be applied when importing the data,
-	// e.g. OverwriteAndAppend or AppendOnly.
-	// Enum values:
-	// - `OverwriteAndAppend`
-	// - `AppendOnly`.
+	File            ht.MultipartFile       `json:"file"`
 	ImportBehaviour OptImportBehaviourType `json:"importBehaviour"`
 	// The username that is logged as the creator of the import task. Can be the email for example.
 	Username string `json:"username"`
@@ -156,16 +132,8 @@ func (*APIImporttasksPostInternalServerError) aPIImporttasksPostRes() {}
 
 type APIImporttasksPostReq struct {
 	// The metadata.xml file according to eCH-0160.
-	File ht.MultipartFile `json:"file"`
-	// The source or type of the import, e.g. "MigrationAccession", "MigrationDigitalisation",
-	// "Accession" or "Digitalisation".
-	// This is required for processing reasons.
-	// Enum values:
-	// - `DigitizedAIP`
-	// - `DigitizedSIP`
-	// - `BornDigitalAIP`
-	// - `BornDigitalSIP`.
-	SipType SipType `json:"sipType"`
+	File    ht.MultipartFile `json:"file"`
+	SipType SipType          `json:"sipType"`
 	// The username that is logged as the creator of the import task. Can be the email for example.
 	Username string `json:"username"`
 }
@@ -529,22 +497,9 @@ func (s *ImportResult) UnmarshalText(data []byte) error {
 // Response containing the status of an import run.
 // Ref: #/components/schemas/ImportRunStatusResponse
 type ImportRunStatusResponse struct {
-	// The current status of the import run.
-	// Enum values:
-	// - `RequestStart`
-	// - `RequestCancel`
-	// - `Started`
-	// - `Failed`
-	// - `Canceled`
-	// - `Completed`
-	// - `UndoStarted`
-	// - `UndoCompleted`
-	// - `Created`
-	// - `Preparing`.
 	Status ImportStatus `json:"status"`
 	// The progress of the import run in percent (0-100), if available.
 	ProgressPercent OptNilInt32 `json:"progressPercent"`
-	// Gets the result of the import operation, if available.
 	// Enum values:
 	// - `Erfolgreich`: The import was successfull
 	// - `Fehler`: The import failed and has errors.
@@ -796,16 +751,7 @@ func (s *ImportTaskStatus) UnmarshalText(data []byte) error {
 // Response containing the status of an import task (analysis phase).
 // Ref: #/components/schemas/ImportTaskStatusResponse
 type ImportTaskStatusResponse struct {
-	// The overall status of the import task.
-	// Enum values:
-	// - `Neu`: The initial status of an import task
-	// - `InAnalyse`: The status during the analyisis process
-	// - `Analysiert`: The status after the analyisis process has ended
-	// - `WirdImportiert`: The status during the import process
-	// - `Importiert`: The status after the import process has ended
-	// - `Abgebrochen`: Indicates that the import task was canceled.
 	Status ImportTaskStatus `json:"status"`
-	// Gets the result of the analysis, if available.
 	// Enum values:
 	// - `AlleGleich`: The title of all series are the same
 	// - `AlleNeu`: The titles of all series are new
@@ -816,7 +762,6 @@ type ImportTaskStatusResponse struct {
 	AnalysisProgressInPercent OptNilInt32 `json:"analysisProgressInPercent"`
 	// If there was an error during the analysis, this contains the error message.
 	AnalysisErrorMessage OptNilString `json:"analysisErrorMessage"`
-	// Contains the result of the import operation, after the import has finished.
 	// Enum values:
 	// - `Erfolgreich`: The import was successfull
 	// - `Fehler`: The import failed and has errors.
