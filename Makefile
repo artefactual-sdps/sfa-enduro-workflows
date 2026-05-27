@@ -23,6 +23,8 @@ IGNORED_PACKAGES := \
 	github.com/artefactual-sdps/preprocessing-sfa/hack/% \
 	github.com/artefactual-sdps/preprocessing-sfa/internal/%/fake \
 	github.com/artefactual-sdps/preprocessing-sfa/internal/apis/gen \
+	github.com/artefactual-sdps/preprocessing-sfa/internal/dips/api/design \
+	github.com/artefactual-sdps/preprocessing-sfa/internal/dips/api/gen/% \
 	github.com/artefactual-sdps/preprocessing-sfa/internal/enums \
 	github.com/artefactual-sdps/preprocessing-sfa/internal/persistence/ent/db \
 	github.com/artefactual-sdps/preprocessing-sfa/internal/persistence/ent/db/% \
@@ -70,6 +72,14 @@ gen-enums: tool-go-enum
 	go-enum $(ENUM_FLAGS) \
 		--nocomments \
 		-f internal/enums/sip_type.go
+
+gen-goa: # @HELP Generate Goa assets for the DIP API design.
+gen-goa: tool-goa tool-jq
+	goa gen github.com/artefactual-sdps/preprocessing-sfa/internal/dips/api/design -o internal/dips/api
+	for f in $$(find internal/dips/api/gen/http -type f -name "*.json" | sort -u); do \
+		jq -S '.' "$$f" > "$$f".sorted && mv "$$f".sorted "$$f"; \
+		echo "Formatting $$f with jq"; \
+	done
 
 gen-mock: # @HELP Generate mocks.
 gen-mock: tool-mockgen

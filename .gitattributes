@@ -1,0 +1,3 @@
+hack/apis-mock/internal/gen/** linguist-generated
+internal/apis/gen/** linguist-generated
+internal/dips/api/gen/** linguist-generated
