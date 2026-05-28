@@ -40,23 +40,38 @@ paths:
                             example:
                                 id: 3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb
                 "400":
-                    description: 'not_valid: Invalid request parameters.'
+                    description: '/problems/not-valid: Invalid request parameters.'
                     content:
-                        application/vnd.goa.error:
+                        application/problem+json:
                             schema:
-                                $ref: '#/components/schemas/Error'
+                                $ref: '#/components/schemas/ProblemDetails'
+                            example:
+                                detail: The request body is missing the docKey field.
+                                status: 400
+                                title: Invalid request parameters.
+                                type: /problems/not-valid
                 "401":
-                    description: 'unauthorized: Missing or invalid bearer token.'
+                    description: '/problems/unauthorized: Missing or invalid bearer token.'
                     content:
-                        application/vnd.goa.error:
+                        application/problem+json:
                             schema:
-                                $ref: '#/components/schemas/Error'
+                                $ref: '#/components/schemas/ProblemDetails'
+                            example:
+                                detail: The Authorization header is missing or invalid.
+                                status: 401
+                                title: Invalid bearer token.
+                                type: /problems/unauthorized
                 "500":
-                    description: 'internal_error: Unexpected server error.'
+                    description: '/problems/internal-error: Unexpected server error.'
                     content:
-                        application/vnd.goa.error:
+                        application/problem+json:
                             schema:
-                                $ref: '#/components/schemas/Error'
+                                $ref: '#/components/schemas/ProblemDetails'
+                            example:
+                                detail: The DIP request could not be processed.
+                                status: 500
+                                title: Unexpected server error.
+                                type: /problems/internal-error
             security:
                 - bearer_header_Authorization: []
     /dips/{id}:
@@ -93,23 +108,38 @@ paths:
                                 started_at: "2026-05-27T15:04:05Z"
                                 status: done
                 "401":
-                    description: 'unauthorized: Missing or invalid bearer token.'
+                    description: '/problems/unauthorized: Missing or invalid bearer token.'
                     content:
-                        application/vnd.goa.error:
+                        application/problem+json:
                             schema:
-                                $ref: '#/components/schemas/Error'
+                                $ref: '#/components/schemas/ProblemDetails'
+                            example:
+                                detail: The Authorization header is missing or invalid.
+                                status: 401
+                                title: Invalid bearer token.
+                                type: /problems/unauthorized
                 "404":
-                    description: 'not_found: DIP not found.'
+                    description: '/problems/not-found: DIP not found.'
                     content:
-                        application/vnd.goa.error:
+                        application/problem+json:
                             schema:
-                                $ref: '#/components/schemas/Error'
+                                $ref: '#/components/schemas/ProblemDetails'
+                            example:
+                                detail: The requested DIP does not exist.
+                                status: 404
+                                title: DIP not found.
+                                type: /problems/not-found
                 "500":
-                    description: 'internal_error: Unexpected server error.'
+                    description: '/problems/internal-error: Unexpected server error.'
                     content:
-                        application/vnd.goa.error:
+                        application/problem+json:
                             schema:
-                                $ref: '#/components/schemas/Error'
+                                $ref: '#/components/schemas/ProblemDetails'
+                            example:
+                                detail: The DIP request could not be processed.
+                                status: 500
+                                title: Unexpected server error.
+                                type: /problems/internal-error
             security:
                 - bearer_header_Authorization: []
 components:
@@ -183,48 +213,46 @@ components:
                 - docKey
                 - status
                 - created_at
-        Error:
+        ProblemDetails:
             type: object
             properties:
-                fault:
-                    type: boolean
-                    description: Is the error a server-side fault?
-                    example: false
-                id:
+                detail:
                     type: string
-                    description: ID is a unique identifier for this particular occurrence of the problem.
-                    example: 123abc
-                message:
+                    description: Human-readable explanation specific to this problem occurrence.
+                    example: The request body is missing the docKey field.
+                instance:
                     type: string
-                    description: Message is a human-readable explanation specific to this occurrence of the problem.
-                    example: parameter 'p' must be an integer
-                name:
+                    description: URI reference that identifies this problem occurrence.
+                status:
+                    type: integer
+                    description: HTTP status code generated by the origin server.
+                    example: 400
+                    format: int64
+                title:
                     type: string
-                    description: Name is the name of this class of errors.
-                    example: bad_request
-                temporary:
-                    type: boolean
-                    description: Is the error temporary?
-                    example: false
-                timeout:
-                    type: boolean
-                    description: Is the error a timeout?
-                    example: true
-            description: Invalid request parameters.
+                    description: Short, human-readable summary of the problem type.
+                    example: Invalid request parameters.
+                type:
+                    type: string
+                    description: URI reference that identifies the problem type.
+                    example: /problems/not-valid
+                    enum:
+                        - /problems/unauthorized
+                        - /problems/not-valid
+                        - /problems/not-found
+                        - /problems/internal-error
+                    format: uri
+            description: RFC 9457 problem details object.
             example:
-                fault: true
-                id: 123abc
-                message: parameter 'p' must be an integer
-                name: bad_request
-                temporary: false
-                timeout: false
+                detail: The request body is missing the docKey field.
+                status: 400
+                title: Invalid request parameters.
+                type: /problems/not-valid
             required:
-                - name
-                - id
-                - message
-                - temporary
-                - timeout
-                - fault
+                - type
+                - title
+                - status
+                - detail
     securitySchemes:
         bearer_header_Authorization:
             type: http
@@ -232,4 +260,4 @@ components:
             scheme: bearer
 tags:
     - name: DIPs
-      description: Requests DIP creation and reports their details.
+      description: Requests DIP creation and reports DIP details.

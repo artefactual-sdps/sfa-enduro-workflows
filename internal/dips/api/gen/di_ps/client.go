@@ -31,9 +31,10 @@ func NewClient(create, show goa.Endpoint) *Client {
 
 // Create calls the "create" endpoint of the "DIPs" service.
 // Create may return the following errors:
-//   - "not_valid" (type *goa.ServiceError): Invalid request parameters.
-//   - "unauthorized" (type *goa.ServiceError): Missing or invalid bearer token.
-//   - "internal_error" (type *goa.ServiceError): Unexpected server error.
+//   - "/problems/not-valid" (type *ProblemDetails): Invalid request parameters.
+//   - "/problems/unauthorized" (type *ProblemDetails): Missing or invalid bearer token.
+//   - "/problems/not-found" (type *ProblemDetails): DIP not found.
+//   - "/problems/internal-error" (type *ProblemDetails): Unexpected server error.
 //   - error: internal error
 func (c *Client) Create(ctx context.Context, p *CreatePayload) (res *CreateDIPResult, err error) {
 	var ires any
@@ -46,9 +47,10 @@ func (c *Client) Create(ctx context.Context, p *CreatePayload) (res *CreateDIPRe
 
 // Show calls the "show" endpoint of the "DIPs" service.
 // Show may return the following errors:
-//   - "not_found" (type *goa.ServiceError): DIP not found.
-//   - "unauthorized" (type *goa.ServiceError): Missing or invalid bearer token.
-//   - "internal_error" (type *goa.ServiceError): Unexpected server error.
+//   - "/problems/not-valid" (type *ProblemDetails): Invalid request parameters.
+//   - "/problems/unauthorized" (type *ProblemDetails): Missing or invalid bearer token.
+//   - "/problems/not-found" (type *ProblemDetails): DIP not found.
+//   - "/problems/internal-error" (type *ProblemDetails): Unexpected server error.
 //   - error: internal error
 func (c *Client) Show(ctx context.Context, p *ShowPayload) (res *DIP, err error) {
 	var ires any

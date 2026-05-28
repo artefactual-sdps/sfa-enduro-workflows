@@ -142,7 +142,7 @@ func ParseEndpoint(
 
 // dIPsUsage displays the usage of the di-ps command and its subcommands.
 func dIPsUsage() {
-	fmt.Fprintln(os.Stderr, `Requests DIP creation and reports their details.`)
+	fmt.Fprintln(os.Stderr, `Requests DIP creation and reports DIP details.`)
 	fmt.Fprintf(os.Stderr, "Usage:\n    %s [globalflags] di-ps COMMAND [flags]\n\n", os.Args[0])
 	fmt.Fprintln(os.Stderr, "COMMAND:")
 	fmt.Fprintln(os.Stderr, `    create: Request DIP creation for a document key.`)
@@ -188,5 +188,5 @@ func dIPsShowUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "di-ps show --id \"3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb\" --token \"Sit ad.\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "di-ps show --id \"3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb\" --token \"Deserunt similique quas quia minima sequi ullam.\"")
 }

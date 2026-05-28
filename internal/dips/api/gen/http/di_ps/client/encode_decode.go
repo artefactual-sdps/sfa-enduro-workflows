@@ -64,9 +64,9 @@ func EncodeCreateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http
 // create endpoint. restoreBody controls whether the response body should be
 // restored after having been read.
 // DecodeCreateResponse may return the following errors:
-//   - "not_valid" (type *goa.ServiceError): http.StatusBadRequest
-//   - "unauthorized" (type *goa.ServiceError): http.StatusUnauthorized
-//   - "internal_error" (type *goa.ServiceError): http.StatusInternalServerError
+//   - "/problems/not-valid" (type *dips.ProblemDetails): http.StatusBadRequest
+//   - "/problems/unauthorized" (type *dips.ProblemDetails): http.StatusUnauthorized
+//   - "/problems/internal-error" (type *dips.ProblemDetails): http.StatusInternalServerError
 //   - error: internal error
 func DecodeCreateResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
@@ -100,46 +100,46 @@ func DecodeCreateResponse(decoder func(*http.Response) goahttp.Decoder, restoreB
 			return res, nil
 		case http.StatusBadRequest:
 			var (
-				body CreateNotValidResponseBody
+				body CreateProblemsNotValidResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
 				return nil, goahttp.ErrDecodingError("DIPs", "create", err)
 			}
-			err = ValidateCreateNotValidResponseBody(&body)
+			err = ValidateCreateProblemsNotValidResponseBody(&body)
 			if err != nil {
 				return nil, goahttp.ErrValidationError("DIPs", "create", err)
 			}
-			return nil, NewCreateNotValid(&body)
+			return nil, NewCreateProblemsNotValid(&body)
 		case http.StatusUnauthorized:
 			var (
-				body CreateUnauthorizedResponseBody
+				body CreateProblemsUnauthorizedResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
 				return nil, goahttp.ErrDecodingError("DIPs", "create", err)
 			}
-			err = ValidateCreateUnauthorizedResponseBody(&body)
+			err = ValidateCreateProblemsUnauthorizedResponseBody(&body)
 			if err != nil {
 				return nil, goahttp.ErrValidationError("DIPs", "create", err)
 			}
-			return nil, NewCreateUnauthorized(&body)
+			return nil, NewCreateProblemsUnauthorized(&body)
 		case http.StatusInternalServerError:
 			var (
-				body CreateInternalErrorResponseBody
+				body CreateProblemsInternalErrorResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
 				return nil, goahttp.ErrDecodingError("DIPs", "create", err)
 			}
-			err = ValidateCreateInternalErrorResponseBody(&body)
+			err = ValidateCreateProblemsInternalErrorResponseBody(&body)
 			if err != nil {
 				return nil, goahttp.ErrValidationError("DIPs", "create", err)
 			}
-			return nil, NewCreateInternalError(&body)
+			return nil, NewCreateProblemsInternalError(&body)
 		default:
 			body, _ := io.ReadAll(resp.Body)
 			return nil, goahttp.ErrInvalidResponse("DIPs", "create", resp.StatusCode, string(body))
@@ -196,9 +196,9 @@ func EncodeShowRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.R
 // endpoint. restoreBody controls whether the response body should be restored
 // after having been read.
 // DecodeShowResponse may return the following errors:
-//   - "not_found" (type *goa.ServiceError): http.StatusNotFound
-//   - "unauthorized" (type *goa.ServiceError): http.StatusUnauthorized
-//   - "internal_error" (type *goa.ServiceError): http.StatusInternalServerError
+//   - "/problems/not-found" (type *dips.ProblemDetails): http.StatusNotFound
+//   - "/problems/unauthorized" (type *dips.ProblemDetails): http.StatusUnauthorized
+//   - "/problems/internal-error" (type *dips.ProblemDetails): http.StatusInternalServerError
 //   - error: internal error
 func DecodeShowResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
@@ -232,46 +232,46 @@ func DecodeShowResponse(decoder func(*http.Response) goahttp.Decoder, restoreBod
 			return res, nil
 		case http.StatusNotFound:
 			var (
-				body ShowNotFoundResponseBody
+				body ShowProblemsNotFoundResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
 				return nil, goahttp.ErrDecodingError("DIPs", "show", err)
 			}
-			err = ValidateShowNotFoundResponseBody(&body)
+			err = ValidateShowProblemsNotFoundResponseBody(&body)
 			if err != nil {
 				return nil, goahttp.ErrValidationError("DIPs", "show", err)
 			}
-			return nil, NewShowNotFound(&body)
+			return nil, NewShowProblemsNotFound(&body)
 		case http.StatusUnauthorized:
 			var (
-				body ShowUnauthorizedResponseBody
+				body ShowProblemsUnauthorizedResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
 				return nil, goahttp.ErrDecodingError("DIPs", "show", err)
 			}
-			err = ValidateShowUnauthorizedResponseBody(&body)
+			err = ValidateShowProblemsUnauthorizedResponseBody(&body)
 			if err != nil {
 				return nil, goahttp.ErrValidationError("DIPs", "show", err)
 			}
-			return nil, NewShowUnauthorized(&body)
+			return nil, NewShowProblemsUnauthorized(&body)
 		case http.StatusInternalServerError:
 			var (
-				body ShowInternalErrorResponseBody
+				body ShowProblemsInternalErrorResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
 				return nil, goahttp.ErrDecodingError("DIPs", "show", err)
 			}
-			err = ValidateShowInternalErrorResponseBody(&body)
+			err = ValidateShowProblemsInternalErrorResponseBody(&body)
 			if err != nil {
 				return nil, goahttp.ErrValidationError("DIPs", "show", err)
 			}
-			return nil, NewShowInternalError(&body)
+			return nil, NewShowProblemsInternalError(&body)
 		default:
 			body, _ := io.ReadAll(resp.Body)
 			return nil, goahttp.ErrInvalidResponse("DIPs", "show", resp.StatusCode, string(body))
