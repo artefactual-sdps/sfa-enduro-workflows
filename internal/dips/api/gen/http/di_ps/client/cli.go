@@ -22,7 +22,7 @@ import (
 func BuildCreatePayload(dIPsCreateBody string, dIPsCreateToken string) (*dips.CreatePayload, error) {
 	var err error
 	var body struct {
-		// Document key used to create the DIP.
+		// The docKey field contains the document key used to create the DIP.
 		DocKey *string `form:"docKey" json:"docKey" xml:"docKey"`
 	}
 	{

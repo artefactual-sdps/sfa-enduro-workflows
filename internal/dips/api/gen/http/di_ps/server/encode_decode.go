@@ -41,7 +41,7 @@ func DecodeCreateRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.
 		var payload *dips.CreatePayload
 		var (
 			body struct {
-				// Document key used to create the DIP.
+				// The docKey field contains the document key used to create the DIP.
 				DocKey *string `form:"docKey" json:"docKey" xml:"docKey"`
 			}
 			err error

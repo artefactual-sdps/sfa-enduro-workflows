@@ -52,7 +52,7 @@ func ParseEndpoint(
 		dIPsCreateTokenFlag = dIPsCreateFlags.String("token", "REQUIRED", "")
 
 		dIPsShowFlags     = flag.NewFlagSet("show", flag.ExitOnError)
-		dIPsShowIDFlag    = dIPsShowFlags.String("id", "REQUIRED", "DIP identifier.")
+		dIPsShowIDFlag    = dIPsShowFlags.String("id", "REQUIRED", "The id field contains the DIP identifier.")
 		dIPsShowTokenFlag = dIPsShowFlags.String("token", "REQUIRED", "")
 	)
 	dIPsFlags.Usage = dIPsUsage
@@ -142,11 +142,11 @@ func ParseEndpoint(
 
 // dIPsUsage displays the usage of the di-ps command and its subcommands.
 func dIPsUsage() {
-	fmt.Fprintln(os.Stderr, `Requests DIP creation and reports DIP details.`)
+	fmt.Fprintln(os.Stderr, `The DIPs service requests DIP creation and retrieves DIP details.`)
 	fmt.Fprintf(os.Stderr, "Usage:\n    %s [globalflags] di-ps COMMAND [flags]\n\n", os.Args[0])
 	fmt.Fprintln(os.Stderr, "COMMAND:")
-	fmt.Fprintln(os.Stderr, `    create: Request DIP creation for a document key.`)
-	fmt.Fprintln(os.Stderr, `    show: Get DIP details.`)
+	fmt.Fprintln(os.Stderr, `    create: The create method requests DIP creation for a document key.`)
+	fmt.Fprintln(os.Stderr, `    show: The show method retrieves DIP details.`)
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Additional help:")
 	fmt.Fprintf(os.Stderr, "    %s di-ps COMMAND --help\n", os.Args[0])
@@ -160,7 +160,7 @@ func dIPsCreateUsage() {
 
 	// Description
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, `Request DIP creation for a document key.`)
+	fmt.Fprintln(os.Stderr, `The create method requests DIP creation for a document key.`)
 
 	// Flags list
 	fmt.Fprintln(os.Stderr, `    -body JSON: `)
@@ -180,10 +180,10 @@ func dIPsShowUsage() {
 
 	// Description
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, `Get DIP details.`)
+	fmt.Fprintln(os.Stderr, `The show method retrieves DIP details.`)
 
 	// Flags list
-	fmt.Fprintln(os.Stderr, `    -id STRING: DIP identifier.`)
+	fmt.Fprintln(os.Stderr, `    -id STRING: The id field contains the DIP identifier.`)
 	fmt.Fprintln(os.Stderr, `    -token STRING: `)
 
 	fmt.Fprintln(os.Stderr)
