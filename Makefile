@@ -77,7 +77,7 @@ gen-goa: # @HELP Generate Goa assets for the DIP API design.
 gen-goa: tool-goa tool-jq
 	goa gen github.com/artefactual-sdps/preprocessing-sfa/internal/dips/api/design -o internal/dips/api
 	for f in $$(find internal/dips/api/gen/http -type f -name "*.json" | sort -u); do \
-		jq -S '.' "$$f" > "$$f".sorted && mv "$$f".sorted "$$f"; \
+		jq '.' "$$f" > "$$f".formatted && mv "$$f".formatted "$$f"; \
 		echo "Formatting $$f with jq"; \
 	done
 
