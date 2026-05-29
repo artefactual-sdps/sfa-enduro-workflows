@@ -26,7 +26,7 @@ import (
 // create endpoint.
 func EncodeCreateResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*dips.CreateDIPResult)
+		res, _ := v.(*dips.CreateResult)
 		enc := encoder(ctx, w)
 		body := NewCreateResponseBody(res)
 		w.WriteHeader(http.StatusAccepted)
@@ -97,8 +97,8 @@ func EncodeCreateError(encoder func(context.Context, http.ResponseWriter) goahtt
 			return encodeError(ctx, w, v)
 		}
 		switch en.GoaErrorName() {
-		case "internal_error":
-			var res *dips.InternalProblem
+		case "bad_request":
+			var res *dips.BadRequestProblem
 			errors.As(v, &res)
 			ctx = context.WithValue(ctx, goahttp.ContentTypeKey, "application/problem+json")
 			enc := encoder(ctx, w)
@@ -106,24 +106,24 @@ func EncodeCreateError(encoder func(context.Context, http.ResponseWriter) goahtt
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewCreateInternalErrorResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusInternalServerError)
-			return enc.Encode(body)
-		case "not_valid":
-			var res *dips.NotValidProblem
-			errors.As(v, &res)
-			ctx = context.WithValue(ctx, goahttp.ContentTypeKey, "application/problem+json")
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewCreateNotValidResponseBody(res)
+				body = NewCreateBadRequestResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusBadRequest)
+			return enc.Encode(body)
+		case "internal_server_error":
+			var res *dips.InternalServerErrorProblem
+			errors.As(v, &res)
+			ctx = context.WithValue(ctx, goahttp.ContentTypeKey, "application/problem+json")
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewCreateInternalServerErrorResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
 			return enc.Encode(body)
 		case "unauthorized":
 			var res *dips.UnauthorizedProblem
@@ -149,7 +149,7 @@ func EncodeCreateError(encoder func(context.Context, http.ResponseWriter) goahtt
 // show endpoint.
 func EncodeShowResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*dips.DIP)
+		res, _ := v.(*dips.ShowResult)
 		enc := encoder(ctx, w)
 		body := NewShowResponseBody(res)
 		w.WriteHeader(http.StatusOK)
@@ -199,8 +199,8 @@ func EncodeShowError(encoder func(context.Context, http.ResponseWriter) goahttp.
 			return encodeError(ctx, w, v)
 		}
 		switch en.GoaErrorName() {
-		case "internal_error":
-			var res *dips.InternalProblem
+		case "internal_server_error":
+			var res *dips.InternalServerErrorProblem
 			errors.As(v, &res)
 			ctx = context.WithValue(ctx, goahttp.ContentTypeKey, "application/problem+json")
 			enc := encoder(ctx, w)
@@ -208,7 +208,7 @@ func EncodeShowError(encoder func(context.Context, http.ResponseWriter) goahttp.
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewShowInternalErrorResponseBody(res)
+				body = NewShowInternalServerErrorResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusInternalServerError)

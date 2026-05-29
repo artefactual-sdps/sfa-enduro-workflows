@@ -42,9 +42,9 @@ type ShowResponseBody struct {
 	ObjectKey *string `form:"object_key,omitempty" json:"object_key,omitempty" xml:"object_key,omitempty"`
 }
 
-// CreateInternalErrorResponseBody is the type of the "DIPs" service "create"
-// endpoint HTTP response body for the "internal_error" error.
-type CreateInternalErrorResponseBody struct {
+// CreateBadRequestResponseBody is the type of the "DIPs" service "create"
+// endpoint HTTP response body for the "bad_request" error.
+type CreateBadRequestResponseBody struct {
 	// The type field contains a URI reference that identifies the problem type.
 	Type *string `form:"type,omitempty" json:"type,omitempty" xml:"type,omitempty"`
 	// The title field contains a short, human-readable summary of the problem type.
@@ -60,9 +60,9 @@ type CreateInternalErrorResponseBody struct {
 	Instance *string `form:"instance,omitempty" json:"instance,omitempty" xml:"instance,omitempty"`
 }
 
-// CreateNotValidResponseBody is the type of the "DIPs" service "create"
-// endpoint HTTP response body for the "not_valid" error.
-type CreateNotValidResponseBody struct {
+// CreateInternalServerErrorResponseBody is the type of the "DIPs" service
+// "create" endpoint HTTP response body for the "internal_server_error" error.
+type CreateInternalServerErrorResponseBody struct {
 	// The type field contains a URI reference that identifies the problem type.
 	Type *string `form:"type,omitempty" json:"type,omitempty" xml:"type,omitempty"`
 	// The title field contains a short, human-readable summary of the problem type.
@@ -96,9 +96,9 @@ type CreateUnauthorizedResponseBody struct {
 	Instance *string `form:"instance,omitempty" json:"instance,omitempty" xml:"instance,omitempty"`
 }
 
-// ShowInternalErrorResponseBody is the type of the "DIPs" service "show"
-// endpoint HTTP response body for the "internal_error" error.
-type ShowInternalErrorResponseBody struct {
+// ShowInternalServerErrorResponseBody is the type of the "DIPs" service "show"
+// endpoint HTTP response body for the "internal_server_error" error.
+type ShowInternalServerErrorResponseBody struct {
 	// The type field contains a URI reference that identifies the problem type.
 	Type *string `form:"type,omitempty" json:"type,omitempty" xml:"type,omitempty"`
 	// The title field contains a short, human-readable summary of the problem type.
@@ -150,20 +150,19 @@ type ShowUnauthorizedResponseBody struct {
 	Instance *string `form:"instance,omitempty" json:"instance,omitempty" xml:"instance,omitempty"`
 }
 
-// NewCreateDIPResultAccepted builds a "DIPs" service "create" endpoint result
+// NewCreateResultAccepted builds a "DIPs" service "create" endpoint result
 // from a HTTP "Accepted" response.
-func NewCreateDIPResultAccepted(body *CreateResponseBody) *dips.CreateDIPResult {
-	v := &dips.CreateDIPResult{
+func NewCreateResultAccepted(body *CreateResponseBody) *dips.CreateResult {
+	v := &dips.CreateResult{
 		ID: dips.DIPID(*body.ID),
 	}
 
 	return v
 }
 
-// NewCreateInternalError builds a DIPs service create endpoint internal_error
-// error.
-func NewCreateInternalError(body *CreateInternalErrorResponseBody) *dips.InternalProblem {
-	v := &dips.InternalProblem{
+// NewCreateBadRequest builds a DIPs service create endpoint bad_request error.
+func NewCreateBadRequest(body *CreateBadRequestResponseBody) *dips.BadRequestProblem {
+	v := &dips.BadRequestProblem{
 		Type:     *body.Type,
 		Title:    *body.Title,
 		Detail:   *body.Detail,
@@ -174,9 +173,10 @@ func NewCreateInternalError(body *CreateInternalErrorResponseBody) *dips.Interna
 	return v
 }
 
-// NewCreateNotValid builds a DIPs service create endpoint not_valid error.
-func NewCreateNotValid(body *CreateNotValidResponseBody) *dips.NotValidProblem {
-	v := &dips.NotValidProblem{
+// NewCreateInternalServerError builds a DIPs service create endpoint
+// internal_server_error error.
+func NewCreateInternalServerError(body *CreateInternalServerErrorResponseBody) *dips.InternalServerErrorProblem {
+	v := &dips.InternalServerErrorProblem{
 		Type:     *body.Type,
 		Title:    *body.Title,
 		Detail:   *body.Detail,
@@ -201,10 +201,10 @@ func NewCreateUnauthorized(body *CreateUnauthorizedResponseBody) *dips.Unauthori
 	return v
 }
 
-// NewShowDIPOK builds a "DIPs" service "show" endpoint result from a HTTP "OK"
-// response.
-func NewShowDIPOK(body *ShowResponseBody) *dips.DIP {
-	v := &dips.DIP{
+// NewShowResultOK builds a "DIPs" service "show" endpoint result from a HTTP
+// "OK" response.
+func NewShowResultOK(body *ShowResponseBody) *dips.ShowResult {
+	v := &dips.ShowResult{
 		ID:        dips.DIPID(*body.ID),
 		DocKey:    dips.DocKey(*body.DocKey),
 		Status:    dips.DIPStatus(*body.Status),
@@ -226,10 +226,10 @@ func NewShowDIPOK(body *ShowResponseBody) *dips.DIP {
 	return v
 }
 
-// NewShowInternalError builds a DIPs service show endpoint internal_error
-// error.
-func NewShowInternalError(body *ShowInternalErrorResponseBody) *dips.InternalProblem {
-	v := &dips.InternalProblem{
+// NewShowInternalServerError builds a DIPs service show endpoint
+// internal_server_error error.
+func NewShowInternalServerError(body *ShowInternalServerErrorResponseBody) *dips.InternalServerErrorProblem {
+	v := &dips.InternalServerErrorProblem{
 		Type:     *body.Type,
 		Title:    *body.Title,
 		Detail:   *body.Detail,
@@ -321,9 +321,9 @@ func ValidateShowResponseBody(body *ShowResponseBody) (err error) {
 	return
 }
 
-// ValidateCreateInternalErrorResponseBody runs the validations defined on
-// create_internal_error_response_body
-func ValidateCreateInternalErrorResponseBody(body *CreateInternalErrorResponseBody) (err error) {
+// ValidateCreateBadRequestResponseBody runs the validations defined on
+// create_bad_request_response_body
+func ValidateCreateBadRequestResponseBody(body *CreateBadRequestResponseBody) (err error) {
 	if body.Type == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("type", "body"))
 	}
@@ -342,9 +342,9 @@ func ValidateCreateInternalErrorResponseBody(body *CreateInternalErrorResponseBo
 	return
 }
 
-// ValidateCreateNotValidResponseBody runs the validations defined on
-// create_not_valid_response_body
-func ValidateCreateNotValidResponseBody(body *CreateNotValidResponseBody) (err error) {
+// ValidateCreateInternalServerErrorResponseBody runs the validations defined
+// on create_internal_server_error_response_body
+func ValidateCreateInternalServerErrorResponseBody(body *CreateInternalServerErrorResponseBody) (err error) {
 	if body.Type == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("type", "body"))
 	}
@@ -384,9 +384,9 @@ func ValidateCreateUnauthorizedResponseBody(body *CreateUnauthorizedResponseBody
 	return
 }
 
-// ValidateShowInternalErrorResponseBody runs the validations defined on
-// show_internal_error_response_body
-func ValidateShowInternalErrorResponseBody(body *ShowInternalErrorResponseBody) (err error) {
+// ValidateShowInternalServerErrorResponseBody runs the validations defined on
+// show_internal_server_error_response_body
+func ValidateShowInternalServerErrorResponseBody(body *ShowInternalServerErrorResponseBody) (err error) {
 	if body.Type == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("type", "body"))
 	}

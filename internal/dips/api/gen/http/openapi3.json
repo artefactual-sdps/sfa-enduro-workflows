@@ -1,14 +1,13 @@
 {
   "components": {
     "schemas": {
-      "CreateDIPResult": {
-        "description": "CreateDIPResult contains the result of a DIP creation request.",
+      "CreateResponseBody": {
         "example": {
           "id": "3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb"
         },
         "properties": {
           "id": {
-            "description": "DIPID uniquely identifies a DIP.",
+            "description": "The id field contains the identifier assigned to the DIP.",
             "example": "3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb",
             "format": "uuid",
             "type": "string"
@@ -16,74 +15,6 @@
         },
         "required": [
           "id"
-        ],
-        "type": "object"
-      },
-      "DIP": {
-        "description": "DIP represents the details of a DIP.",
-        "example": {
-          "completed_at": "2026-05-27T15:04:05Z",
-          "created_at": "2026-05-27T15:04:05Z",
-          "docKey": "CH-000001",
-          "id": "3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb",
-          "object_key": "dips/3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb.zip",
-          "started_at": "2026-05-27T15:04:05Z",
-          "status": "done"
-        },
-        "properties": {
-          "completed_at": {
-            "description": "DateTime represents an RFC3339 timestamp.",
-            "example": "2026-05-27T15:04:05Z",
-            "format": "date-time",
-            "type": "string"
-          },
-          "created_at": {
-            "description": "DateTime represents an RFC3339 timestamp.",
-            "example": "2026-05-27T15:04:05Z",
-            "format": "date-time",
-            "type": "string"
-          },
-          "docKey": {
-            "description": "DocKey is the document key used to create a DIP.",
-            "example": "CH-000001",
-            "minLength": 1,
-            "type": "string"
-          },
-          "id": {
-            "description": "DIPID uniquely identifies a DIP.",
-            "example": "3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb",
-            "format": "uuid",
-            "type": "string"
-          },
-          "object_key": {
-            "description": "ObjectKey represents the object store key for a DIP.",
-            "example": "dips/3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb.zip",
-            "minLength": 1,
-            "type": "string"
-          },
-          "started_at": {
-            "description": "DateTime represents an RFC3339 timestamp.",
-            "example": "2026-05-27T15:04:05Z",
-            "format": "date-time",
-            "type": "string"
-          },
-          "status": {
-            "description": "DIPStatus represents the current status of a DIP.",
-            "enum": [
-              "queued",
-              "in progress",
-              "done",
-              "failed"
-            ],
-            "example": "done",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "docKey",
-          "status",
-          "created_at"
         ],
         "type": "object"
       },
@@ -129,6 +60,73 @@
           "title",
           "status",
           "detail"
+        ],
+        "type": "object"
+      },
+      "ShowResponseBody": {
+        "example": {
+          "completed_at": "2026-05-27T15:04:05Z",
+          "created_at": "2026-05-27T15:04:05Z",
+          "docKey": "CH-000001",
+          "id": "3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb",
+          "object_key": "dips/3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb.zip",
+          "started_at": "2026-05-27T15:04:05Z",
+          "status": "done"
+        },
+        "properties": {
+          "completed_at": {
+            "description": "The completed_at field contains the time when DIP processing completed.",
+            "example": "2026-05-27T15:04:05Z",
+            "format": "date-time",
+            "type": "string"
+          },
+          "created_at": {
+            "description": "The created_at field contains the time when the DIP was requested.",
+            "example": "2026-05-27T15:04:05Z",
+            "format": "date-time",
+            "type": "string"
+          },
+          "docKey": {
+            "description": "The docKey field contains the document key used to create the DIP.",
+            "example": "CH-000001",
+            "minLength": 1,
+            "type": "string"
+          },
+          "id": {
+            "description": "The id field uniquely identifies the DIP.",
+            "example": "3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb",
+            "format": "uuid",
+            "type": "string"
+          },
+          "object_key": {
+            "description": "The object_key field contains the object store key for the completed DIP.",
+            "example": "dips/3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb.zip",
+            "minLength": 1,
+            "type": "string"
+          },
+          "started_at": {
+            "description": "The started_at field contains the time when DIP processing started.",
+            "example": "2026-05-27T15:04:05Z",
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "description": "The status field contains the current DIP status.",
+            "enum": [
+              "queued",
+              "in progress",
+              "done",
+              "failed"
+            ],
+            "example": "done",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "docKey",
+          "status",
+          "created_at"
         ],
         "type": "object"
       }
@@ -184,7 +182,7 @@
                   "id": "3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb"
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/CreateDIPResult"
+                  "$ref": "#/components/schemas/CreateResponseBody"
                 }
               }
             },
@@ -204,13 +202,13 @@
                 }
               }
             },
-            "description": "not_valid: The request parameters are invalid."
+            "description": "bad_request: Bad Request response."
           },
           "401": {
             "content": {
               "application/problem+json": {
                 "example": {
-                  "detail": "The Authorization header is missing or invalid.",
+                  "detail": "The bearer token is missing or invalid.",
                   "status": 401,
                   "title": "Unauthorized",
                   "type": "about:blank"
@@ -220,13 +218,13 @@
                 }
               }
             },
-            "description": "unauthorized: The bearer token is missing or invalid."
+            "description": "unauthorized: Unauthorized response."
           },
           "500": {
             "content": {
               "application/problem+json": {
                 "example": {
-                  "detail": "The DIP request could not be processed.",
+                  "detail": "An error occurred when attempting to process the DIP request.",
                   "status": 500,
                   "title": "Internal Server Error",
                   "type": "about:blank"
@@ -236,7 +234,7 @@
                 }
               }
             },
-            "description": "internal_error: An unexpected server error occurred."
+            "description": "internal_server_error: Internal Server Error response."
           }
         },
         "security": [
@@ -283,7 +281,7 @@
                   "status": "done"
                 },
                 "schema": {
-                  "$ref": "#/components/schemas/DIP"
+                  "$ref": "#/components/schemas/ShowResponseBody"
                 }
               }
             },
@@ -293,7 +291,7 @@
             "content": {
               "application/problem+json": {
                 "example": {
-                  "detail": "The Authorization header is missing or invalid.",
+                  "detail": "The bearer token is missing or invalid.",
                   "status": 401,
                   "title": "Unauthorized",
                   "type": "about:blank"
@@ -303,7 +301,7 @@
                 }
               }
             },
-            "description": "unauthorized: The bearer token is missing or invalid."
+            "description": "unauthorized: Unauthorized response."
           },
           "404": {
             "content": {
@@ -319,13 +317,13 @@
                 }
               }
             },
-            "description": "not_found: The requested DIP was not found."
+            "description": "not_found: Not Found response."
           },
           "500": {
             "content": {
               "application/problem+json": {
                 "example": {
-                  "detail": "The DIP request could not be processed.",
+                  "detail": "An error occurred when attempting to process the DIP request.",
                   "status": 500,
                   "title": "Internal Server Error",
                   "type": "about:blank"
@@ -335,7 +333,7 @@
                 }
               }
             },
-            "description": "internal_error: An unexpected server error occurred."
+            "description": "internal_server_error: Internal Server Error response."
           }
         },
         "security": [

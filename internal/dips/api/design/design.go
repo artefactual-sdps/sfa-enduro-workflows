@@ -70,14 +70,14 @@ var ProblemDetails = Type("ProblemDetails", func() {
 	Required("type", "title", "status", "detail")
 })
 
-var NotValidProblem = Type("NotValidProblem", func() {
-	Description("NotValidProblem represents an invalid request problem.")
+var BadRequestProblem = Type("BadRequestProblem", func() {
+	Description("BadRequestProblem represents an invalid request problem.")
 	problemDetailsType("Bad Request", "The request body is missing the docKey field.", StatusBadRequest)
 })
 
 var UnauthorizedProblem = Type("UnauthorizedProblem", func() {
 	Description("UnauthorizedProblem represents an authentication problem.")
-	problemDetailsType("Unauthorized", "The Authorization header is missing or invalid.", StatusUnauthorized)
+	problemDetailsType("Unauthorized", "The bearer token is missing or invalid.", StatusUnauthorized)
 })
 
 var NotFoundProblem = Type("NotFoundProblem", func() {
@@ -85,41 +85,23 @@ var NotFoundProblem = Type("NotFoundProblem", func() {
 	problemDetailsType("Not Found", "The requested DIP does not exist.", StatusNotFound)
 })
 
-var InternalProblem = Type("InternalProblem", func() {
-	Description("InternalProblem represents an unexpected server problem.")
-	problemDetailsType("Internal Server Error", "The DIP request could not be processed.", StatusInternalServerError)
-})
-
-var CreateDIPResult = Type("CreateDIPResult", func() {
-	Description("CreateDIPResult contains the result of a DIP creation request.")
-	Field(1, "id", DIPID, "The id field contains the identifier assigned to the DIP.")
-	Required("id")
-})
-
-var DIP = Type("DIP", func() {
-	Description("DIP represents the details of a DIP.")
-	Field(1, "id", DIPID, "The id field uniquely identifies the DIP.")
-	Field(2, "docKey", DocKey, "The docKey field contains the document key used to create the DIP.")
-	Field(3, "status", DIPStatus, "The status field contains the current DIP status.")
-	Field(4, "created_at", DateTime, "The created_at field contains the time when the DIP was requested.")
-	Field(5, "started_at", DateTime, "The started_at field contains the time when DIP processing started.")
-	Field(6, "completed_at", DateTime, "The completed_at field contains the time when DIP processing completed.")
-	Field(7, "object_key", ObjectKey, "The object_key field contains the object store key for the completed DIP.")
-	Required("id", "docKey", "status", "created_at")
+var InternalServerErrorProblem = Type("InternalServerErrorProblem", func() {
+	Description("InternalServerErrorProblem represents an unexpected server problem.")
+	problemDetailsType("Internal Server Error", "An error occurred when attempting to process the DIP request.", StatusInternalServerError)
 })
 
 var _ = Service("DIPs", func() {
 	Description("The DIPs service requests DIP creation and retrieves DIP details.")
 	Security(BearerAuth)
 
-	Error("not_valid", NotValidProblem, "The request parameters are invalid.")
-	Error("unauthorized", UnauthorizedProblem, "The bearer token is missing or invalid.")
-	Error("not_found", NotFoundProblem, "The requested DIP was not found.")
-	Error("internal_error", InternalProblem, "An unexpected server error occurred.")
+	Error("bad_request", BadRequestProblem)
+	Error("unauthorized", UnauthorizedProblem)
+	Error("not_found", NotFoundProblem)
+	Error("internal_server_error", InternalServerErrorProblem)
 
 	HTTP(func() {
-		Response("unauthorized", StatusUnauthorized, problemDetailsResponse("The bearer token is missing or invalid."))
-		Response("internal_error", StatusInternalServerError, problemDetailsResponse("An unexpected server error occurred."))
+		Response("unauthorized", StatusUnauthorized, problemDetailsResponse())
+		Response("internal_server_error", StatusInternalServerError, problemDetailsResponse())
 	})
 
 	Method("create", func() {
@@ -129,7 +111,10 @@ var _ = Service("DIPs", func() {
 			Field(2, "docKey", DocKey, "The docKey field contains the document key used to create the DIP.")
 			Required("token", "docKey")
 		})
-		Result(CreateDIPResult)
+		Result(func() {
+			Field(1, "id", DIPID, "The id field contains the identifier assigned to the DIP.")
+			Required("id")
+		})
 
 		HTTP(func() {
 			POST("/dips")
@@ -138,7 +123,7 @@ var _ = Service("DIPs", func() {
 				Attribute("docKey")
 			})
 			Response(StatusAccepted)
-			Response("not_valid", StatusBadRequest, problemDetailsResponse("The request parameters are invalid."))
+			Response("bad_request", StatusBadRequest, problemDetailsResponse())
 		})
 	})
 
@@ -149,13 +134,22 @@ var _ = Service("DIPs", func() {
 			Field(2, "id", DIPID, "The id field contains the DIP identifier.")
 			Required("token", "id")
 		})
-		Result(DIP)
+		Result(func() {
+			Field(1, "id", DIPID, "The id field uniquely identifies the DIP.")
+			Field(2, "docKey", DocKey, "The docKey field contains the document key used to create the DIP.")
+			Field(3, "status", DIPStatus, "The status field contains the current DIP status.")
+			Field(4, "created_at", DateTime, "The created_at field contains the time when the DIP was requested.")
+			Field(5, "started_at", DateTime, "The started_at field contains the time when DIP processing started.")
+			Field(6, "completed_at", DateTime, "The completed_at field contains the time when DIP processing completed.")
+			Field(7, "object_key", ObjectKey, "The object_key field contains the object store key for the completed DIP.")
+			Required("id", "docKey", "status", "created_at")
+		})
 
 		HTTP(func() {
 			GET("/dips/{id}")
 			Header("token:Authorization")
 			Response(StatusOK)
-			Response("not_found", StatusNotFound, problemDetailsResponse("The requested DIP was not found."))
+			Response("not_found", StatusNotFound, problemDetailsResponse())
 		})
 	})
 })
@@ -189,9 +183,8 @@ func problemDetailsType(title, detail string, status int32) {
 	})
 }
 
-func problemDetailsResponse(description string) func() {
+func problemDetailsResponse() func() {
 	return func() {
-		Description(description)
 		ContentType("application/problem+json")
 	}
 }

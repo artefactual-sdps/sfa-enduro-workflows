@@ -39,9 +39,9 @@ type ShowResponseBody struct {
 	ObjectKey *string `form:"object_key,omitempty" json:"object_key,omitempty" xml:"object_key,omitempty"`
 }
 
-// CreateInternalErrorResponseBody is the type of the "DIPs" service "create"
-// endpoint HTTP response body for the "internal_error" error.
-type CreateInternalErrorResponseBody struct {
+// CreateBadRequestResponseBody is the type of the "DIPs" service "create"
+// endpoint HTTP response body for the "bad_request" error.
+type CreateBadRequestResponseBody struct {
 	// The type field contains a URI reference that identifies the problem type.
 	Type string `form:"type" json:"type" xml:"type"`
 	// The title field contains a short, human-readable summary of the problem type.
@@ -57,9 +57,9 @@ type CreateInternalErrorResponseBody struct {
 	Instance *string `form:"instance,omitempty" json:"instance,omitempty" xml:"instance,omitempty"`
 }
 
-// CreateNotValidResponseBody is the type of the "DIPs" service "create"
-// endpoint HTTP response body for the "not_valid" error.
-type CreateNotValidResponseBody struct {
+// CreateInternalServerErrorResponseBody is the type of the "DIPs" service
+// "create" endpoint HTTP response body for the "internal_server_error" error.
+type CreateInternalServerErrorResponseBody struct {
 	// The type field contains a URI reference that identifies the problem type.
 	Type string `form:"type" json:"type" xml:"type"`
 	// The title field contains a short, human-readable summary of the problem type.
@@ -93,9 +93,9 @@ type CreateUnauthorizedResponseBody struct {
 	Instance *string `form:"instance,omitempty" json:"instance,omitempty" xml:"instance,omitempty"`
 }
 
-// ShowInternalErrorResponseBody is the type of the "DIPs" service "show"
-// endpoint HTTP response body for the "internal_error" error.
-type ShowInternalErrorResponseBody struct {
+// ShowInternalServerErrorResponseBody is the type of the "DIPs" service "show"
+// endpoint HTTP response body for the "internal_server_error" error.
+type ShowInternalServerErrorResponseBody struct {
 	// The type field contains a URI reference that identifies the problem type.
 	Type string `form:"type" json:"type" xml:"type"`
 	// The title field contains a short, human-readable summary of the problem type.
@@ -149,7 +149,7 @@ type ShowUnauthorizedResponseBody struct {
 
 // NewCreateResponseBody builds the HTTP response body from the result of the
 // "create" endpoint of the "DIPs" service.
-func NewCreateResponseBody(res *dips.CreateDIPResult) *CreateResponseBody {
+func NewCreateResponseBody(res *dips.CreateResult) *CreateResponseBody {
 	body := &CreateResponseBody{
 		ID: string(res.ID),
 	}
@@ -158,7 +158,7 @@ func NewCreateResponseBody(res *dips.CreateDIPResult) *CreateResponseBody {
 
 // NewShowResponseBody builds the HTTP response body from the result of the
 // "show" endpoint of the "DIPs" service.
-func NewShowResponseBody(res *dips.DIP) *ShowResponseBody {
+func NewShowResponseBody(res *dips.ShowResult) *ShowResponseBody {
 	body := &ShowResponseBody{
 		ID:        string(res.ID),
 		DocKey:    string(res.DocKey),
@@ -180,10 +180,10 @@ func NewShowResponseBody(res *dips.DIP) *ShowResponseBody {
 	return body
 }
 
-// NewCreateInternalErrorResponseBody builds the HTTP response body from the
+// NewCreateBadRequestResponseBody builds the HTTP response body from the
 // result of the "create" endpoint of the "DIPs" service.
-func NewCreateInternalErrorResponseBody(res *dips.InternalProblem) *CreateInternalErrorResponseBody {
-	body := &CreateInternalErrorResponseBody{
+func NewCreateBadRequestResponseBody(res *dips.BadRequestProblem) *CreateBadRequestResponseBody {
+	body := &CreateBadRequestResponseBody{
 		Type:     res.Type,
 		Title:    res.Title,
 		Detail:   res.Detail,
@@ -193,10 +193,10 @@ func NewCreateInternalErrorResponseBody(res *dips.InternalProblem) *CreateIntern
 	return body
 }
 
-// NewCreateNotValidResponseBody builds the HTTP response body from the result
-// of the "create" endpoint of the "DIPs" service.
-func NewCreateNotValidResponseBody(res *dips.NotValidProblem) *CreateNotValidResponseBody {
-	body := &CreateNotValidResponseBody{
+// NewCreateInternalServerErrorResponseBody builds the HTTP response body from
+// the result of the "create" endpoint of the "DIPs" service.
+func NewCreateInternalServerErrorResponseBody(res *dips.InternalServerErrorProblem) *CreateInternalServerErrorResponseBody {
+	body := &CreateInternalServerErrorResponseBody{
 		Type:     res.Type,
 		Title:    res.Title,
 		Detail:   res.Detail,
@@ -219,10 +219,10 @@ func NewCreateUnauthorizedResponseBody(res *dips.UnauthorizedProblem) *CreateUna
 	return body
 }
 
-// NewShowInternalErrorResponseBody builds the HTTP response body from the
-// result of the "show" endpoint of the "DIPs" service.
-func NewShowInternalErrorResponseBody(res *dips.InternalProblem) *ShowInternalErrorResponseBody {
-	body := &ShowInternalErrorResponseBody{
+// NewShowInternalServerErrorResponseBody builds the HTTP response body from
+// the result of the "show" endpoint of the "DIPs" service.
+func NewShowInternalServerErrorResponseBody(res *dips.InternalServerErrorProblem) *ShowInternalServerErrorResponseBody {
+	body := &ShowInternalServerErrorResponseBody{
 		Type:     res.Type,
 		Title:    res.Title,
 		Detail:   res.Detail,

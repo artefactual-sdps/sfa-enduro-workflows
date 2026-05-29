@@ -31,32 +31,32 @@ func NewClient(create, show goa.Endpoint) *Client {
 
 // Create calls the "create" endpoint of the "DIPs" service.
 // Create may return the following errors:
-//   - "not_valid" (type *NotValidProblem): The request parameters are invalid.
-//   - "unauthorized" (type *UnauthorizedProblem): The bearer token is missing or invalid.
-//   - "not_found" (type *NotFoundProblem): The requested DIP was not found.
-//   - "internal_error" (type *InternalProblem): An unexpected server error occurred.
+//   - "bad_request" (type *BadRequestProblem)
+//   - "unauthorized" (type *UnauthorizedProblem)
+//   - "not_found" (type *NotFoundProblem)
+//   - "internal_server_error" (type *InternalServerErrorProblem)
 //   - error: internal error
-func (c *Client) Create(ctx context.Context, p *CreatePayload) (res *CreateDIPResult, err error) {
+func (c *Client) Create(ctx context.Context, p *CreatePayload) (res *CreateResult, err error) {
 	var ires any
 	ires, err = c.CreateEndpoint(ctx, p)
 	if err != nil {
 		return
 	}
-	return ires.(*CreateDIPResult), nil
+	return ires.(*CreateResult), nil
 }
 
 // Show calls the "show" endpoint of the "DIPs" service.
 // Show may return the following errors:
-//   - "not_valid" (type *NotValidProblem): The request parameters are invalid.
-//   - "unauthorized" (type *UnauthorizedProblem): The bearer token is missing or invalid.
-//   - "not_found" (type *NotFoundProblem): The requested DIP was not found.
-//   - "internal_error" (type *InternalProblem): An unexpected server error occurred.
+//   - "bad_request" (type *BadRequestProblem)
+//   - "unauthorized" (type *UnauthorizedProblem)
+//   - "not_found" (type *NotFoundProblem)
+//   - "internal_server_error" (type *InternalServerErrorProblem)
 //   - error: internal error
-func (c *Client) Show(ctx context.Context, p *ShowPayload) (res *DIP, err error) {
+func (c *Client) Show(ctx context.Context, p *ShowPayload) (res *ShowResult, err error) {
 	var ires any
 	ires, err = c.ShowEndpoint(ctx, p)
 	if err != nil {
 		return
 	}
-	return ires.(*DIP), nil
+	return ires.(*ShowResult), nil
 }

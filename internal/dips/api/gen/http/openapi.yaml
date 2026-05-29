@@ -36,11 +36,11 @@ paths:
                 "202":
                     description: Accepted response.
                     schema:
-                        $ref: '#/definitions/CreateDIPResult'
+                        $ref: '#/definitions/DIPsCreateResponseBody'
                         required:
                             - id
                 "400":
-                    description: The request parameters are invalid.
+                    description: Bad Request response.
                     schema:
                         $ref: '#/definitions/ProblemDetails'
                         required:
@@ -49,7 +49,7 @@ paths:
                             - status
                             - detail
                 "401":
-                    description: The bearer token is missing or invalid.
+                    description: Unauthorized response.
                     schema:
                         $ref: '#/definitions/ProblemDetails'
                         required:
@@ -58,7 +58,7 @@ paths:
                             - status
                             - detail
                 "500":
-                    description: An unexpected server error occurred.
+                    description: Internal Server Error response.
                     schema:
                         $ref: '#/definitions/ProblemDetails'
                         required:
@@ -88,14 +88,14 @@ paths:
                 "200":
                     description: OK response.
                     schema:
-                        $ref: '#/definitions/DIP'
+                        $ref: '#/definitions/DIPsShowResponseBody'
                         required:
                             - id
                             - docKey
                             - status
                             - created_at
                 "401":
-                    description: The bearer token is missing or invalid.
+                    description: Unauthorized response.
                     schema:
                         $ref: '#/definitions/ProblemDetails'
                         required:
@@ -104,7 +104,7 @@ paths:
                             - status
                             - detail
                 "404":
-                    description: The requested DIP was not found.
+                    description: Not Found response.
                     schema:
                         $ref: '#/definitions/ProblemDetails'
                         required:
@@ -113,7 +113,7 @@ paths:
                             - status
                             - detail
                 "500":
-                    description: An unexpected server error occurred.
+                    description: Internal Server Error response.
                     schema:
                         $ref: '#/definitions/ProblemDetails'
                         required:
@@ -126,8 +126,8 @@ paths:
             security:
                 - bearer_header_Authorization: []
 definitions:
-    CreateDIPResult:
-        title: CreateDIPResult
+    DIPsCreateResponseBody:
+        title: DIPsCreateResponseBody
         type: object
         properties:
             id:
@@ -139,8 +139,8 @@ definitions:
             id: 3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb
         required:
             - id
-    DIP:
-        title: DIP
+    DIPsShowResponseBody:
+        title: DIPsShowResponseBody
         type: object
         properties:
             completed_at:
@@ -221,7 +221,6 @@ definitions:
                 default: about:blank
                 example: about:blank
                 format: uri
-        description: The request parameters are invalid.
         example:
             detail: The request body is missing the docKey field.
             status: 400

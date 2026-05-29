@@ -64,8 +64,8 @@ func EncodeCreateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http
 // create endpoint. restoreBody controls whether the response body should be
 // restored after having been read.
 // DecodeCreateResponse may return the following errors:
-//   - "internal_error" (type *dips.InternalProblem): http.StatusInternalServerError
-//   - "not_valid" (type *dips.NotValidProblem): http.StatusBadRequest
+//   - "bad_request" (type *dips.BadRequestProblem): http.StatusBadRequest
+//   - "internal_server_error" (type *dips.InternalServerErrorProblem): http.StatusInternalServerError
 //   - "unauthorized" (type *dips.UnauthorizedProblem): http.StatusUnauthorized
 //   - error: internal error
 func DecodeCreateResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
@@ -96,36 +96,36 @@ func DecodeCreateResponse(decoder func(*http.Response) goahttp.Decoder, restoreB
 			if err != nil {
 				return nil, goahttp.ErrValidationError("DIPs", "create", err)
 			}
-			res := NewCreateDIPResultAccepted(&body)
+			res := NewCreateResultAccepted(&body)
 			return res, nil
-		case http.StatusInternalServerError:
-			var (
-				body CreateInternalErrorResponseBody
-				err  error
-			)
-			err = decoder(resp).Decode(&body)
-			if err != nil {
-				return nil, goahttp.ErrDecodingError("DIPs", "create", err)
-			}
-			err = ValidateCreateInternalErrorResponseBody(&body)
-			if err != nil {
-				return nil, goahttp.ErrValidationError("DIPs", "create", err)
-			}
-			return nil, NewCreateInternalError(&body)
 		case http.StatusBadRequest:
 			var (
-				body CreateNotValidResponseBody
+				body CreateBadRequestResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
 				return nil, goahttp.ErrDecodingError("DIPs", "create", err)
 			}
-			err = ValidateCreateNotValidResponseBody(&body)
+			err = ValidateCreateBadRequestResponseBody(&body)
 			if err != nil {
 				return nil, goahttp.ErrValidationError("DIPs", "create", err)
 			}
-			return nil, NewCreateNotValid(&body)
+			return nil, NewCreateBadRequest(&body)
+		case http.StatusInternalServerError:
+			var (
+				body CreateInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("DIPs", "create", err)
+			}
+			err = ValidateCreateInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("DIPs", "create", err)
+			}
+			return nil, NewCreateInternalServerError(&body)
 		case http.StatusUnauthorized:
 			var (
 				body CreateUnauthorizedResponseBody
@@ -196,7 +196,7 @@ func EncodeShowRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.R
 // endpoint. restoreBody controls whether the response body should be restored
 // after having been read.
 // DecodeShowResponse may return the following errors:
-//   - "internal_error" (type *dips.InternalProblem): http.StatusInternalServerError
+//   - "internal_server_error" (type *dips.InternalServerErrorProblem): http.StatusInternalServerError
 //   - "not_found" (type *dips.NotFoundProblem): http.StatusNotFound
 //   - "unauthorized" (type *dips.UnauthorizedProblem): http.StatusUnauthorized
 //   - error: internal error
@@ -228,22 +228,22 @@ func DecodeShowResponse(decoder func(*http.Response) goahttp.Decoder, restoreBod
 			if err != nil {
 				return nil, goahttp.ErrValidationError("DIPs", "show", err)
 			}
-			res := NewShowDIPOK(&body)
+			res := NewShowResultOK(&body)
 			return res, nil
 		case http.StatusInternalServerError:
 			var (
-				body ShowInternalErrorResponseBody
+				body ShowInternalServerErrorResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
 				return nil, goahttp.ErrDecodingError("DIPs", "show", err)
 			}
-			err = ValidateShowInternalErrorResponseBody(&body)
+			err = ValidateShowInternalServerErrorResponseBody(&body)
 			if err != nil {
 				return nil, goahttp.ErrValidationError("DIPs", "show", err)
 			}
-			return nil, NewShowInternalError(&body)
+			return nil, NewShowInternalServerError(&body)
 		case http.StatusNotFound:
 			var (
 				body ShowNotFoundResponseBody

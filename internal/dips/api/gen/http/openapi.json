@@ -5,7 +5,7 @@
     "application/gob"
   ],
   "definitions": {
-    "CreateDIPResult": {
+    "DIPsCreateResponseBody": {
       "example": {
         "id": "3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb"
       },
@@ -20,10 +20,10 @@
       "required": [
         "id"
       ],
-      "title": "CreateDIPResult",
+      "title": "DIPsCreateResponseBody",
       "type": "object"
     },
-    "DIP": {
+    "DIPsShowResponseBody": {
       "example": {
         "completed_at": "2026-05-27T15:04:05Z",
         "created_at": "2026-05-27T15:04:05Z",
@@ -88,11 +88,10 @@
         "status",
         "created_at"
       ],
-      "title": "DIP",
+      "title": "DIPsShowResponseBody",
       "type": "object"
     },
     "ProblemDetails": {
-      "description": "The request parameters are invalid.",
       "example": {
         "detail": "The request body is missing the docKey field.",
         "status": 400,
@@ -171,14 +170,14 @@
           "202": {
             "description": "Accepted response.",
             "schema": {
-              "$ref": "#/definitions/CreateDIPResult",
+              "$ref": "#/definitions/DIPsCreateResponseBody",
               "required": [
                 "id"
               ]
             }
           },
           "400": {
-            "description": "The request parameters are invalid.",
+            "description": "Bad Request response.",
             "schema": {
               "$ref": "#/definitions/ProblemDetails",
               "required": [
@@ -190,7 +189,7 @@
             }
           },
           "401": {
-            "description": "The bearer token is missing or invalid.",
+            "description": "Unauthorized response.",
             "schema": {
               "$ref": "#/definitions/ProblemDetails",
               "required": [
@@ -202,7 +201,7 @@
             }
           },
           "500": {
-            "description": "An unexpected server error occurred.",
+            "description": "Internal Server Error response.",
             "schema": {
               "$ref": "#/definitions/ProblemDetails",
               "required": [
@@ -246,7 +245,7 @@
           "200": {
             "description": "OK response.",
             "schema": {
-              "$ref": "#/definitions/DIP",
+              "$ref": "#/definitions/DIPsShowResponseBody",
               "required": [
                 "id",
                 "docKey",
@@ -256,7 +255,7 @@
             }
           },
           "401": {
-            "description": "The bearer token is missing or invalid.",
+            "description": "Unauthorized response.",
             "schema": {
               "$ref": "#/definitions/ProblemDetails",
               "required": [
@@ -268,7 +267,7 @@
             }
           },
           "404": {
-            "description": "The requested DIP was not found.",
+            "description": "Not Found response.",
             "schema": {
               "$ref": "#/definitions/ProblemDetails",
               "required": [
@@ -280,7 +279,7 @@
             }
           },
           "500": {
-            "description": "An unexpected server error occurred.",
+            "description": "Internal Server Error response.",
             "schema": {
               "$ref": "#/definitions/ProblemDetails",
               "required": [
