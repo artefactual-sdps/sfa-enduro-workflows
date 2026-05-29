@@ -45,27 +45,12 @@ var ObjectKey = Type("ObjectKey", String, func() {
 	Example("dips/3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb.zip")
 })
 
-const (
-	// RFC 9457 "type" values double as Goa error names. Goa uses the
-	// ErrorName field value to select the HTTP response mapping when a single
-	// custom error type is reused for multiple errors, so these constants must
-	// match the Error and Response names below.
-	problemTypeUnauthorized = "/problems/unauthorized"
-	problemTypeNotValid     = "/problems/not-valid"
-	problemTypeNotFound     = "/problems/not-found"
-	problemTypeInternal     = "/problems/internal-error"
-)
-
 var ProblemDetails = Type("ProblemDetails", func() {
 	Description("ProblemDetails represents an RFC 9457 problem details object.")
-	// Use the RFC 9457 "type" member as Goa's error discriminator instead of
-	// adding a private "name" field. This keeps the wire body and OpenAPI schema
-	// to the standard problem details fields while still letting Goa route
-	// shared errors to distinct HTTP status codes.
-	ErrorName("type", String, "The type field contains a URI reference that identifies the problem type.", func() {
+	Attribute("type", String, "The type field contains a URI reference that identifies the problem type.", func() {
 		Format(FormatURI)
-		Enum(problemTypeUnauthorized, problemTypeNotValid, problemTypeNotFound, problemTypeInternal)
-		Example(problemTypeNotValid)
+		Default("about:blank")
+		Example("about:blank")
 	})
 	Attribute("title", String, "The title field contains a short, human-readable summary of the problem type.", func() {
 		Example("Invalid request parameters.")
@@ -83,6 +68,94 @@ var ProblemDetails = Type("ProblemDetails", func() {
 		Meta("openapi:example", "false")
 	})
 	Required("type", "title", "status", "detail")
+})
+
+var ParamError = Type("ParamError", func() {
+	Description("ParamError represents an error related to a specific request parameter.")
+	Field(1, "detail", String, "The detail field describes the error.", func() {
+		Example("The 'docKey' field is required.")
+	})
+	Field(2, "parameter", String, "The parameter field contains the name of the parameter that caused the error.", func() {
+		Example("docKey")
+	})
+})
+
+var MissingReqParamError = Type("MissingReqParamError", func() {
+	Description("One or more request parameters are missing.")
+
+	Reference(ProblemDetails)
+
+	// Attributes inherited from ProblemDetails.
+	Attribute("title", func() {
+		Example("Missing Request Parameter")
+	})
+	Attribute("detail", func() {
+		Example("One or more request parameters are missing.")
+	})
+	Attribute("status", func() {
+		Example(400)
+	})
+
+	// Override the type attribute with a default value specific to this error
+	// type.
+	Attribute("type", func() {
+		Default("https://problems-registry.smartbear.com/invalid-request-body")
+		Example("https://problems-registry.smartbear.com/missing-request-parameter")
+	})
+
+	// Additional attributes specific to this error type.
+	Attribute(
+		"code",
+		String,
+		"The code field contains a machine-readable error code.",
+		func() {
+			Example("400-03")
+		},
+	)
+	Attribute(
+		"errors",
+		ArrayOf(ParamError),
+		"A list of parameter errors.",
+		func() {
+			Example([]Val{
+				{
+					"detail":    "The 'docKey' field is required.",
+					"parameter": "docKey",
+				},
+			})
+		},
+	)
+
+	Example(func() {
+		Value(Val{
+			"code":   "400-03",
+			"detail": "The request is missing an expected query or path parameter.",
+			"status": 400,
+			"errors": []Val{
+				{
+					"detail":    "The 'docKey' field is required.",
+					"parameter": "docKey",
+				},
+			},
+			"title": "Missing Request Parameter",
+			"type":  "https://problems-registry.smartbear.com/missing-request-parameter",
+		})
+	})
+})
+
+var InternalError = Type("InternalError", func() {
+	Extend(ProblemDetails)
+	Description("An internal server error occurred.")
+})
+
+var NotFoundError = Type("NotFoundError", func() {
+	Extend(ProblemDetails)
+	Description("The requested resource is not found.")
+})
+
+var UnauthorizedError = Type("UnauthorizedError", func() {
+	Extend(ProblemDetails)
+	Description("The request is unauthorized due to missing or invalid authentication credentials.")
 })
 
 var CreateDIPResult = Type("CreateDIPResult", func() {
@@ -107,42 +180,14 @@ var _ = Service("DIPs", func() {
 	Description("The DIPs service requests DIP creation and retrieves DIP details.")
 	Security(BearerAuth)
 
-	Error(problemTypeNotValid, ProblemDetails, "The request parameters are invalid.", func() {
-		problemDetailsExample(
-			problemTypeNotValid,
-			"Invalid request parameters.",
-			"The request body is missing the docKey field.",
-			StatusBadRequest,
-		)
-	})
-	Error(problemTypeUnauthorized, ProblemDetails, "The bearer token is missing or invalid.", func() {
-		problemDetailsExample(
-			problemTypeUnauthorized,
-			"Invalid bearer token.",
-			"The Authorization header is missing or invalid.",
-			StatusUnauthorized,
-		)
-	})
-	Error(problemTypeNotFound, ProblemDetails, "The requested DIP was not found.", func() {
-		problemDetailsExample(
-			problemTypeNotFound,
-			"DIP not found.",
-			"The requested DIP does not exist.",
-			StatusNotFound,
-		)
-	})
-	Error(problemTypeInternal, ProblemDetails, "An unexpected server error occurred.", func() {
-		problemDetailsExample(
-			problemTypeInternal,
-			"Unexpected server error.",
-			"The DIP request could not be processed.",
-			StatusInternalServerError,
-		)
-	})
+	Error("missing_req_param", MissingReqParamError)
+	Error("internal", InternalError)
+	Error("unauthorized", UnauthorizedError)
 
 	HTTP(func() {
-		Response(problemTypeUnauthorized, StatusUnauthorized, problemDetailsResponse)
-		Response(problemTypeInternal, StatusInternalServerError, problemDetailsResponse)
+		errorResponse("missing_req_param", StatusBadRequest)
+		errorResponse("internal", StatusInternalServerError)
+		errorResponse("unauthorized", StatusUnauthorized)
 	})
 
 	Method("create", func() {
@@ -161,7 +206,6 @@ var _ = Service("DIPs", func() {
 				Attribute("docKey")
 			})
 			Response(StatusAccepted)
-			Response(problemTypeNotValid, StatusBadRequest, problemDetailsResponse)
 		})
 	})
 
@@ -174,11 +218,13 @@ var _ = Service("DIPs", func() {
 		})
 		Result(DIP)
 
+		Error("not_found", NotFoundError)
+
 		HTTP(func() {
 			GET("/dips/{id}")
 			Header("token:Authorization")
 			Response(StatusOK)
-			Response(problemTypeNotFound, StatusNotFound, problemDetailsResponse)
+			errorResponse("not_found", StatusNotFound)
 		})
 	})
 })
@@ -194,8 +240,8 @@ func problemDetailsExample(typ, title, detail string, status int32) {
 	})
 }
 
-func problemDetailsResponse() {
-	// The response body is inferred from ProblemDetails, and this helper only switches
-	// the media type from Goa's default JSON error response to RFC 9457 problem+json.
-	ContentType("application/problem+json")
+func errorResponse(errorName string, status int) {
+	Response(errorName, status, func() {
+		ContentType("application/problem+json")
+	})
 }

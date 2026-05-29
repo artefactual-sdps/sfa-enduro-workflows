@@ -40,38 +40,42 @@ paths:
                             example:
                                 id: 3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb
                 "400":
-                    description: '/problems/not-valid: The request parameters are invalid.'
+                    description: 'missing_req_param: Bad Request response.'
                     content:
                         application/problem+json:
                             schema:
-                                $ref: '#/components/schemas/ProblemDetails'
+                                $ref: '#/components/schemas/MissingReqParamError'
+                            example:
+                                code: 400-03
+                                detail: The request is missing an expected query or path parameter.
+                                errors:
+                                    - detail: The 'docKey' field is required.
+                                      parameter: docKey
+                                status: 400
+                                title: Missing Request Parameter
+                                type: https://problems-registry.smartbear.com/missing-request-parameter
+                "401":
+                    description: 'unauthorized: Unauthorized response.'
+                    content:
+                        application/problem+json:
+                            schema:
+                                $ref: '#/components/schemas/UnauthorizedError'
                             example:
                                 detail: The request body is missing the docKey field.
                                 status: 400
                                 title: Invalid request parameters.
-                                type: /problems/not-valid
-                "401":
-                    description: '/problems/unauthorized: The bearer token is missing or invalid.'
-                    content:
-                        application/problem+json:
-                            schema:
-                                $ref: '#/components/schemas/ProblemDetails'
-                            example:
-                                detail: The Authorization header is missing or invalid.
-                                status: 401
-                                title: Invalid bearer token.
-                                type: /problems/unauthorized
+                                type: about:blank
                 "500":
-                    description: '/problems/internal-error: An unexpected server error occurred.'
+                    description: 'internal: Internal Server Error response.'
                     content:
                         application/problem+json:
                             schema:
-                                $ref: '#/components/schemas/ProblemDetails'
+                                $ref: '#/components/schemas/InternalError'
                             example:
-                                detail: The DIP request could not be processed.
-                                status: 500
-                                title: Unexpected server error.
-                                type: /problems/internal-error
+                                detail: The request body is missing the docKey field.
+                                status: 400
+                                title: Invalid request parameters.
+                                type: about:blank
             security:
                 - bearer_header_Authorization: []
     /dips/{id}:
@@ -107,39 +111,54 @@ paths:
                                 object_key: dips/3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb.zip
                                 started_at: "2026-05-27T15:04:05Z"
                                 status: done
+                "400":
+                    description: 'missing_req_param: Bad Request response.'
+                    content:
+                        application/problem+json:
+                            schema:
+                                $ref: '#/components/schemas/MissingReqParamError'
+                            example:
+                                code: 400-03
+                                detail: The request is missing an expected query or path parameter.
+                                errors:
+                                    - detail: The 'docKey' field is required.
+                                      parameter: docKey
+                                status: 400
+                                title: Missing Request Parameter
+                                type: https://problems-registry.smartbear.com/missing-request-parameter
                 "401":
-                    description: '/problems/unauthorized: The bearer token is missing or invalid.'
+                    description: 'unauthorized: Unauthorized response.'
                     content:
                         application/problem+json:
                             schema:
-                                $ref: '#/components/schemas/ProblemDetails'
+                                $ref: '#/components/schemas/UnauthorizedError'
                             example:
-                                detail: The Authorization header is missing or invalid.
-                                status: 401
-                                title: Invalid bearer token.
-                                type: /problems/unauthorized
+                                detail: The request body is missing the docKey field.
+                                status: 400
+                                title: Invalid request parameters.
+                                type: about:blank
                 "404":
-                    description: '/problems/not-found: The requested DIP was not found.'
+                    description: 'not_found: Not Found response.'
                     content:
                         application/problem+json:
                             schema:
-                                $ref: '#/components/schemas/ProblemDetails'
+                                $ref: '#/components/schemas/NotFoundError'
                             example:
-                                detail: The requested DIP does not exist.
-                                status: 404
-                                title: DIP not found.
-                                type: /problems/not-found
+                                detail: The request body is missing the docKey field.
+                                status: 400
+                                title: Invalid request parameters.
+                                type: about:blank
                 "500":
-                    description: '/problems/internal-error: An unexpected server error occurred.'
+                    description: 'internal: Internal Server Error response.'
                     content:
                         application/problem+json:
                             schema:
-                                $ref: '#/components/schemas/ProblemDetails'
+                                $ref: '#/components/schemas/InternalError'
                             example:
-                                detail: The DIP request could not be processed.
-                                status: 500
-                                title: Unexpected server error.
-                                type: /problems/internal-error
+                                detail: The request body is missing the docKey field.
+                                status: 400
+                                title: Invalid request parameters.
+                                type: about:blank
             security:
                 - bearer_header_Authorization: []
 components:
@@ -213,6 +232,142 @@ components:
                 - docKey
                 - status
                 - created_at
+        InternalError:
+            type: object
+            properties:
+                detail:
+                    type: string
+                    description: The detail field contains a human-readable explanation specific to this problem occurrence.
+                    example: The request body is missing the docKey field.
+                instance:
+                    type: string
+                    description: The instance field contains a URI reference that identifies this problem occurrence.
+                status:
+                    type: integer
+                    description: The status field contains the HTTP status code generated by the origin server.
+                    example: 400
+                    format: int32
+                title:
+                    type: string
+                    description: The title field contains a short, human-readable summary of the problem type.
+                    example: Invalid request parameters.
+                type:
+                    type: string
+                    description: The type field contains a URI reference that identifies the problem type.
+                    default: about:blank
+                    example: about:blank
+                    format: uri
+            description: An internal server error occurred.
+            example:
+                detail: The request body is missing the docKey field.
+                status: 400
+                title: Invalid request parameters.
+                type: about:blank
+            required:
+                - type
+                - title
+                - status
+                - detail
+        MissingReqParamError:
+            type: object
+            properties:
+                code:
+                    type: string
+                    description: The code field contains a machine-readable error code.
+                    example: 400-03
+                detail:
+                    type: string
+                    description: The detail field contains a human-readable explanation specific to this problem occurrence.
+                    example: One or more request parameters are missing.
+                errors:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/ParamError'
+                    description: A list of parameter errors.
+                    example:
+                        - detail: The 'docKey' field is required.
+                          parameter: docKey
+                status:
+                    type: integer
+                    description: The status field contains the HTTP status code generated by the origin server.
+                    example: 400
+                    format: int32
+                title:
+                    type: string
+                    description: The title field contains a short, human-readable summary of the problem type.
+                    example: Missing Request Parameter
+                type:
+                    type: string
+                    description: The type field contains a URI reference that identifies the problem type.
+                    default: https://problems-registry.smartbear.com/invalid-request-body
+                    example: https://problems-registry.smartbear.com/missing-request-parameter
+                    format: uri
+            description: One or more request parameters are missing.
+            example:
+                code: 400-03
+                detail: The request is missing an expected query or path parameter.
+                errors:
+                    - detail: The 'docKey' field is required.
+                      parameter: docKey
+                status: 400
+                title: Missing Request Parameter
+                type: https://problems-registry.smartbear.com/missing-request-parameter
+            required:
+                - type
+                - title
+                - status
+                - detail
+        NotFoundError:
+            type: object
+            properties:
+                detail:
+                    type: string
+                    description: The detail field contains a human-readable explanation specific to this problem occurrence.
+                    example: The request body is missing the docKey field.
+                instance:
+                    type: string
+                    description: The instance field contains a URI reference that identifies this problem occurrence.
+                status:
+                    type: integer
+                    description: The status field contains the HTTP status code generated by the origin server.
+                    example: 400
+                    format: int32
+                title:
+                    type: string
+                    description: The title field contains a short, human-readable summary of the problem type.
+                    example: Invalid request parameters.
+                type:
+                    type: string
+                    description: The type field contains a URI reference that identifies the problem type.
+                    default: about:blank
+                    example: about:blank
+                    format: uri
+            description: The requested resource is not found.
+            example:
+                detail: The request body is missing the docKey field.
+                status: 400
+                title: Invalid request parameters.
+                type: about:blank
+            required:
+                - type
+                - title
+                - status
+                - detail
+        ParamError:
+            type: object
+            properties:
+                detail:
+                    type: string
+                    description: The detail field describes the error.
+                    example: The 'docKey' field is required.
+                parameter:
+                    type: string
+                    description: The parameter field contains the name of the parameter that caused the error.
+                    example: docKey
+            description: ParamError represents an error related to a specific request parameter.
+            example:
+                detail: The 'docKey' field is required.
+                parameter: docKey
         ProblemDetails:
             type: object
             properties:
@@ -235,19 +390,51 @@ components:
                 type:
                     type: string
                     description: The type field contains a URI reference that identifies the problem type.
-                    example: /problems/not-valid
-                    enum:
-                        - /problems/unauthorized
-                        - /problems/not-valid
-                        - /problems/not-found
-                        - /problems/internal-error
+                    default: about:blank
+                    example: about:blank
                     format: uri
             description: ProblemDetails represents an RFC 9457 problem details object.
             example:
                 detail: The request body is missing the docKey field.
                 status: 400
                 title: Invalid request parameters.
-                type: /problems/not-valid
+                type: about:blank
+            required:
+                - type
+                - title
+                - status
+                - detail
+        UnauthorizedError:
+            type: object
+            properties:
+                detail:
+                    type: string
+                    description: The detail field contains a human-readable explanation specific to this problem occurrence.
+                    example: The request body is missing the docKey field.
+                instance:
+                    type: string
+                    description: The instance field contains a URI reference that identifies this problem occurrence.
+                status:
+                    type: integer
+                    description: The status field contains the HTTP status code generated by the origin server.
+                    example: 400
+                    format: int32
+                title:
+                    type: string
+                    description: The title field contains a short, human-readable summary of the problem type.
+                    example: Invalid request parameters.
+                type:
+                    type: string
+                    description: The type field contains a URI reference that identifies the problem type.
+                    default: about:blank
+                    example: about:blank
+                    format: uri
+            description: The request is unauthorized due to missing or invalid authentication credentials.
+            example:
+                detail: The request body is missing the docKey field.
+                status: 400
+                title: Invalid request parameters.
+                type: about:blank
             required:
                 - type
                 - title
