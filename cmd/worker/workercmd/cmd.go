@@ -38,7 +38,7 @@ import (
 	"github.com/artefactual-sdps/preprocessing-sfa/internal/workflows"
 )
 
-const Name = "preprocessing-worker"
+const Name = "sfa-enduro-worker"
 
 type Main struct {
 	logger         logr.Logger

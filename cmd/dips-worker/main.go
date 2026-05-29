@@ -12,8 +12,8 @@ import (
 	"github.com/spf13/pflag"
 	"go.artefactual.dev/tools/log"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/cmd/worker/workercmd"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/config"
+	"github.com/artefactual-sdps/preprocessing-sfa/cmd/dips-worker/workercmd"
+	"github.com/artefactual-sdps/preprocessing-sfa/internal/dips/config"
 	"github.com/artefactual-sdps/preprocessing-sfa/internal/version"
 )
 

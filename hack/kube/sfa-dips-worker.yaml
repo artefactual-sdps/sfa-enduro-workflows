@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sfa-dips-worker
+  labels:
+    app: sfa-dips-worker
+spec:
+  selector:
+    matchLabels:
+      app: sfa-dips-worker
+  template:
+    metadata:
+      labels:
+        app: sfa-dips-worker
+    spec:
+      serviceAccountName: sdps
+      containers:
+        - name: sfa-dips-worker
+          image: sfa-dips-worker:dev
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: config
+              mountPath: /home/preprocessing/.config
+              readOnly: true
+          resources: {}
+      volumes:
+        - name: config
+          secret:
+            secretName: sfa-dips-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sfa-dips-worker
+  labels:
+    app: sfa-dips-worker
+spec:
+  selector:
+    app: sfa-dips-worker
+  ports:
+    - port: 8080

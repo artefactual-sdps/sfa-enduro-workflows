@@ -8,3 +8,5 @@ resources:
   - preprocessing-pvc.yaml
   - preprocessing-secret.yaml
   - preprocessing-worker.yaml
+  - sfa-dips-secret.yaml
+  - sfa-dips-worker.yaml

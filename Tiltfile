@@ -16,7 +16,12 @@ if os.environ.get('TRIGGER_MODE_AUTO', '').lower() in true:
 # Docker images
 custom_build(
   ref="preprocessing-sfa-worker:dev",
-  command=["hack/build_docker.sh"],
+  command=["hack/build_docker.sh", "preprocessing-worker"],
+  deps=["."],
+)
+custom_build(
+  ref="sfa-dips-worker:dev",
+  command=["hack/build_docker.sh", "sfa-dips-worker"],
   deps=["."],
 )
 docker_build(ref="apis-mock:dev", context="hack/apis-mock")
@@ -37,6 +42,12 @@ k8s_yaml(encode_yaml_stream(kube_objects))
 # Tilt resources
 k8s_resource(
   "preprocessing-worker",
+  labels=["SFA"],
+  trigger_mode=trigger_mode,
+)
+k8s_resource(
+  "sfa-dips-worker",
+  port_forwards="8082:8080",
   labels=["SFA"],
   trigger_mode=trigger_mode,
 )
