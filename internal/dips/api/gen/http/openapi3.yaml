@@ -40,7 +40,7 @@ paths:
                             example:
                                 id: 3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb
                 "400":
-                    description: '/problems/not-valid: The request parameters are invalid.'
+                    description: 'not_valid: The request parameters are invalid.'
                     content:
                         application/problem+json:
                             schema:
@@ -48,10 +48,10 @@ paths:
                             example:
                                 detail: The request body is missing the docKey field.
                                 status: 400
-                                title: Invalid request parameters.
-                                type: /problems/not-valid
+                                title: Bad Request
+                                type: about:blank
                 "401":
-                    description: '/problems/unauthorized: The bearer token is missing or invalid.'
+                    description: 'unauthorized: The bearer token is missing or invalid.'
                     content:
                         application/problem+json:
                             schema:
@@ -59,10 +59,10 @@ paths:
                             example:
                                 detail: The Authorization header is missing or invalid.
                                 status: 401
-                                title: Invalid bearer token.
-                                type: /problems/unauthorized
+                                title: Unauthorized
+                                type: about:blank
                 "500":
-                    description: '/problems/internal-error: An unexpected server error occurred.'
+                    description: 'internal_error: An unexpected server error occurred.'
                     content:
                         application/problem+json:
                             schema:
@@ -70,8 +70,8 @@ paths:
                             example:
                                 detail: The DIP request could not be processed.
                                 status: 500
-                                title: Unexpected server error.
-                                type: /problems/internal-error
+                                title: Internal Server Error
+                                type: about:blank
             security:
                 - bearer_header_Authorization: []
     /dips/{id}:
@@ -108,7 +108,7 @@ paths:
                                 started_at: "2026-05-27T15:04:05Z"
                                 status: done
                 "401":
-                    description: '/problems/unauthorized: The bearer token is missing or invalid.'
+                    description: 'unauthorized: The bearer token is missing or invalid.'
                     content:
                         application/problem+json:
                             schema:
@@ -116,10 +116,10 @@ paths:
                             example:
                                 detail: The Authorization header is missing or invalid.
                                 status: 401
-                                title: Invalid bearer token.
-                                type: /problems/unauthorized
+                                title: Unauthorized
+                                type: about:blank
                 "404":
-                    description: '/problems/not-found: The requested DIP was not found.'
+                    description: 'not_found: The requested DIP was not found.'
                     content:
                         application/problem+json:
                             schema:
@@ -127,10 +127,10 @@ paths:
                             example:
                                 detail: The requested DIP does not exist.
                                 status: 404
-                                title: DIP not found.
-                                type: /problems/not-found
+                                title: Not Found
+                                type: about:blank
                 "500":
-                    description: '/problems/internal-error: An unexpected server error occurred.'
+                    description: 'internal_error: An unexpected server error occurred.'
                     content:
                         application/problem+json:
                             schema:
@@ -138,8 +138,8 @@ paths:
                             example:
                                 detail: The DIP request could not be processed.
                                 status: 500
-                                title: Unexpected server error.
-                                type: /problems/internal-error
+                                title: Internal Server Error
+                                type: about:blank
             security:
                 - bearer_header_Authorization: []
 components:
@@ -231,23 +231,19 @@ components:
                 title:
                     type: string
                     description: The title field contains a short, human-readable summary of the problem type.
-                    example: Invalid request parameters.
+                    example: Bad Request
                 type:
                     type: string
                     description: The type field contains a URI reference that identifies the problem type.
-                    example: /problems/not-valid
-                    enum:
-                        - /problems/unauthorized
-                        - /problems/not-valid
-                        - /problems/not-found
-                        - /problems/internal-error
+                    default: about:blank
+                    example: about:blank
                     format: uri
             description: ProblemDetails represents an RFC 9457 problem details object.
             example:
                 detail: The request body is missing the docKey field.
                 status: 400
-                title: Invalid request parameters.
-                type: /problems/not-valid
+                title: Bad Request
+                type: about:blank
             required:
                 - type
                 - title

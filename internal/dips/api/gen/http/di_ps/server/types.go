@@ -39,9 +39,9 @@ type ShowResponseBody struct {
 	ObjectKey *string `form:"object_key,omitempty" json:"object_key,omitempty" xml:"object_key,omitempty"`
 }
 
-// CreateProblemsNotValidResponseBody is the type of the "DIPs" service
-// "create" endpoint HTTP response body for the "/problems/not-valid" error.
-type CreateProblemsNotValidResponseBody struct {
+// CreateInternalErrorResponseBody is the type of the "DIPs" service "create"
+// endpoint HTTP response body for the "internal_error" error.
+type CreateInternalErrorResponseBody struct {
 	// The type field contains a URI reference that identifies the problem type.
 	Type string `form:"type" json:"type" xml:"type"`
 	// The title field contains a short, human-readable summary of the problem type.
@@ -57,9 +57,9 @@ type CreateProblemsNotValidResponseBody struct {
 	Instance *string `form:"instance,omitempty" json:"instance,omitempty" xml:"instance,omitempty"`
 }
 
-// CreateProblemsUnauthorizedResponseBody is the type of the "DIPs" service
-// "create" endpoint HTTP response body for the "/problems/unauthorized" error.
-type CreateProblemsUnauthorizedResponseBody struct {
+// CreateNotValidResponseBody is the type of the "DIPs" service "create"
+// endpoint HTTP response body for the "not_valid" error.
+type CreateNotValidResponseBody struct {
 	// The type field contains a URI reference that identifies the problem type.
 	Type string `form:"type" json:"type" xml:"type"`
 	// The title field contains a short, human-readable summary of the problem type.
@@ -75,10 +75,9 @@ type CreateProblemsUnauthorizedResponseBody struct {
 	Instance *string `form:"instance,omitempty" json:"instance,omitempty" xml:"instance,omitempty"`
 }
 
-// CreateProblemsInternalErrorResponseBody is the type of the "DIPs" service
-// "create" endpoint HTTP response body for the "/problems/internal-error"
-// error.
-type CreateProblemsInternalErrorResponseBody struct {
+// CreateUnauthorizedResponseBody is the type of the "DIPs" service "create"
+// endpoint HTTP response body for the "unauthorized" error.
+type CreateUnauthorizedResponseBody struct {
 	// The type field contains a URI reference that identifies the problem type.
 	Type string `form:"type" json:"type" xml:"type"`
 	// The title field contains a short, human-readable summary of the problem type.
@@ -94,9 +93,9 @@ type CreateProblemsInternalErrorResponseBody struct {
 	Instance *string `form:"instance,omitempty" json:"instance,omitempty" xml:"instance,omitempty"`
 }
 
-// ShowProblemsNotFoundResponseBody is the type of the "DIPs" service "show"
-// endpoint HTTP response body for the "/problems/not-found" error.
-type ShowProblemsNotFoundResponseBody struct {
+// ShowInternalErrorResponseBody is the type of the "DIPs" service "show"
+// endpoint HTTP response body for the "internal_error" error.
+type ShowInternalErrorResponseBody struct {
 	// The type field contains a URI reference that identifies the problem type.
 	Type string `form:"type" json:"type" xml:"type"`
 	// The title field contains a short, human-readable summary of the problem type.
@@ -112,9 +111,9 @@ type ShowProblemsNotFoundResponseBody struct {
 	Instance *string `form:"instance,omitempty" json:"instance,omitempty" xml:"instance,omitempty"`
 }
 
-// ShowProblemsUnauthorizedResponseBody is the type of the "DIPs" service
-// "show" endpoint HTTP response body for the "/problems/unauthorized" error.
-type ShowProblemsUnauthorizedResponseBody struct {
+// ShowNotFoundResponseBody is the type of the "DIPs" service "show" endpoint
+// HTTP response body for the "not_found" error.
+type ShowNotFoundResponseBody struct {
 	// The type field contains a URI reference that identifies the problem type.
 	Type string `form:"type" json:"type" xml:"type"`
 	// The title field contains a short, human-readable summary of the problem type.
@@ -130,9 +129,9 @@ type ShowProblemsUnauthorizedResponseBody struct {
 	Instance *string `form:"instance,omitempty" json:"instance,omitempty" xml:"instance,omitempty"`
 }
 
-// ShowProblemsInternalErrorResponseBody is the type of the "DIPs" service
-// "show" endpoint HTTP response body for the "/problems/internal-error" error.
-type ShowProblemsInternalErrorResponseBody struct {
+// ShowUnauthorizedResponseBody is the type of the "DIPs" service "show"
+// endpoint HTTP response body for the "unauthorized" error.
+type ShowUnauthorizedResponseBody struct {
 	// The type field contains a URI reference that identifies the problem type.
 	Type string `form:"type" json:"type" xml:"type"`
 	// The title field contains a short, human-readable summary of the problem type.
@@ -181,10 +180,10 @@ func NewShowResponseBody(res *dips.DIP) *ShowResponseBody {
 	return body
 }
 
-// NewCreateProblemsNotValidResponseBody builds the HTTP response body from the
+// NewCreateInternalErrorResponseBody builds the HTTP response body from the
 // result of the "create" endpoint of the "DIPs" service.
-func NewCreateProblemsNotValidResponseBody(res *dips.ProblemDetails) *CreateProblemsNotValidResponseBody {
-	body := &CreateProblemsNotValidResponseBody{
+func NewCreateInternalErrorResponseBody(res *dips.InternalProblem) *CreateInternalErrorResponseBody {
+	body := &CreateInternalErrorResponseBody{
 		Type:     res.Type,
 		Title:    res.Title,
 		Detail:   res.Detail,
@@ -194,10 +193,10 @@ func NewCreateProblemsNotValidResponseBody(res *dips.ProblemDetails) *CreateProb
 	return body
 }
 
-// NewCreateProblemsUnauthorizedResponseBody builds the HTTP response body from
-// the result of the "create" endpoint of the "DIPs" service.
-func NewCreateProblemsUnauthorizedResponseBody(res *dips.ProblemDetails) *CreateProblemsUnauthorizedResponseBody {
-	body := &CreateProblemsUnauthorizedResponseBody{
+// NewCreateNotValidResponseBody builds the HTTP response body from the result
+// of the "create" endpoint of the "DIPs" service.
+func NewCreateNotValidResponseBody(res *dips.NotValidProblem) *CreateNotValidResponseBody {
+	body := &CreateNotValidResponseBody{
 		Type:     res.Type,
 		Title:    res.Title,
 		Detail:   res.Detail,
@@ -207,10 +206,10 @@ func NewCreateProblemsUnauthorizedResponseBody(res *dips.ProblemDetails) *Create
 	return body
 }
 
-// NewCreateProblemsInternalErrorResponseBody builds the HTTP response body
-// from the result of the "create" endpoint of the "DIPs" service.
-func NewCreateProblemsInternalErrorResponseBody(res *dips.ProblemDetails) *CreateProblemsInternalErrorResponseBody {
-	body := &CreateProblemsInternalErrorResponseBody{
+// NewCreateUnauthorizedResponseBody builds the HTTP response body from the
+// result of the "create" endpoint of the "DIPs" service.
+func NewCreateUnauthorizedResponseBody(res *dips.UnauthorizedProblem) *CreateUnauthorizedResponseBody {
+	body := &CreateUnauthorizedResponseBody{
 		Type:     res.Type,
 		Title:    res.Title,
 		Detail:   res.Detail,
@@ -220,10 +219,10 @@ func NewCreateProblemsInternalErrorResponseBody(res *dips.ProblemDetails) *Creat
 	return body
 }
 
-// NewShowProblemsNotFoundResponseBody builds the HTTP response body from the
+// NewShowInternalErrorResponseBody builds the HTTP response body from the
 // result of the "show" endpoint of the "DIPs" service.
-func NewShowProblemsNotFoundResponseBody(res *dips.ProblemDetails) *ShowProblemsNotFoundResponseBody {
-	body := &ShowProblemsNotFoundResponseBody{
+func NewShowInternalErrorResponseBody(res *dips.InternalProblem) *ShowInternalErrorResponseBody {
+	body := &ShowInternalErrorResponseBody{
 		Type:     res.Type,
 		Title:    res.Title,
 		Detail:   res.Detail,
@@ -233,10 +232,10 @@ func NewShowProblemsNotFoundResponseBody(res *dips.ProblemDetails) *ShowProblems
 	return body
 }
 
-// NewShowProblemsUnauthorizedResponseBody builds the HTTP response body from
-// the result of the "show" endpoint of the "DIPs" service.
-func NewShowProblemsUnauthorizedResponseBody(res *dips.ProblemDetails) *ShowProblemsUnauthorizedResponseBody {
-	body := &ShowProblemsUnauthorizedResponseBody{
+// NewShowNotFoundResponseBody builds the HTTP response body from the result of
+// the "show" endpoint of the "DIPs" service.
+func NewShowNotFoundResponseBody(res *dips.NotFoundProblem) *ShowNotFoundResponseBody {
+	body := &ShowNotFoundResponseBody{
 		Type:     res.Type,
 		Title:    res.Title,
 		Detail:   res.Detail,
@@ -246,10 +245,10 @@ func NewShowProblemsUnauthorizedResponseBody(res *dips.ProblemDetails) *ShowProb
 	return body
 }
 
-// NewShowProblemsInternalErrorResponseBody builds the HTTP response body from
-// the result of the "show" endpoint of the "DIPs" service.
-func NewShowProblemsInternalErrorResponseBody(res *dips.ProblemDetails) *ShowProblemsInternalErrorResponseBody {
-	body := &ShowProblemsInternalErrorResponseBody{
+// NewShowUnauthorizedResponseBody builds the HTTP response body from the
+// result of the "show" endpoint of the "DIPs" service.
+func NewShowUnauthorizedResponseBody(res *dips.UnauthorizedProblem) *ShowUnauthorizedResponseBody {
+	body := &ShowUnauthorizedResponseBody{
 		Type:     res.Type,
 		Title:    res.Title,
 		Detail:   res.Detail,

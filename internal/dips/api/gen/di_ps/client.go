@@ -31,10 +31,10 @@ func NewClient(create, show goa.Endpoint) *Client {
 
 // Create calls the "create" endpoint of the "DIPs" service.
 // Create may return the following errors:
-//   - "/problems/not-valid" (type *ProblemDetails): The request parameters are invalid.
-//   - "/problems/unauthorized" (type *ProblemDetails): The bearer token is missing or invalid.
-//   - "/problems/not-found" (type *ProblemDetails): The requested DIP was not found.
-//   - "/problems/internal-error" (type *ProblemDetails): An unexpected server error occurred.
+//   - "not_valid" (type *NotValidProblem): The request parameters are invalid.
+//   - "unauthorized" (type *UnauthorizedProblem): The bearer token is missing or invalid.
+//   - "not_found" (type *NotFoundProblem): The requested DIP was not found.
+//   - "internal_error" (type *InternalProblem): An unexpected server error occurred.
 //   - error: internal error
 func (c *Client) Create(ctx context.Context, p *CreatePayload) (res *CreateDIPResult, err error) {
 	var ires any
@@ -47,10 +47,10 @@ func (c *Client) Create(ctx context.Context, p *CreatePayload) (res *CreateDIPRe
 
 // Show calls the "show" endpoint of the "DIPs" service.
 // Show may return the following errors:
-//   - "/problems/not-valid" (type *ProblemDetails): The request parameters are invalid.
-//   - "/problems/unauthorized" (type *ProblemDetails): The bearer token is missing or invalid.
-//   - "/problems/not-found" (type *ProblemDetails): The requested DIP was not found.
-//   - "/problems/internal-error" (type *ProblemDetails): An unexpected server error occurred.
+//   - "not_valid" (type *NotValidProblem): The request parameters are invalid.
+//   - "unauthorized" (type *UnauthorizedProblem): The bearer token is missing or invalid.
+//   - "not_found" (type *NotFoundProblem): The requested DIP was not found.
+//   - "internal_error" (type *InternalProblem): An unexpected server error occurred.
 //   - error: internal error
 func (c *Client) Show(ctx context.Context, p *ShowPayload) (res *DIP, err error) {
 	var ires any

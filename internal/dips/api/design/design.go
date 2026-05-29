@@ -45,30 +45,15 @@ var ObjectKey = Type("ObjectKey", String, func() {
 	Example("dips/3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb.zip")
 })
 
-const (
-	// RFC 9457 "type" values double as Goa error names. Goa uses the
-	// ErrorName field value to select the HTTP response mapping when a single
-	// custom error type is reused for multiple errors, so these constants must
-	// match the Error and Response names below.
-	problemTypeUnauthorized = "/problems/unauthorized"
-	problemTypeNotValid     = "/problems/not-valid"
-	problemTypeNotFound     = "/problems/not-found"
-	problemTypeInternal     = "/problems/internal-error"
-)
-
 var ProblemDetails = Type("ProblemDetails", func() {
 	Description("ProblemDetails represents an RFC 9457 problem details object.")
-	// Use the RFC 9457 "type" member as Goa's error discriminator instead of
-	// adding a private "name" field. This keeps the wire body and OpenAPI schema
-	// to the standard problem details fields while still letting Goa route
-	// shared errors to distinct HTTP status codes.
-	ErrorName("type", String, "The type field contains a URI reference that identifies the problem type.", func() {
+	Attribute("type", String, "The type field contains a URI reference that identifies the problem type.", func() {
 		Format(FormatURI)
-		Enum(problemTypeUnauthorized, problemTypeNotValid, problemTypeNotFound, problemTypeInternal)
-		Example(problemTypeNotValid)
+		Default("about:blank")
+		Example("about:blank")
 	})
 	Attribute("title", String, "The title field contains a short, human-readable summary of the problem type.", func() {
-		Example("Invalid request parameters.")
+		Example("Bad Request")
 	})
 	Attribute("detail", String, "The detail field contains a human-readable explanation specific to this problem occurrence.", func() {
 		Example("The request body is missing the docKey field.")
@@ -83,6 +68,26 @@ var ProblemDetails = Type("ProblemDetails", func() {
 		Meta("openapi:example", "false")
 	})
 	Required("type", "title", "status", "detail")
+})
+
+var NotValidProblem = Type("NotValidProblem", func() {
+	Description("NotValidProblem represents an invalid request problem.")
+	problemDetailsType("Bad Request", "The request body is missing the docKey field.", StatusBadRequest)
+})
+
+var UnauthorizedProblem = Type("UnauthorizedProblem", func() {
+	Description("UnauthorizedProblem represents an authentication problem.")
+	problemDetailsType("Unauthorized", "The Authorization header is missing or invalid.", StatusUnauthorized)
+})
+
+var NotFoundProblem = Type("NotFoundProblem", func() {
+	Description("NotFoundProblem represents a missing resource problem.")
+	problemDetailsType("Not Found", "The requested DIP does not exist.", StatusNotFound)
+})
+
+var InternalProblem = Type("InternalProblem", func() {
+	Description("InternalProblem represents an unexpected server problem.")
+	problemDetailsType("Internal Server Error", "The DIP request could not be processed.", StatusInternalServerError)
 })
 
 var CreateDIPResult = Type("CreateDIPResult", func() {
@@ -107,42 +112,14 @@ var _ = Service("DIPs", func() {
 	Description("The DIPs service requests DIP creation and retrieves DIP details.")
 	Security(BearerAuth)
 
-	Error(problemTypeNotValid, ProblemDetails, "The request parameters are invalid.", func() {
-		problemDetailsExample(
-			problemTypeNotValid,
-			"Invalid request parameters.",
-			"The request body is missing the docKey field.",
-			StatusBadRequest,
-		)
-	})
-	Error(problemTypeUnauthorized, ProblemDetails, "The bearer token is missing or invalid.", func() {
-		problemDetailsExample(
-			problemTypeUnauthorized,
-			"Invalid bearer token.",
-			"The Authorization header is missing or invalid.",
-			StatusUnauthorized,
-		)
-	})
-	Error(problemTypeNotFound, ProblemDetails, "The requested DIP was not found.", func() {
-		problemDetailsExample(
-			problemTypeNotFound,
-			"DIP not found.",
-			"The requested DIP does not exist.",
-			StatusNotFound,
-		)
-	})
-	Error(problemTypeInternal, ProblemDetails, "An unexpected server error occurred.", func() {
-		problemDetailsExample(
-			problemTypeInternal,
-			"Unexpected server error.",
-			"The DIP request could not be processed.",
-			StatusInternalServerError,
-		)
-	})
+	Error("not_valid", NotValidProblem, "The request parameters are invalid.")
+	Error("unauthorized", UnauthorizedProblem, "The bearer token is missing or invalid.")
+	Error("not_found", NotFoundProblem, "The requested DIP was not found.")
+	Error("internal_error", InternalProblem, "An unexpected server error occurred.")
 
 	HTTP(func() {
-		Response(problemTypeUnauthorized, StatusUnauthorized, problemDetailsResponse)
-		Response(problemTypeInternal, StatusInternalServerError, problemDetailsResponse)
+		Response("unauthorized", StatusUnauthorized, problemDetailsResponse("The bearer token is missing or invalid."))
+		Response("internal_error", StatusInternalServerError, problemDetailsResponse("An unexpected server error occurred."))
 	})
 
 	Method("create", func() {
@@ -161,7 +138,7 @@ var _ = Service("DIPs", func() {
 				Attribute("docKey")
 			})
 			Response(StatusAccepted)
-			Response(problemTypeNotValid, StatusBadRequest, problemDetailsResponse)
+			Response("not_valid", StatusBadRequest, problemDetailsResponse("The request parameters are invalid."))
 		})
 	})
 
@@ -178,15 +155,33 @@ var _ = Service("DIPs", func() {
 			GET("/dips/{id}")
 			Header("token:Authorization")
 			Response(StatusOK)
-			Response(problemTypeNotFound, StatusNotFound, problemDetailsResponse)
+			Response("not_found", StatusNotFound, problemDetailsResponse("The requested DIP was not found."))
 		})
 	})
 })
 
-func problemDetailsExample(typ, title, detail string, status int32) {
+func problemDetailsType(title, detail string, status int32) {
+	// Each Goa error uses a distinct type so Goa can derive the error name
+	// without adding an ErrorName discriminator to the RFC 9457 body.
+	//
+	// Goa initializes every named Type with an openapi:typename matching the Go
+	// type name. These error types should not become separate OpenAPI schemas:
+	// they only exist to give Goa distinct errors and examples. Replace Goa's
+	// generated typename so every response references the shared ProblemDetails
+	// schema instead. RemoveMeta is required because Meta appends values and the
+	// OpenAPI generator reads the first openapi:typename value.
+	RemoveMeta("openapi:typename")
+	Meta("openapi:typename", "ProblemDetails")
+	Reference(ProblemDetails)
+	Attribute("type")
+	Attribute("title")
+	Attribute("detail")
+	Attribute("status")
+	Attribute("instance")
+	Required("type", "title", "status", "detail")
 	Example(func() {
 		Value(Val{
-			"type":   typ,
+			"type":   "about:blank",
 			"title":  title,
 			"detail": detail,
 			"status": status,
@@ -194,8 +189,9 @@ func problemDetailsExample(typ, title, detail string, status int32) {
 	})
 }
 
-func problemDetailsResponse() {
-	// The response body is inferred from ProblemDetails, and this helper only switches
-	// the media type from Goa's default JSON error response to RFC 9457 problem+json.
-	ContentType("application/problem+json")
+func problemDetailsResponse(description string) func() {
+	return func() {
+		Description(description)
+		ContentType("application/problem+json")
+	}
 }

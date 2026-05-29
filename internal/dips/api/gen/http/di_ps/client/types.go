@@ -42,9 +42,9 @@ type ShowResponseBody struct {
 	ObjectKey *string `form:"object_key,omitempty" json:"object_key,omitempty" xml:"object_key,omitempty"`
 }
 
-// CreateProblemsNotValidResponseBody is the type of the "DIPs" service
-// "create" endpoint HTTP response body for the "/problems/not-valid" error.
-type CreateProblemsNotValidResponseBody struct {
+// CreateInternalErrorResponseBody is the type of the "DIPs" service "create"
+// endpoint HTTP response body for the "internal_error" error.
+type CreateInternalErrorResponseBody struct {
 	// The type field contains a URI reference that identifies the problem type.
 	Type *string `form:"type,omitempty" json:"type,omitempty" xml:"type,omitempty"`
 	// The title field contains a short, human-readable summary of the problem type.
@@ -60,9 +60,9 @@ type CreateProblemsNotValidResponseBody struct {
 	Instance *string `form:"instance,omitempty" json:"instance,omitempty" xml:"instance,omitempty"`
 }
 
-// CreateProblemsUnauthorizedResponseBody is the type of the "DIPs" service
-// "create" endpoint HTTP response body for the "/problems/unauthorized" error.
-type CreateProblemsUnauthorizedResponseBody struct {
+// CreateNotValidResponseBody is the type of the "DIPs" service "create"
+// endpoint HTTP response body for the "not_valid" error.
+type CreateNotValidResponseBody struct {
 	// The type field contains a URI reference that identifies the problem type.
 	Type *string `form:"type,omitempty" json:"type,omitempty" xml:"type,omitempty"`
 	// The title field contains a short, human-readable summary of the problem type.
@@ -78,10 +78,9 @@ type CreateProblemsUnauthorizedResponseBody struct {
 	Instance *string `form:"instance,omitempty" json:"instance,omitempty" xml:"instance,omitempty"`
 }
 
-// CreateProblemsInternalErrorResponseBody is the type of the "DIPs" service
-// "create" endpoint HTTP response body for the "/problems/internal-error"
-// error.
-type CreateProblemsInternalErrorResponseBody struct {
+// CreateUnauthorizedResponseBody is the type of the "DIPs" service "create"
+// endpoint HTTP response body for the "unauthorized" error.
+type CreateUnauthorizedResponseBody struct {
 	// The type field contains a URI reference that identifies the problem type.
 	Type *string `form:"type,omitempty" json:"type,omitempty" xml:"type,omitempty"`
 	// The title field contains a short, human-readable summary of the problem type.
@@ -97,9 +96,9 @@ type CreateProblemsInternalErrorResponseBody struct {
 	Instance *string `form:"instance,omitempty" json:"instance,omitempty" xml:"instance,omitempty"`
 }
 
-// ShowProblemsNotFoundResponseBody is the type of the "DIPs" service "show"
-// endpoint HTTP response body for the "/problems/not-found" error.
-type ShowProblemsNotFoundResponseBody struct {
+// ShowInternalErrorResponseBody is the type of the "DIPs" service "show"
+// endpoint HTTP response body for the "internal_error" error.
+type ShowInternalErrorResponseBody struct {
 	// The type field contains a URI reference that identifies the problem type.
 	Type *string `form:"type,omitempty" json:"type,omitempty" xml:"type,omitempty"`
 	// The title field contains a short, human-readable summary of the problem type.
@@ -115,9 +114,9 @@ type ShowProblemsNotFoundResponseBody struct {
 	Instance *string `form:"instance,omitempty" json:"instance,omitempty" xml:"instance,omitempty"`
 }
 
-// ShowProblemsUnauthorizedResponseBody is the type of the "DIPs" service
-// "show" endpoint HTTP response body for the "/problems/unauthorized" error.
-type ShowProblemsUnauthorizedResponseBody struct {
+// ShowNotFoundResponseBody is the type of the "DIPs" service "show" endpoint
+// HTTP response body for the "not_found" error.
+type ShowNotFoundResponseBody struct {
 	// The type field contains a URI reference that identifies the problem type.
 	Type *string `form:"type,omitempty" json:"type,omitempty" xml:"type,omitempty"`
 	// The title field contains a short, human-readable summary of the problem type.
@@ -133,9 +132,9 @@ type ShowProblemsUnauthorizedResponseBody struct {
 	Instance *string `form:"instance,omitempty" json:"instance,omitempty" xml:"instance,omitempty"`
 }
 
-// ShowProblemsInternalErrorResponseBody is the type of the "DIPs" service
-// "show" endpoint HTTP response body for the "/problems/internal-error" error.
-type ShowProblemsInternalErrorResponseBody struct {
+// ShowUnauthorizedResponseBody is the type of the "DIPs" service "show"
+// endpoint HTTP response body for the "unauthorized" error.
+type ShowUnauthorizedResponseBody struct {
 	// The type field contains a URI reference that identifies the problem type.
 	Type *string `form:"type,omitempty" json:"type,omitempty" xml:"type,omitempty"`
 	// The title field contains a short, human-readable summary of the problem type.
@@ -161,10 +160,10 @@ func NewCreateDIPResultAccepted(body *CreateResponseBody) *dips.CreateDIPResult 
 	return v
 }
 
-// NewCreateProblemsNotValid builds a DIPs service create endpoint
-// /problems/not-valid error.
-func NewCreateProblemsNotValid(body *CreateProblemsNotValidResponseBody) *dips.ProblemDetails {
-	v := &dips.ProblemDetails{
+// NewCreateInternalError builds a DIPs service create endpoint internal_error
+// error.
+func NewCreateInternalError(body *CreateInternalErrorResponseBody) *dips.InternalProblem {
+	v := &dips.InternalProblem{
 		Type:     *body.Type,
 		Title:    *body.Title,
 		Detail:   *body.Detail,
@@ -175,10 +174,9 @@ func NewCreateProblemsNotValid(body *CreateProblemsNotValidResponseBody) *dips.P
 	return v
 }
 
-// NewCreateProblemsUnauthorized builds a DIPs service create endpoint
-// /problems/unauthorized error.
-func NewCreateProblemsUnauthorized(body *CreateProblemsUnauthorizedResponseBody) *dips.ProblemDetails {
-	v := &dips.ProblemDetails{
+// NewCreateNotValid builds a DIPs service create endpoint not_valid error.
+func NewCreateNotValid(body *CreateNotValidResponseBody) *dips.NotValidProblem {
+	v := &dips.NotValidProblem{
 		Type:     *body.Type,
 		Title:    *body.Title,
 		Detail:   *body.Detail,
@@ -189,10 +187,10 @@ func NewCreateProblemsUnauthorized(body *CreateProblemsUnauthorizedResponseBody)
 	return v
 }
 
-// NewCreateProblemsInternalError builds a DIPs service create endpoint
-// /problems/internal-error error.
-func NewCreateProblemsInternalError(body *CreateProblemsInternalErrorResponseBody) *dips.ProblemDetails {
-	v := &dips.ProblemDetails{
+// NewCreateUnauthorized builds a DIPs service create endpoint unauthorized
+// error.
+func NewCreateUnauthorized(body *CreateUnauthorizedResponseBody) *dips.UnauthorizedProblem {
+	v := &dips.UnauthorizedProblem{
 		Type:     *body.Type,
 		Title:    *body.Title,
 		Detail:   *body.Detail,
@@ -228,10 +226,10 @@ func NewShowDIPOK(body *ShowResponseBody) *dips.DIP {
 	return v
 }
 
-// NewShowProblemsNotFound builds a DIPs service show endpoint
-// /problems/not-found error.
-func NewShowProblemsNotFound(body *ShowProblemsNotFoundResponseBody) *dips.ProblemDetails {
-	v := &dips.ProblemDetails{
+// NewShowInternalError builds a DIPs service show endpoint internal_error
+// error.
+func NewShowInternalError(body *ShowInternalErrorResponseBody) *dips.InternalProblem {
+	v := &dips.InternalProblem{
 		Type:     *body.Type,
 		Title:    *body.Title,
 		Detail:   *body.Detail,
@@ -242,10 +240,9 @@ func NewShowProblemsNotFound(body *ShowProblemsNotFoundResponseBody) *dips.Probl
 	return v
 }
 
-// NewShowProblemsUnauthorized builds a DIPs service show endpoint
-// /problems/unauthorized error.
-func NewShowProblemsUnauthorized(body *ShowProblemsUnauthorizedResponseBody) *dips.ProblemDetails {
-	v := &dips.ProblemDetails{
+// NewShowNotFound builds a DIPs service show endpoint not_found error.
+func NewShowNotFound(body *ShowNotFoundResponseBody) *dips.NotFoundProblem {
+	v := &dips.NotFoundProblem{
 		Type:     *body.Type,
 		Title:    *body.Title,
 		Detail:   *body.Detail,
@@ -256,10 +253,9 @@ func NewShowProblemsUnauthorized(body *ShowProblemsUnauthorizedResponseBody) *di
 	return v
 }
 
-// NewShowProblemsInternalError builds a DIPs service show endpoint
-// /problems/internal-error error.
-func NewShowProblemsInternalError(body *ShowProblemsInternalErrorResponseBody) *dips.ProblemDetails {
-	v := &dips.ProblemDetails{
+// NewShowUnauthorized builds a DIPs service show endpoint unauthorized error.
+func NewShowUnauthorized(body *ShowUnauthorizedResponseBody) *dips.UnauthorizedProblem {
+	v := &dips.UnauthorizedProblem{
 		Type:     *body.Type,
 		Title:    *body.Title,
 		Detail:   *body.Detail,
@@ -325,9 +321,9 @@ func ValidateShowResponseBody(body *ShowResponseBody) (err error) {
 	return
 }
 
-// ValidateCreateProblemsNotValidResponseBody runs the validations defined on
-// create_/problems/not-valid_response_body
-func ValidateCreateProblemsNotValidResponseBody(body *CreateProblemsNotValidResponseBody) (err error) {
+// ValidateCreateInternalErrorResponseBody runs the validations defined on
+// create_internal_error_response_body
+func ValidateCreateInternalErrorResponseBody(body *CreateInternalErrorResponseBody) (err error) {
 	if body.Type == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("type", "body"))
 	}
@@ -339,11 +335,6 @@ func ValidateCreateProblemsNotValidResponseBody(body *CreateProblemsNotValidResp
 	}
 	if body.Detail == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("detail", "body"))
-	}
-	if body.Type != nil {
-		if !(*body.Type == "/problems/unauthorized" || *body.Type == "/problems/not-valid" || *body.Type == "/problems/not-found" || *body.Type == "/problems/internal-error") {
-			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.type", *body.Type, []any{"/problems/unauthorized", "/problems/not-valid", "/problems/not-found", "/problems/internal-error"}))
-		}
 	}
 	if body.Type != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.type", *body.Type, goa.FormatURI))
@@ -351,9 +342,9 @@ func ValidateCreateProblemsNotValidResponseBody(body *CreateProblemsNotValidResp
 	return
 }
 
-// ValidateCreateProblemsUnauthorizedResponseBody runs the validations defined
-// on create_/problems/unauthorized_response_body
-func ValidateCreateProblemsUnauthorizedResponseBody(body *CreateProblemsUnauthorizedResponseBody) (err error) {
+// ValidateCreateNotValidResponseBody runs the validations defined on
+// create_not_valid_response_body
+func ValidateCreateNotValidResponseBody(body *CreateNotValidResponseBody) (err error) {
 	if body.Type == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("type", "body"))
 	}
@@ -365,11 +356,6 @@ func ValidateCreateProblemsUnauthorizedResponseBody(body *CreateProblemsUnauthor
 	}
 	if body.Detail == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("detail", "body"))
-	}
-	if body.Type != nil {
-		if !(*body.Type == "/problems/unauthorized" || *body.Type == "/problems/not-valid" || *body.Type == "/problems/not-found" || *body.Type == "/problems/internal-error") {
-			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.type", *body.Type, []any{"/problems/unauthorized", "/problems/not-valid", "/problems/not-found", "/problems/internal-error"}))
-		}
 	}
 	if body.Type != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.type", *body.Type, goa.FormatURI))
@@ -377,9 +363,9 @@ func ValidateCreateProblemsUnauthorizedResponseBody(body *CreateProblemsUnauthor
 	return
 }
 
-// ValidateCreateProblemsInternalErrorResponseBody runs the validations defined
-// on create_/problems/internal-error_response_body
-func ValidateCreateProblemsInternalErrorResponseBody(body *CreateProblemsInternalErrorResponseBody) (err error) {
+// ValidateCreateUnauthorizedResponseBody runs the validations defined on
+// create_unauthorized_response_body
+func ValidateCreateUnauthorizedResponseBody(body *CreateUnauthorizedResponseBody) (err error) {
 	if body.Type == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("type", "body"))
 	}
@@ -391,11 +377,6 @@ func ValidateCreateProblemsInternalErrorResponseBody(body *CreateProblemsInterna
 	}
 	if body.Detail == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("detail", "body"))
-	}
-	if body.Type != nil {
-		if !(*body.Type == "/problems/unauthorized" || *body.Type == "/problems/not-valid" || *body.Type == "/problems/not-found" || *body.Type == "/problems/internal-error") {
-			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.type", *body.Type, []any{"/problems/unauthorized", "/problems/not-valid", "/problems/not-found", "/problems/internal-error"}))
-		}
 	}
 	if body.Type != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.type", *body.Type, goa.FormatURI))
@@ -403,9 +384,9 @@ func ValidateCreateProblemsInternalErrorResponseBody(body *CreateProblemsInterna
 	return
 }
 
-// ValidateShowProblemsNotFoundResponseBody runs the validations defined on
-// show_/problems/not-found_response_body
-func ValidateShowProblemsNotFoundResponseBody(body *ShowProblemsNotFoundResponseBody) (err error) {
+// ValidateShowInternalErrorResponseBody runs the validations defined on
+// show_internal_error_response_body
+func ValidateShowInternalErrorResponseBody(body *ShowInternalErrorResponseBody) (err error) {
 	if body.Type == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("type", "body"))
 	}
@@ -417,11 +398,6 @@ func ValidateShowProblemsNotFoundResponseBody(body *ShowProblemsNotFoundResponse
 	}
 	if body.Detail == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("detail", "body"))
-	}
-	if body.Type != nil {
-		if !(*body.Type == "/problems/unauthorized" || *body.Type == "/problems/not-valid" || *body.Type == "/problems/not-found" || *body.Type == "/problems/internal-error") {
-			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.type", *body.Type, []any{"/problems/unauthorized", "/problems/not-valid", "/problems/not-found", "/problems/internal-error"}))
-		}
 	}
 	if body.Type != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.type", *body.Type, goa.FormatURI))
@@ -429,9 +405,9 @@ func ValidateShowProblemsNotFoundResponseBody(body *ShowProblemsNotFoundResponse
 	return
 }
 
-// ValidateShowProblemsUnauthorizedResponseBody runs the validations defined on
-// show_/problems/unauthorized_response_body
-func ValidateShowProblemsUnauthorizedResponseBody(body *ShowProblemsUnauthorizedResponseBody) (err error) {
+// ValidateShowNotFoundResponseBody runs the validations defined on
+// show_not_found_response_body
+func ValidateShowNotFoundResponseBody(body *ShowNotFoundResponseBody) (err error) {
 	if body.Type == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("type", "body"))
 	}
@@ -443,11 +419,6 @@ func ValidateShowProblemsUnauthorizedResponseBody(body *ShowProblemsUnauthorized
 	}
 	if body.Detail == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("detail", "body"))
-	}
-	if body.Type != nil {
-		if !(*body.Type == "/problems/unauthorized" || *body.Type == "/problems/not-valid" || *body.Type == "/problems/not-found" || *body.Type == "/problems/internal-error") {
-			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.type", *body.Type, []any{"/problems/unauthorized", "/problems/not-valid", "/problems/not-found", "/problems/internal-error"}))
-		}
 	}
 	if body.Type != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.type", *body.Type, goa.FormatURI))
@@ -455,9 +426,9 @@ func ValidateShowProblemsUnauthorizedResponseBody(body *ShowProblemsUnauthorized
 	return
 }
 
-// ValidateShowProblemsInternalErrorResponseBody runs the validations defined
-// on show_/problems/internal-error_response_body
-func ValidateShowProblemsInternalErrorResponseBody(body *ShowProblemsInternalErrorResponseBody) (err error) {
+// ValidateShowUnauthorizedResponseBody runs the validations defined on
+// show_unauthorized_response_body
+func ValidateShowUnauthorizedResponseBody(body *ShowUnauthorizedResponseBody) (err error) {
 	if body.Type == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("type", "body"))
 	}
@@ -469,11 +440,6 @@ func ValidateShowProblemsInternalErrorResponseBody(body *ShowProblemsInternalErr
 	}
 	if body.Detail == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("detail", "body"))
-	}
-	if body.Type != nil {
-		if !(*body.Type == "/problems/unauthorized" || *body.Type == "/problems/not-valid" || *body.Type == "/problems/not-found" || *body.Type == "/problems/internal-error") {
-			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.type", *body.Type, []any{"/problems/unauthorized", "/problems/not-valid", "/problems/not-found", "/problems/internal-error"}))
-		}
 	}
 	if body.Type != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.type", *body.Type, goa.FormatURI))

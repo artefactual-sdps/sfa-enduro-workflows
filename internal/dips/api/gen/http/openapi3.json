@@ -92,8 +92,8 @@
         "example": {
           "detail": "The request body is missing the docKey field.",
           "status": 400,
-          "title": "Invalid request parameters.",
-          "type": "/problems/not-valid"
+          "title": "Bad Request",
+          "type": "about:blank"
         },
         "properties": {
           "detail": {
@@ -113,18 +113,13 @@
           },
           "title": {
             "description": "The title field contains a short, human-readable summary of the problem type.",
-            "example": "Invalid request parameters.",
+            "example": "Bad Request",
             "type": "string"
           },
           "type": {
+            "default": "about:blank",
             "description": "The type field contains a URI reference that identifies the problem type.",
-            "enum": [
-              "/problems/unauthorized",
-              "/problems/not-valid",
-              "/problems/not-found",
-              "/problems/internal-error"
-            ],
-            "example": "/problems/not-valid",
+            "example": "about:blank",
             "format": "uri",
             "type": "string"
           }
@@ -201,15 +196,15 @@
                 "example": {
                   "detail": "The request body is missing the docKey field.",
                   "status": 400,
-                  "title": "Invalid request parameters.",
-                  "type": "/problems/not-valid"
+                  "title": "Bad Request",
+                  "type": "about:blank"
                 },
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             },
-            "description": "/problems/not-valid: The request parameters are invalid."
+            "description": "not_valid: The request parameters are invalid."
           },
           "401": {
             "content": {
@@ -217,15 +212,15 @@
                 "example": {
                   "detail": "The Authorization header is missing or invalid.",
                   "status": 401,
-                  "title": "Invalid bearer token.",
-                  "type": "/problems/unauthorized"
+                  "title": "Unauthorized",
+                  "type": "about:blank"
                 },
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             },
-            "description": "/problems/unauthorized: The bearer token is missing or invalid."
+            "description": "unauthorized: The bearer token is missing or invalid."
           },
           "500": {
             "content": {
@@ -233,15 +228,15 @@
                 "example": {
                   "detail": "The DIP request could not be processed.",
                   "status": 500,
-                  "title": "Unexpected server error.",
-                  "type": "/problems/internal-error"
+                  "title": "Internal Server Error",
+                  "type": "about:blank"
                 },
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             },
-            "description": "/problems/internal-error: An unexpected server error occurred."
+            "description": "internal_error: An unexpected server error occurred."
           }
         },
         "security": [
@@ -300,15 +295,15 @@
                 "example": {
                   "detail": "The Authorization header is missing or invalid.",
                   "status": 401,
-                  "title": "Invalid bearer token.",
-                  "type": "/problems/unauthorized"
+                  "title": "Unauthorized",
+                  "type": "about:blank"
                 },
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             },
-            "description": "/problems/unauthorized: The bearer token is missing or invalid."
+            "description": "unauthorized: The bearer token is missing or invalid."
           },
           "404": {
             "content": {
@@ -316,15 +311,15 @@
                 "example": {
                   "detail": "The requested DIP does not exist.",
                   "status": 404,
-                  "title": "DIP not found.",
-                  "type": "/problems/not-found"
+                  "title": "Not Found",
+                  "type": "about:blank"
                 },
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             },
-            "description": "/problems/not-found: The requested DIP was not found."
+            "description": "not_found: The requested DIP was not found."
           },
           "500": {
             "content": {
@@ -332,15 +327,15 @@
                 "example": {
                   "detail": "The DIP request could not be processed.",
                   "status": 500,
-                  "title": "Unexpected server error.",
-                  "type": "/problems/internal-error"
+                  "title": "Internal Server Error",
+                  "type": "about:blank"
                 },
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             },
-            "description": "/problems/internal-error: An unexpected server error occurred."
+            "description": "internal_error: An unexpected server error occurred."
           }
         },
         "security": [
