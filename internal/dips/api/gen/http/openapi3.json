@@ -61,7 +61,7 @@
           "400": {
             "description": "bad_request: Bad Request response.",
             "content": {
-              "application/vnd.goa.error": {
+              "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
@@ -71,7 +71,7 @@
           "401": {
             "description": "unauthorized: Unauthorized response.",
             "content": {
-              "application/vnd.goa.error": {
+              "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
@@ -81,7 +81,7 @@
           "500": {
             "description": "internal_server_error: Internal Server Error response.",
             "content": {
-              "application/vnd.goa.error": {
+              "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
@@ -142,7 +142,7 @@
           "400": {
             "description": "bad_request: Bad Request response.",
             "content": {
-              "application/vnd.goa.error": {
+              "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
@@ -152,7 +152,7 @@
           "401": {
             "description": "unauthorized: Unauthorized response.",
             "content": {
-              "application/vnd.goa.error": {
+              "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
@@ -162,7 +162,7 @@
           "404": {
             "description": "not_found: Not Found response.",
             "content": {
-              "application/vnd.goa.error": {
+              "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
@@ -172,7 +172,7 @@
           "500": {
             "description": "internal_server_error: Internal Server Error response.",
             "content": {
-              "application/vnd.goa.error": {
+              "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }

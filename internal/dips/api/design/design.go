@@ -57,9 +57,9 @@ var _ = Service("DIPs", func() {
 	})
 
 	HTTP(func() {
-		Response("bad_request", StatusBadRequest)
-		Response("unauthorized", StatusUnauthorized)
-		Response("internal_server_error", StatusInternalServerError)
+		Response("bad_request", StatusBadRequest, goaErrorResponse())
+		Response("unauthorized", StatusUnauthorized, goaErrorResponse())
+		Response("internal_server_error", StatusInternalServerError, goaErrorResponse())
 	})
 
 	Method("create", func() {
@@ -97,8 +97,18 @@ var _ = Service("DIPs", func() {
 			Field(3, "status", DIPStatus, "The status field contains the current DIP status.")
 			Field(4, "created_at", DateTime, "The created_at field contains the time when the DIP was requested.")
 			Field(5, "started_at", DateTime, "The started_at field contains the time when DIP processing started.")
-			Field(6, "completed_at", DateTime, "The completed_at field contains the time when DIP processing completed.")
-			Field(7, "object_key", ObjectKey, "The object_key field contains the object store key for the completed DIP.")
+			Field(
+				6,
+				"completed_at",
+				DateTime,
+				"The completed_at field contains the time when DIP processing completed.",
+			)
+			Field(
+				7,
+				"object_key",
+				ObjectKey,
+				"The object_key field contains the object store key for the completed DIP.",
+			)
 			Required("id", "docKey", "status", "created_at")
 		})
 
@@ -106,7 +116,13 @@ var _ = Service("DIPs", func() {
 			GET("/dips/{id}")
 			Header("token:Authorization")
 			Response(StatusOK)
-			Response("not_found", StatusNotFound)
+			Response("not_found", StatusNotFound, goaErrorResponse())
 		})
 	})
 })
+
+func goaErrorResponse() func() {
+	return func() {
+		ContentType("application/json")
+	}
+}
