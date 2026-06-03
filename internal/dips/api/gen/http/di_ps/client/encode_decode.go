@@ -196,6 +196,7 @@ func EncodeShowRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.R
 // endpoint. restoreBody controls whether the response body should be restored
 // after having been read.
 // DecodeShowResponse may return the following errors:
+//   - "bad_request" (type *dips.BadRequestProblem): http.StatusBadRequest
 //   - "internal_server_error" (type *dips.InternalServerErrorProblem): http.StatusInternalServerError
 //   - "not_found" (type *dips.NotFoundProblem): http.StatusNotFound
 //   - "unauthorized" (type *dips.UnauthorizedProblem): http.StatusUnauthorized
@@ -230,6 +231,20 @@ func DecodeShowResponse(decoder func(*http.Response) goahttp.Decoder, restoreBod
 			}
 			res := NewShowResultOK(&body)
 			return res, nil
+		case http.StatusBadRequest:
+			var (
+				body ShowBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("DIPs", "show", err)
+			}
+			err = ValidateShowBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("DIPs", "show", err)
+			}
+			return nil, NewShowBadRequest(&body)
 		case http.StatusInternalServerError:
 			var (
 				body ShowInternalServerErrorResponseBody

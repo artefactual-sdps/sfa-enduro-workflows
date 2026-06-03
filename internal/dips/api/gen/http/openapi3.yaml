@@ -107,6 +107,17 @@ paths:
                                 object_key: dips/3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb.zip
                                 started_at: "2026-05-27T15:04:05Z"
                                 status: done
+                "400":
+                    description: 'bad_request: Bad Request response.'
+                    content:
+                        application/problem+json:
+                            schema:
+                                $ref: '#/components/schemas/ProblemDetails'
+                            example:
+                                detail: The request body is missing the docKey field.
+                                status: 400
+                                title: Bad Request
+                                type: about:blank
                 "401":
                     description: 'unauthorized: Unauthorized response.'
                     content:

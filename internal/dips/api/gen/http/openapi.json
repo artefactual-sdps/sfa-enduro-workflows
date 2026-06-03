@@ -131,6 +131,18 @@
               ]
             }
           },
+          "400": {
+            "description": "Bad Request response.",
+            "schema": {
+              "$ref": "#/definitions/ProblemDetails",
+              "required": [
+                "type",
+                "title",
+                "status",
+                "detail"
+              ]
+            }
+          },
           "401": {
             "description": "Unauthorized response.",
             "schema": {

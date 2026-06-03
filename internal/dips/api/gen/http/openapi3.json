@@ -157,6 +157,22 @@
               }
             }
           },
+          "400": {
+            "description": "bad_request: Bad Request response.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "example": {
+                  "detail": "The request body is missing the docKey field.",
+                  "status": 400,
+                  "title": "Bad Request",
+                  "type": "about:blank"
+                }
+              }
+            }
+          },
           "401": {
             "description": "unauthorized: Unauthorized response.",
             "content": {

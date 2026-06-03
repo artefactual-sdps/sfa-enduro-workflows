@@ -100,6 +100,7 @@ var _ = Service("DIPs", func() {
 	Error("internal_server_error", InternalServerErrorProblem)
 
 	HTTP(func() {
+		Response("bad_request", StatusBadRequest, problemDetailsResponse())
 		Response("unauthorized", StatusUnauthorized, problemDetailsResponse())
 		Response("internal_server_error", StatusInternalServerError, problemDetailsResponse())
 	})
@@ -123,7 +124,6 @@ var _ = Service("DIPs", func() {
 				Attribute("docKey")
 			})
 			Response(StatusAccepted)
-			Response("bad_request", StatusBadRequest, problemDetailsResponse())
 		})
 	})
 
