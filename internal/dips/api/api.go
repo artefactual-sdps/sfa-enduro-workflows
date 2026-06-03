@@ -27,7 +27,7 @@ func HTTPServer(config *config.APIConfig, svc dips.Service) *http.Server {
 	svr := server.New(di_ps.NewEndpoints(svc), mux, goahttp.RequestDecoder, goahttp.ResponseEncoder, nil, nil)
 	server.Mount(mux, svr)
 
-	var handler http.Handler = mux
+	var handler http.Handler = problemDetailsMiddleware(mux)
 	if config.Debug {
 		handler = goahttpmwr.Debug(mux, os.Stdout)(handler)
 	}
