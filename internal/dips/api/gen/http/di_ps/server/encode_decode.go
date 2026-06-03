@@ -98,9 +98,8 @@ func EncodeCreateError(encoder func(context.Context, http.ResponseWriter) goahtt
 		}
 		switch en.GoaErrorName() {
 		case "bad_request":
-			var res *dips.BadRequestProblem
+			var res *goa.ServiceError
 			errors.As(v, &res)
-			ctx = context.WithValue(ctx, goahttp.ContentTypeKey, "application/problem+json")
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
@@ -111,24 +110,9 @@ func EncodeCreateError(encoder func(context.Context, http.ResponseWriter) goahtt
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusBadRequest)
 			return enc.Encode(body)
-		case "internal_server_error":
-			var res *dips.InternalServerErrorProblem
-			errors.As(v, &res)
-			ctx = context.WithValue(ctx, goahttp.ContentTypeKey, "application/problem+json")
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewCreateInternalServerErrorResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusInternalServerError)
-			return enc.Encode(body)
 		case "unauthorized":
-			var res *dips.UnauthorizedProblem
+			var res *goa.ServiceError
 			errors.As(v, &res)
-			ctx = context.WithValue(ctx, goahttp.ContentTypeKey, "application/problem+json")
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
@@ -138,6 +122,19 @@ func EncodeCreateError(encoder func(context.Context, http.ResponseWriter) goahtt
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusUnauthorized)
+			return enc.Encode(body)
+		case "internal_server_error":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewCreateInternalServerErrorResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
 			return enc.Encode(body)
 		default:
 			return encodeError(ctx, w, v)
@@ -199,38 +196,9 @@ func EncodeShowError(encoder func(context.Context, http.ResponseWriter) goahttp.
 			return encodeError(ctx, w, v)
 		}
 		switch en.GoaErrorName() {
-		case "bad_request":
-			var res *dips.BadRequestProblem
-			errors.As(v, &res)
-			ctx = context.WithValue(ctx, goahttp.ContentTypeKey, "application/problem+json")
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewShowBadRequestResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusBadRequest)
-			return enc.Encode(body)
-		case "internal_server_error":
-			var res *dips.InternalServerErrorProblem
-			errors.As(v, &res)
-			ctx = context.WithValue(ctx, goahttp.ContentTypeKey, "application/problem+json")
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewShowInternalServerErrorResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusInternalServerError)
-			return enc.Encode(body)
 		case "not_found":
-			var res *dips.NotFoundProblem
+			var res *goa.ServiceError
 			errors.As(v, &res)
-			ctx = context.WithValue(ctx, goahttp.ContentTypeKey, "application/problem+json")
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
@@ -241,10 +209,22 @@ func EncodeShowError(encoder func(context.Context, http.ResponseWriter) goahttp.
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusNotFound)
 			return enc.Encode(body)
-		case "unauthorized":
-			var res *dips.UnauthorizedProblem
+		case "bad_request":
+			var res *goa.ServiceError
 			errors.As(v, &res)
-			ctx = context.WithValue(ctx, goahttp.ContentTypeKey, "application/problem+json")
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewShowBadRequestResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusBadRequest)
+			return enc.Encode(body)
+		case "unauthorized":
+			var res *goa.ServiceError
+			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			var body any
 			if formatter != nil {
@@ -254,6 +234,19 @@ func EncodeShowError(encoder func(context.Context, http.ResponseWriter) goahttp.
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusUnauthorized)
+			return enc.Encode(body)
+		case "internal_server_error":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewShowInternalServerErrorResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
 			return enc.Encode(body)
 		default:
 			return encodeError(ctx, w, v)

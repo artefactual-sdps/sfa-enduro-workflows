@@ -31,10 +31,10 @@ func NewClient(create, show goa.Endpoint) *Client {
 
 // Create calls the "create" endpoint of the "DIPs" service.
 // Create may return the following errors:
-//   - "bad_request" (type *BadRequestProblem)
-//   - "unauthorized" (type *UnauthorizedProblem)
-//   - "not_found" (type *NotFoundProblem)
-//   - "internal_server_error" (type *InternalServerErrorProblem)
+//   - "bad_request" (type *goa.ServiceError)
+//   - "unauthorized" (type *goa.ServiceError)
+//   - "not_found" (type *goa.ServiceError)
+//   - "internal_server_error" (type *goa.ServiceError)
 //   - error: internal error
 func (c *Client) Create(ctx context.Context, p *CreatePayload) (res *CreateResult, err error) {
 	var ires any
@@ -47,10 +47,10 @@ func (c *Client) Create(ctx context.Context, p *CreatePayload) (res *CreateResul
 
 // Show calls the "show" endpoint of the "DIPs" service.
 // Show may return the following errors:
-//   - "bad_request" (type *BadRequestProblem)
-//   - "unauthorized" (type *UnauthorizedProblem)
-//   - "not_found" (type *NotFoundProblem)
-//   - "internal_server_error" (type *InternalServerErrorProblem)
+//   - "bad_request" (type *goa.ServiceError)
+//   - "unauthorized" (type *goa.ServiceError)
+//   - "not_found" (type *goa.ServiceError)
+//   - "internal_server_error" (type *goa.ServiceError)
 //   - error: internal error
 func (c *Client) Show(ctx context.Context, p *ShowPayload) (res *ShowResult, err error) {
 	var ires any

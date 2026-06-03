@@ -61,15 +61,9 @@
           "400": {
             "description": "bad_request: Bad Request response.",
             "content": {
-              "application/problem+json": {
+              "application/vnd.goa.error": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                },
-                "example": {
-                  "detail": "The request body is missing the docKey field.",
-                  "status": 400,
-                  "title": "Bad Request",
-                  "type": "about:blank"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -77,15 +71,9 @@
           "401": {
             "description": "unauthorized: Unauthorized response.",
             "content": {
-              "application/problem+json": {
+              "application/vnd.goa.error": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                },
-                "example": {
-                  "detail": "The bearer token is missing or invalid.",
-                  "status": 401,
-                  "title": "Unauthorized",
-                  "type": "about:blank"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -93,15 +81,9 @@
           "500": {
             "description": "internal_server_error: Internal Server Error response.",
             "content": {
-              "application/problem+json": {
+              "application/vnd.goa.error": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                },
-                "example": {
-                  "detail": "An error occurred when attempting to process the DIP request.",
-                  "status": 500,
-                  "title": "Internal Server Error",
-                  "type": "about:blank"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -160,15 +142,9 @@
           "400": {
             "description": "bad_request: Bad Request response.",
             "content": {
-              "application/problem+json": {
+              "application/vnd.goa.error": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                },
-                "example": {
-                  "detail": "The request body is missing the docKey field.",
-                  "status": 400,
-                  "title": "Bad Request",
-                  "type": "about:blank"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -176,15 +152,9 @@
           "401": {
             "description": "unauthorized: Unauthorized response.",
             "content": {
-              "application/problem+json": {
+              "application/vnd.goa.error": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                },
-                "example": {
-                  "detail": "The bearer token is missing or invalid.",
-                  "status": 401,
-                  "title": "Unauthorized",
-                  "type": "about:blank"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -192,15 +162,9 @@
           "404": {
             "description": "not_found: Not Found response.",
             "content": {
-              "application/problem+json": {
+              "application/vnd.goa.error": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                },
-                "example": {
-                  "detail": "The requested DIP does not exist.",
-                  "status": 404,
-                  "title": "Not Found",
-                  "type": "about:blank"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -208,15 +172,9 @@
           "500": {
             "description": "internal_server_error: Internal Server Error response.",
             "content": {
-              "application/problem+json": {
+              "application/vnd.goa.error": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                },
-                "example": {
-                  "detail": "An error occurred when attempting to process the DIP request.",
-                  "status": 500,
-                  "title": "Internal Server Error",
-                  "type": "about:blank"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -249,49 +207,55 @@
           "id"
         ]
       },
-      "ProblemDetails": {
+      "Error": {
         "type": "object",
         "properties": {
-          "detail": {
-            "type": "string",
-            "description": "The detail field contains a human-readable explanation specific to this problem occurrence.",
-            "example": "The request body is missing the docKey field."
+          "fault": {
+            "type": "boolean",
+            "description": "Is the error a server-side fault?",
+            "example": true
           },
-          "instance": {
+          "id": {
             "type": "string",
-            "description": "The instance field contains a URI reference that identifies this problem occurrence."
+            "description": "ID is a unique identifier for this particular occurrence of the problem.",
+            "example": "123abc"
           },
-          "status": {
-            "type": "integer",
-            "description": "The status field contains the HTTP status code generated by the origin server.",
-            "example": 400,
-            "format": "int32"
-          },
-          "title": {
+          "message": {
             "type": "string",
-            "description": "The title field contains a short, human-readable summary of the problem type.",
-            "example": "Bad Request"
+            "description": "Message is a human-readable explanation specific to this occurrence of the problem.",
+            "example": "parameter 'p' must be an integer"
           },
-          "type": {
+          "name": {
             "type": "string",
-            "description": "The type field contains a URI reference that identifies the problem type.",
-            "default": "about:blank",
-            "example": "about:blank",
-            "format": "uri"
+            "description": "Name is the name of this class of errors.",
+            "example": "bad_request"
+          },
+          "temporary": {
+            "type": "boolean",
+            "description": "Is the error temporary?",
+            "example": false
+          },
+          "timeout": {
+            "type": "boolean",
+            "description": "Is the error a timeout?",
+            "example": false
           }
         },
-        "description": "ProblemDetails represents an RFC 9457 problem details object.",
         "example": {
-          "detail": "The request body is missing the docKey field.",
-          "status": 400,
-          "title": "Bad Request",
-          "type": "about:blank"
+          "fault": true,
+          "id": "123abc",
+          "message": "parameter 'p' must be an integer",
+          "name": "bad_request",
+          "temporary": false,
+          "timeout": true
         },
         "required": [
-          "type",
-          "title",
-          "status",
-          "detail"
+          "name",
+          "id",
+          "message",
+          "temporary",
+          "timeout",
+          "fault"
         ]
       },
       "ShowResponseBody": {

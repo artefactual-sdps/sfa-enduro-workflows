@@ -188,5 +188,5 @@ func dIPsShowUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "di-ps show --id \"3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb\" --token \"Deserunt similique quas quia minima sequi ullam.\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "di-ps show --id \"3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb\" --token \"Sit ad.\"")
 }
