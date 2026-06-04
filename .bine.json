@@ -14,16 +14,21 @@
       "asset_pattern": "{name}_{os}_{arch}"
     },
     {
-      "name": "golangci-lint",
-      "url": "https://github.com/golangci/golangci-lint",
-      "version": "2.11.2",
-      "asset_pattern": "{name}-{version}-{goos}-{goarch}.tar.gz"
-    },
-    {
       "name": "go-mod-outdated",
       "url": "https://github.com/psampaz/go-mod-outdated",
       "version": "0.9.0",
       "asset_pattern": "{name}_{version}_{os}_{arch}.tar.gz"
+    },
+    {
+      "name": "goa",
+      "go_package": "goa.design/goa/v3/cmd/goa",
+      "version": "3.27.0"
+    },
+    {
+      "name": "golangci-lint",
+      "url": "https://github.com/golangci/golangci-lint",
+      "version": "2.11.2",
+      "asset_pattern": "{name}-{version}-{goos}-{goarch}.tar.gz"
     },
     {
       "name": "gosec",
@@ -40,6 +45,18 @@
       "name": "govulncheck",
       "go_package": "golang.org/x/vuln/cmd/govulncheck",
       "version": "latest"
+    },
+    {
+      "name": "jq",
+      "url": "https://github.com/jqlang/jq",
+      "version": "1.8.1",
+      "asset_pattern": "{name}-{goos}-{goarch}",
+      "tag_pattern": "{name}-{version}",
+      "modifiers": {
+        "goos": {
+          "darwin": "macos"
+        }
+      }
     },
     {
       "name": "mockgen",
