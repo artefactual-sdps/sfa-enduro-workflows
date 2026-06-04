@@ -8,3 +8,5 @@ resources:
   - pvc.yaml
   - secret.yaml
   - worker.yaml
+  - sfa-dips-secret.yaml
+  - sfa-dips.yaml
