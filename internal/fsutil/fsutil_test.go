@@ -6,13 +6,13 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/fs"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/fsutil"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fsutil"
 )
 
 func TestFileExists(t *testing.T) {
 	t.Parallel()
 
-	td := fs.NewDir(t, "preprocessing-sfa-test",
+	td := fs.NewDir(t, "sfa-enduro-workflows-test",
 		fs.WithDir("a", fs.WithFile("needle", "")),
 	)
 
@@ -23,7 +23,7 @@ func TestFileExists(t *testing.T) {
 func TestFindFilename(t *testing.T) {
 	t.Parallel()
 
-	td := fs.NewDir(t, "preprocessing-sfa-test",
+	td := fs.NewDir(t, "sfa-enduro-workflows-test",
 		fs.WithDir("a",
 			fs.WithFile("needle", ""),
 			fs.WithFile("hay", ""),

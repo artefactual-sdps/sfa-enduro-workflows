@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/identifiers"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/manifest"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/pips"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/identifiers"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/manifest"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/pips"
 )
 
 const WriteIdentifierFileName = "write-identifier-file"

@@ -5,9 +5,9 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/enums"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/pips"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/sip"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/enums"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/pips"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/sip"
 )
 
 func TestNew(t *testing.T) {

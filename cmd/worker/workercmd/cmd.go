@@ -26,19 +26,19 @@ import (
 	temporalsdk_workflow "go.temporal.io/sdk/workflow"
 	_ "gocloud.dev/blob/fileblob"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/activities"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/amss"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/apis"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/config"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/fformat"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/fvalidate"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/persistence"
-	entclient "github.com/artefactual-sdps/preprocessing-sfa/internal/persistence/ent/client"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/persistence/ent/db"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/workflows"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/activities"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/amss"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/config"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fformat"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fvalidate"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence"
+	entclient "github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/ent/client"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/ent/db"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/workflows"
 )
 
-const Name = "preprocessing-worker"
+const Name = "sfa-enduro-worker"
 
 type Main struct {
 	logger         logr.Logger

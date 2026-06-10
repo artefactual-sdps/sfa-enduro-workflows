@@ -1,6 +1,6 @@
 // See https://github.com/artefactual-labs/bine for config details.
 {
-  "project": "preprocessing-sfa",
+  "project": "sfa-enduro-workflows",
   "bins": [
     {
       "name": "ent",

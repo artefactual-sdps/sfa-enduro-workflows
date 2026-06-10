@@ -6,8 +6,8 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/identifiers"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/manifest"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/identifiers"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/manifest"
 )
 
 func TestSortFunc(t *testing.T) {

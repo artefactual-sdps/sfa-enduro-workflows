@@ -25,15 +25,15 @@ import (
 	temporalsdk_workflow "go.temporal.io/sdk/workflow"
 	"gotest.tools/v3/fs"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/activities"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/apis"
-	apisgen "github.com/artefactual-sdps/preprocessing-sfa/internal/apis/gen"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/config"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/localact"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/pips"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/premis"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/sip"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/workflows"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/activities"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis"
+	apisgen "github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis/gen"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/config"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/localact"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/pips"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/premis"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/sip"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/workflows"
 )
 
 const (
@@ -41,7 +41,7 @@ const (
 	apisTaskID = "task-000001"
 
 	// The relPath reflects an actual SFA ZIP path passed from Enduro to
-	// preprocessing-sfa — it seems that ingest prepends "SIP_" to the original
+	// sfa-enduro-workflows — it seems that ingest prepends "SIP_" to the original
 	// file name and appends a UUID.
 	relPath = "8fdfaea1-06ed-4cf6-8bdf-d15d80420f35/SIP_SIP_20240606_dept_8fdfaea1-06ed-4cf6-8bdf-d15d80420f35.zip"
 

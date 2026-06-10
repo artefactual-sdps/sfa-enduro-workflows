@@ -9,8 +9,8 @@ import (
 	ogenhttp "github.com/ogen-go/ogen/http"
 	"go.artefactual.dev/tools/temporal"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/apis/gen"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/sip"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis/gen"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/sip"
 )
 
 const CreateImportTaskActivityName = "create-apis-import-task"

@@ -1,4 +1,4 @@
-PROJECT := preprocessing-sfa
+PROJECT := sfa-enduro-workflows
 MAKEDIR := hack/make
 SHELL   := /bin/bash
 
@@ -20,15 +20,15 @@ define NEWLINE
 endef
 
 IGNORED_PACKAGES := \
-	github.com/artefactual-sdps/preprocessing-sfa/hack/% \
-	github.com/artefactual-sdps/preprocessing-sfa/internal/%/fake \
-	github.com/artefactual-sdps/preprocessing-sfa/internal/apis/gen \
-	github.com/artefactual-sdps/preprocessing-sfa/internal/dips/api/design \
-	github.com/artefactual-sdps/preprocessing-sfa/internal/dips/api/gen/% \
-	github.com/artefactual-sdps/preprocessing-sfa/internal/enums \
-	github.com/artefactual-sdps/preprocessing-sfa/internal/persistence/ent/db \
-	github.com/artefactual-sdps/preprocessing-sfa/internal/persistence/ent/db/% \
-	github.com/artefactual-sdps/preprocessing-sfa/internal/persistence/ent/schema
+	github.com/artefactual-sdps/sfa-enduro-workflows/hack/% \
+	github.com/artefactual-sdps/sfa-enduro-workflows/internal/%/fake \
+	github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis/gen \
+	github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/design \
+	github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/gen/% \
+	github.com/artefactual-sdps/sfa-enduro-workflows/internal/enums \
+	github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/ent/db \
+	github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/ent/db/% \
+	github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/ent/schema
 
 PACKAGES := $(shell go list ./...)
 TEST_PACKAGES := $(filter-out $(IGNORED_PACKAGES),$(PACKAGES))
@@ -75,7 +75,7 @@ gen-enums: tool-go-enum
 
 gen-goa: # @HELP Generate Goa assets for the DIP API design.
 gen-goa: tool-goa tool-jq
-	goa gen github.com/artefactual-sdps/preprocessing-sfa/internal/dips/api/design -o internal/dips/api
+	goa gen github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/design -o internal/dips/api
 	for f in $$(find internal/dips/api/gen/http -type f -name "*.json" | sort -u); do \
 		jq '.' "$$f" > "$$f".formatted && mv "$$f".formatted "$$f"; \
 		echo "Formatting $$f with jq"; \
@@ -83,10 +83,10 @@ gen-goa: tool-goa tool-jq
 
 gen-mock: # @HELP Generate mocks.
 gen-mock: tool-mockgen
-	mockgen -typed -destination=./internal/apis/fake/mock_client.go -package=fake github.com/artefactual-sdps/preprocessing-sfa/internal/apis Client
-	mockgen -typed -destination=./internal/fformat/fake/mock_identifier.go -package=fake github.com/artefactual-sdps/preprocessing-sfa/internal/fformat Identifier
-	mockgen -typed -destination=./internal/fvalidate/fake/mock_validator.go -package=fake github.com/artefactual-sdps/preprocessing-sfa/internal/fvalidate Validator
-	mockgen -typed -destination=./internal/persistence/fake/mock_service.go -package=fake github.com/artefactual-sdps/preprocessing-sfa/internal/persistence Service
+	mockgen -typed -destination=./internal/apis/fake/mock_client.go -package=fake github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis Client
+	mockgen -typed -destination=./internal/fformat/fake/mock_identifier.go -package=fake github.com/artefactual-sdps/sfa-enduro-workflows/internal/fformat Identifier
+	mockgen -typed -destination=./internal/fvalidate/fake/mock_validator.go -package=fake github.com/artefactual-sdps/sfa-enduro-workflows/internal/fvalidate Validator
+	mockgen -typed -destination=./internal/persistence/fake/mock_service.go -package=fake github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence Service
 
 gosec: # @HELP Run gosec security scanner.
 gosec: GOSEC_VERBOSITY ?= "-terse"

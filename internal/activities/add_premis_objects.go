@@ -9,8 +9,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/premis"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/sip"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/premis"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/sip"
 )
 
 const AddPREMISObjectsName = "add-premis-objects"

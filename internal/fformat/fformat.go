@@ -8,7 +8,7 @@ import (
 
 	"go.artefactual.dev/tools/temporal"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/sip"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/sip"
 )
 
 // Identifier provides a interface for identifying a file's format.

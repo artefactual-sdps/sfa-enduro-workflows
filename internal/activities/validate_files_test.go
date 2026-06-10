@@ -12,12 +12,12 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/fs"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/activities"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/fformat"
-	fake_fformat "github.com/artefactual-sdps/preprocessing-sfa/internal/fformat/fake"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/fvalidate"
-	fake_fvalidate "github.com/artefactual-sdps/preprocessing-sfa/internal/fvalidate/fake"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/sip"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/activities"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fformat"
+	fake_fformat "github.com/artefactual-sdps/sfa-enduro-workflows/internal/fformat/fake"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fvalidate"
+	fake_fvalidate "github.com/artefactual-sdps/sfa-enduro-workflows/internal/fvalidate/fake"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/sip"
 )
 
 func TestValidateFiles(t *testing.T) {

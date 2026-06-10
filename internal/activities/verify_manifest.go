@@ -18,8 +18,8 @@ import (
 
 	goset "github.com/deckarep/golang-set/v2"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/manifest"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/sip"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/manifest"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/sip"
 )
 
 const VerifyManifestName = "verify-manifest"

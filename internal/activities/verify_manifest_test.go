@@ -10,7 +10,7 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/fs"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/activities"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/activities"
 )
 
 const (

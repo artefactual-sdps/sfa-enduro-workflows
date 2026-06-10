@@ -18,11 +18,11 @@ import (
 	temporalsdk_testsuite "go.temporal.io/sdk/testsuite"
 	temporalsdk_worker "go.temporal.io/sdk/worker"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/amss"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/apis"
-	apisgen "github.com/artefactual-sdps/preprocessing-sfa/internal/apis/gen"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/config"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/workflows"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/amss"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis"
+	apisgen "github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis/gen"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/config"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/workflows"
 )
 
 type TestSuite struct {

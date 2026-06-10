@@ -3,7 +3,7 @@ package activities
 import (
 	"context"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/premis"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/premis"
 )
 
 const AddPREMISAgentName = "add-premis-agent"

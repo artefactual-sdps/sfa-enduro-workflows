@@ -8,8 +8,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/enums"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/sip"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/enums"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/sip"
 )
 
 const ValidateStructureName = "validate-structure"

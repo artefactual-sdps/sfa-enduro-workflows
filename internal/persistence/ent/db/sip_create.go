@@ -9,7 +9,7 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/persistence/ent/db/sip"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/ent/db/sip"
 )
 
 // SIPCreate is the builder for creating a SIP entity.

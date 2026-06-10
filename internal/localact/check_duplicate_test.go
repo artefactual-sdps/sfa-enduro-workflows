@@ -9,9 +9,9 @@ import (
 	"go.uber.org/mock/gomock"
 	"gotest.tools/v3/assert"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/localact"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/persistence"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/persistence/fake"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/localact"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/fake"
 )
 
 func TestSavePreprocessingTasksActivity(t *testing.T) {

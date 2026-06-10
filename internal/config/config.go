@@ -11,9 +11,9 @@ import (
 	"github.com/spf13/viper"
 	"go.artefactual.dev/ssclient"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/apis"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/fvalidate"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/persistence"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fvalidate"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence"
 )
 
 type ConfigurationValidator interface {
@@ -193,8 +193,8 @@ func Read(config *Config, configFile string) (found bool, configFileUsed string,
 	v.AddConfigPath(".")
 	v.AddConfigPath("$HOME/.config/")
 	v.AddConfigPath("/etc")
-	v.SetConfigName("preprocessing")
-	v.SetEnvPrefix("ENDURO_PREPROCESSING")
+	v.SetConfigName("sfa-enduro")
+	v.SetEnvPrefix("SFA_ENDURO")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 

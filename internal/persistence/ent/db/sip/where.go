@@ -4,7 +4,7 @@ package sip
 
 import (
 	"entgo.io/ent/dialect/sql"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/persistence/ent/db/predicate"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/ent/db/predicate"
 )
 
 // ID filters vertices based on their ID field.

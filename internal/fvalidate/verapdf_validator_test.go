@@ -6,8 +6,8 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/fvalidate"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/premis"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fvalidate"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/premis"
 )
 
 func TestFormatIDs(t *testing.T) {

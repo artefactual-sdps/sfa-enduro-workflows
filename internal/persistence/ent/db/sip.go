@@ -8,7 +8,7 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/persistence/ent/db/sip"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/ent/db/sip"
 )
 
 // SIP is the model entity for the SIP schema.

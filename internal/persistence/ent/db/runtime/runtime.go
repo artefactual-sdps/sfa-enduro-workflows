@@ -2,7 +2,7 @@
 
 package runtime
 
-// The schema-stitching logic is generated in github.com/artefactual-sdps/preprocessing-sfa/internal/persistence/ent/db/runtime.go
+// The schema-stitching logic is generated in github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/ent/db/runtime.go
 
 const (
 	Version = "v0.14.5"                                         // Version of ent codegen.

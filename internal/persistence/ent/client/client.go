@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/persistence"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/persistence/ent/db"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/ent/db"
 )
 
 type client struct {

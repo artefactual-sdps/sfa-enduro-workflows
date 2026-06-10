@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/manifest"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/manifest"
 )
 
 // Identifier represents a file identifier in an Archivematica

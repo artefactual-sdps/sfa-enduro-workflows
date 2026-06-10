@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/sip"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/sip"
 )
 
 const ValidateSIPNameName = "validate-sip-name"

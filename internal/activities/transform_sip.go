@@ -8,9 +8,9 @@ import (
 
 	"go.artefactual.dev/tools/fsutil"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/enums"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/pips"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/sip"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/enums"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/pips"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/sip"
 )
 
 const TransformSIPName = "transform-sip"

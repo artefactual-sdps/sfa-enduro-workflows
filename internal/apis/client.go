@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/go-cleanhttp"
 	"go.artefactual.dev/tools/clientauth"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/apis/gen"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis/gen"
 )
 
 type Client interface {

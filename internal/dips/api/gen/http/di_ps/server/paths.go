@@ -4,7 +4,7 @@
 //
 // Command:
 // $ goa gen
-// github.com/artefactual-sdps/preprocessing-sfa/internal/dips/api/design -o
+// github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/design -o
 // internal/dips/api
 
 package server

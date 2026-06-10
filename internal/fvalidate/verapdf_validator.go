@@ -6,8 +6,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/fsutil"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/premis"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fsutil"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/premis"
 )
 
 // pdfaPUIDs are the https://www.nationalarchives.gov.uk/pronom/ IDs of the

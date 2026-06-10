@@ -12,10 +12,10 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/fs"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/apis"
-	fake_apis "github.com/artefactual-sdps/preprocessing-sfa/internal/apis/fake"
-	apisgen "github.com/artefactual-sdps/preprocessing-sfa/internal/apis/gen"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/sip"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis"
+	fake_apis "github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis/fake"
+	apisgen "github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis/gen"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/sip"
 )
 
 func TestCreateImportTaskActivity(t *testing.T) {

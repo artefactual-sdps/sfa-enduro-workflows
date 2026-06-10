@@ -1,6 +1,6 @@
-# preprocessing-sfa
+# sfa-enduro-workflows
 
-preprocessing-sfa provides two Enduro child workflows for SFA: a
+**sfa-enduro-workflows** provides two Enduro child workflows for SFA: a
 preprocessing workflow that validates SFA SIPs, communicates with APIS, and
 restructures each SIP for preservation; and a poststorage workflow that
 downloads the AIP METS file from storage and completes the APIS integration.
@@ -34,7 +34,7 @@ taskQueue = "sfa-enduro"
 
 [preprocessing]
 workflowName = "preprocessing"
-sharedPath = "/home/preprocessing/shared"
+sharedPath = "/home/enduro/shared"
 checkDuplicates = false
 
 [preprocessing.persistence]
@@ -46,7 +46,7 @@ migrate = true
 checksumAlgorithm = "md5"
 
 [preprocessing.fileFormat]
-allowlistPath = "/home/preprocessing/.config/allowed_file_formats.csv"
+allowlistPath = "/home/enduro/.config/allowed_file_formats.csv"
 
 [preprocessing.filevalidate.verapdf]
 path = "/opt/verapdf/verapdf"
@@ -117,7 +117,7 @@ Bring up the Enduro environment by following the [Enduro development manual].
 The specific requirements for this project are:
 
 - clone this repository as a sibling of the Enduro repository
-- configure `CHILD_WORKFLOW_PATHS=../preprocessing-sfa`
+- configure `CHILD_WORKFLOW_PATHS=../sfa-enduro-workflows`
 - configure `MOUNT_PREPROCESSING_VOLUME=true`
 - run `tilt up` from the Enduro repository
 
@@ -468,7 +468,7 @@ parsing by the preservation engine
 ### Other activities
 
 The preprocessing child workflow that invokes the activities listed above (see the
-[preprocessing.go](https://github.com/artefactual-sdps/preprocessing-sfa/blob/main/internal/workflows/preprocessing.go) 
+[preprocessing.go](https://github.com/artefactual-sdps/sfa-enduro-workflows/blob/main/internal/workflows/preprocessing.go)
 file) also uses a number of other more general Enduro
 [temporal activites](https://github.com/artefactual-sdps/temporal-activities), including:
 

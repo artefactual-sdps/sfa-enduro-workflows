@@ -8,10 +8,10 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"gotest.tools/v3/assert"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/persistence"
-	entclient "github.com/artefactual-sdps/preprocessing-sfa/internal/persistence/ent/client"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/persistence/ent/db"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/persistence/ent/db/enttest"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence"
+	entclient "github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/ent/client"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/ent/db"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/ent/db/enttest"
 )
 
 func setUpClient(t *testing.T) (*db.Client, persistence.Service) {

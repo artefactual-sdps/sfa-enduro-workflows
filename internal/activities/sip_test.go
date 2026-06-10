@@ -3,7 +3,7 @@ package activities_test
 import (
 	"testing"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/sip"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/sip"
 )
 
 func testSIP(t *testing.T, path string) sip.SIP {

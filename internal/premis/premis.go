@@ -10,8 +10,8 @@ import (
 	"github.com/beevik/etree"
 	"github.com/google/uuid"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/fsutil"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/sip"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fsutil"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/sip"
 )
 
 const EmptyXML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -60,7 +60,7 @@ func AgentDefault() Agent {
 		Type:    "software",
 		Name:    "Enduro",
 		IdType:  "url",
-		IdValue: "https://github.com/artefactual-sdps/preprocessing-sfa",
+		IdValue: "https://github.com/artefactual-sdps/sfa-enduro-workflows",
 	}
 }
 

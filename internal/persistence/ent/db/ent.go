@@ -12,7 +12,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/persistence/ent/db/sip"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/ent/db/sip"
 )
 
 // ent aliases to avoid import conflicts in user's code.

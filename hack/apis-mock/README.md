@@ -10,12 +10,12 @@ lives in `internal/mock/server.go`.
 
 This service is a development and testing mock for APIS.
 
-It gives preprocessing-sfa a real HTTP endpoint that can run locally and in
+It gives sfa-enduro-workflows a real HTTP endpoint that can run locally and in
 Tilt/Kubernetes so the worker can exercise the APIS integration against an
 actual server process.
 
 It is not a production-compatible APIS implementation. It only models the
-parts of APIS that preprocessing-sfa currently needs:
+parts of APIS that sfa-enduro-workflows currently needs:
 
 - creating import tasks
 - polling analysis status
@@ -168,7 +168,7 @@ MOCK_IMPORT_RESULT=Fehler
 - `/api/Healthz` returns a minimal `OK` response
 - percentages and document counts are omitted because the current integration
   only cares about statuses and terminal results
-- only the APIS behaviors currently needed by preprocessing-sfa are modeled
+- only the APIS behaviors currently needed by sfa-enduro-workflows are modeled
 
 ## Notes on behavior
 

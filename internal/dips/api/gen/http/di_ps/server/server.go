@@ -4,7 +4,7 @@
 //
 // Command:
 // $ goa gen
-// github.com/artefactual-sdps/preprocessing-sfa/internal/dips/api/design -o
+// github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/design -o
 // internal/dips/api
 
 package server
@@ -13,7 +13,7 @@ import (
 	"context"
 	"net/http"
 
-	dips "github.com/artefactual-sdps/preprocessing-sfa/internal/dips/api/gen/di_ps"
+	dips "github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/gen/di_ps"
 	goahttp "goa.design/goa/v3/http"
 	goa "goa.design/goa/v3/pkg"
 )

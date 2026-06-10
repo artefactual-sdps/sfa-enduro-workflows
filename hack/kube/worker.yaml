@@ -1,25 +1,25 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: preprocessing-worker
+  name: sfa-enduro-worker
   labels:
-    app: preprocessing-worker
+    app: sfa-enduro-worker
 spec:
-  serviceName: preprocessing-worker
+  serviceName: sfa-enduro-worker
   selector:
     matchLabels:
-      app: preprocessing-worker
+      app: sfa-enduro-worker
   template:
     metadata:
       labels:
-        app: preprocessing-worker
+        app: sfa-enduro-worker
     spec:
       serviceAccountName: sdps
       securityContext:
         fsGroup: 1000
       containers:
-        - name: preprocessing-worker
-          image: preprocessing-sfa-worker:dev
+        - name: sfa-enduro-worker
+          image: sfa-enduro-worker:dev
           env:
             - name: MYSQL_USER
               valueFrom:
@@ -31,19 +31,19 @@ spec:
                 secretKeyRef:
                   name: mysql-secret
                   key: password
-            - name: ENDURO_PREPROCESSING_PREPROCESSING_PERSISTENCE_DSN
+            - name: SFA_ENDURO_PREPROCESSING_PERSISTENCE_DSN
               value: $(MYSQL_USER):$(MYSQL_PASSWORD)@tcp(mysql.enduro-sdps:3306)/preprocessing_sfa
           volumeMounts:
             - name: config
-              mountPath: /home/preprocessing/.config
+              mountPath: /home/enduro/.config
               readOnly: true
             - name: shared-dir
-              mountPath: /home/preprocessing/shared
+              mountPath: /home/enduro/shared
           resources: {}
       volumes:
         - name: config
           secret:
-            secretName: preprocessing-secret
+            secretName: sfa-enduro-secret
         - name: shared-dir
           persistentVolumeClaim:
             claimName: preprocessing-pvc

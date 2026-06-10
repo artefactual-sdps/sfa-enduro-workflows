@@ -1,4 +1,4 @@
-module github.com/artefactual-sdps/preprocessing-sfa/hack/apis-mock
+module github.com/artefactual-sdps/sfa-enduro-workflows/hack/apis-mock
 
 go 1.26.3
 

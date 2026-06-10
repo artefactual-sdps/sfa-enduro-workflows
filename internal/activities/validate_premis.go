@@ -9,8 +9,8 @@ import (
 	"github.com/artefactual-sdps/temporal-activities/xmlvalidate"
 	"go.artefactual.dev/tools/temporal"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/fsutil"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/premis"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fsutil"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/premis"
 )
 
 const ValidatePREMISName = "ValidatePREMIS"

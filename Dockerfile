@@ -9,7 +9,7 @@ COPY --link go.* ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY --link . .
 
-FROM build-go AS build-preprocessing-worker
+FROM build-go AS build-sfa-enduro-worker
 ARG VERSION_PATH
 ARG VERSION_LONG
 ARG VERSION_SHORT
@@ -19,10 +19,10 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 	go build \
 	-trimpath \
 	-ldflags="-X '${VERSION_PATH}.Long=${VERSION_LONG}' -X '${VERSION_PATH}.Short=${VERSION_SHORT}' -X '${VERSION_PATH}.GitCommit=${VERSION_GIT_HASH}'" \
-	-o /out/preprocessing-worker \
+	-o /out/sfa-enduro-worker \
 	./cmd/worker
 
-FROM debian:12-slim AS preprocessing-worker
+FROM debian:12-slim AS sfa-enduro-worker
 RUN apt-get update && apt-get install -y --no-install-recommends \
 	libxml2-utils \
 	openjdk-17-jre-headless \
@@ -30,14 +30,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ARG USER_ID=1000
 ARG GROUP_ID=1000
-RUN groupadd --gid ${GROUP_ID} preprocessing && \
-	useradd --uid ${USER_ID} --gid preprocessing --create-home preprocessing && \
-	mkdir --parents /var/opt/verapdf/logs /home/preprocessing/shared && \
-	chown -R preprocessing:preprocessing /var/opt/verapdf /home/preprocessing
+RUN groupadd --gid ${GROUP_ID} enduro && \
+	useradd --uid ${USER_ID} --gid enduro --create-home enduro && \
+	mkdir --parents /var/opt/verapdf/logs /home/enduro/shared && \
+	chown -R enduro:enduro /var/opt/verapdf /home/enduro
 
-USER preprocessing
+USER enduro
 
 COPY --from=ghcr.io/verapdf/cli:latest --link /opt/verapdf/ /opt/verapdf/
-COPY --from=build-preprocessing-worker --link /out/preprocessing-worker /home/preprocessing/bin/preprocessing-worker
+COPY --from=build-sfa-enduro-worker --link /out/sfa-enduro-worker /home/enduro/bin/sfa-enduro-worker
 
-CMD ["/home/preprocessing/bin/preprocessing-worker"]
+CMD ["/home/enduro/bin/sfa-enduro-worker"]

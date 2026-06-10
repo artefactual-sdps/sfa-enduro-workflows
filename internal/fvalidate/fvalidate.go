@@ -1,6 +1,6 @@
 package fvalidate
 
-import "github.com/artefactual-sdps/preprocessing-sfa/internal/premis"
+import "github.com/artefactual-sdps/sfa-enduro-workflows/internal/premis"
 
 type TargetType int
 

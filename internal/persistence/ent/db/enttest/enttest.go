@@ -5,12 +5,12 @@ package enttest
 import (
 	"context"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/persistence/ent/db"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/ent/db"
 	// required by schema hooks.
-	_ "github.com/artefactual-sdps/preprocessing-sfa/internal/persistence/ent/db/runtime"
+	_ "github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/ent/db/runtime"
 
 	"entgo.io/ent/dialect/sql/schema"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/persistence/ent/db/migrate"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/ent/db/migrate"
 )
 
 type (

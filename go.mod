@@ -1,4 +1,4 @@
-module github.com/artefactual-sdps/preprocessing-sfa
+module github.com/artefactual-sdps/sfa-enduro-workflows
 
 go 1.26.3
 

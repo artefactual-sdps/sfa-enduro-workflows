@@ -14,11 +14,11 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/fs"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/activities"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/enums"
-	fake_fvalidate "github.com/artefactual-sdps/preprocessing-sfa/internal/fvalidate/fake"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/premis"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/sip"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/activities"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/enums"
+	fake_fvalidate "github.com/artefactual-sdps/sfa-enduro-workflows/internal/fvalidate/fake"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/premis"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/sip"
 )
 
 const premisObjectContent = `<?xml version="1.0" encoding="UTF-8"?>

@@ -7,8 +7,8 @@ import (
 	ogenhttp "github.com/ogen-go/ogen/http"
 	"gotest.tools/v3/assert"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/hack/apis-mock/internal/gen"
-	"github.com/artefactual-sdps/preprocessing-sfa/hack/apis-mock/internal/mock"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/hack/apis-mock/internal/gen"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/hack/apis-mock/internal/mock"
 )
 
 func TestTaskStatusDrivesAnalysisAndImportLifecycle(t *testing.T) {

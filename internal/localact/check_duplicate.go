@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/persistence"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence"
 )
 
 type (

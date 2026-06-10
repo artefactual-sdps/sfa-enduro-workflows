@@ -7,7 +7,7 @@ import (
 
 	"go.artefactual.dev/tools/temporal"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/apis/gen"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis/gen"
 )
 
 const PollImportRunStatusActivityName = "poll-apis-import-run-status"

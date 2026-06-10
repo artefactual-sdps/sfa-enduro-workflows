@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/persistence/ent/db"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/ent/db"
 )
 
 // The SIPFunc type is an adapter to allow the use of ordinary

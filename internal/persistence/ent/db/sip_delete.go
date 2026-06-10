@@ -8,8 +8,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/persistence/ent/db/predicate"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/persistence/ent/db/sip"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/ent/db/predicate"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/ent/db/sip"
 )
 
 // SIPDelete is the builder for deleting a SIP entity.

@@ -18,14 +18,14 @@ import (
 	temporalsdk_temporal "go.temporal.io/sdk/temporal"
 	temporalsdk_workflow "go.temporal.io/sdk/workflow"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/activities"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/apis"
-	apisgen "github.com/artefactual-sdps/preprocessing-sfa/internal/apis/gen"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/config"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/localact"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/persistence"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/premis"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/sip"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/activities"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis"
+	apisgen "github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis/gen"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/config"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/localact"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/premis"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/sip"
 )
 
 type Preprocessing struct {

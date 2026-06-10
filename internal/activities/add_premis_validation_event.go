@@ -11,11 +11,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/jonboulle/clockwork"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/fformat"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/fsutil"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/fvalidate"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/premis"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/sip"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fformat"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fsutil"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fvalidate"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/premis"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/sip"
 )
 
 const AddPREMISValidationEventName = "add-premis-validation-event"

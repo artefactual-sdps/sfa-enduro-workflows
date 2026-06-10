@@ -57,7 +57,7 @@ formatters:
       sections:
         - standard
         - default
-        - prefix(github.com/artefactual-sdps/preprocessing-sfa)
+        - prefix(github.com/artefactual-sdps/sfa-enduro-workflows)
       no-inline-comments: true
       no-prefix-comments: false
     gofumpt:

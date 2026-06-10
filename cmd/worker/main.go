@@ -12,12 +12,10 @@ import (
 	"github.com/spf13/pflag"
 	"go.artefactual.dev/tools/log"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/cmd/worker/workercmd"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/config"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/version"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/cmd/worker/workercmd"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/config"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/version"
 )
-
-const appName = "preprocessing-sfa-worker"
 
 func main() {
 	p := pflag.NewFlagSet(workercmd.Name, pflag.ExitOnError)
@@ -31,7 +29,7 @@ func main() {
 	}
 
 	if v, _ := p.GetBool("version"); v {
-		fmt.Println(version.Info(appName))
+		fmt.Println(version.Info(workercmd.Name))
 		os.Exit(0)
 	}
 

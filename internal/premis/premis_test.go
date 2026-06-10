@@ -8,9 +8,9 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/fs"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/enums"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/premis"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/sip"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/enums"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/premis"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/sip"
 )
 
 const premisObjectAddContent = `<?xml version="1.0" encoding="UTF-8"?>
@@ -70,13 +70,13 @@ const premisObjectAndEventAddContent = `<?xml version="1.0" encoding="UTF-8"?>
     </premis:eventOutcomeInformation>
     <premis:linkingAgentIdentifier>
       <premis:linkingAgentIdentifierType valueURI="http://id.loc.gov/vocabulary/identifiers/local">url</premis:linkingAgentIdentifierType>
-      <premis:linkingAgentIdentifierValue>https://github.com/artefactual-sdps/preprocessing-sfa</premis:linkingAgentIdentifierValue>
+      <premis:linkingAgentIdentifierValue>https://github.com/artefactual-sdps/sfa-enduro-workflows</premis:linkingAgentIdentifierValue>
     </premis:linkingAgentIdentifier>
   </premis:event>
   <premis:agent>
     <premis:agentIdentifier>
       <premis:agentIdentifierType valueURI="http://id.loc.gov/vocabulary/identifiers/local">url</premis:agentIdentifierType>
-      <premis:agentIdentifierValue>https://github.com/artefactual-sdps/preprocessing-sfa</premis:agentIdentifierValue>
+      <premis:agentIdentifierValue>https://github.com/artefactual-sdps/sfa-enduro-workflows</premis:agentIdentifierValue>
     </premis:agentIdentifier>
     <premis:agentName>Enduro</premis:agentName>
     <premis:agentType>software</premis:agentType>
@@ -89,7 +89,7 @@ const premisAgentAddContent = `<?xml version="1.0" encoding="UTF-8"?>
   <premis:agent>
     <premis:agentIdentifier>
       <premis:agentIdentifierType valueURI="http://id.loc.gov/vocabulary/identifiers/local">url</premis:agentIdentifierType>
-      <premis:agentIdentifierValue>https://github.com/artefactual-sdps/preprocessing-sfa</premis:agentIdentifierValue>
+      <premis:agentIdentifierValue>https://github.com/artefactual-sdps/sfa-enduro-workflows</premis:agentIdentifierValue>
     </premis:agentIdentifier>
     <premis:agentName>Enduro</premis:agentName>
     <premis:agentType>software</premis:agentType>

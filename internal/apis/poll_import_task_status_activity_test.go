@@ -10,9 +10,9 @@ import (
 	"go.uber.org/mock/gomock"
 	"gotest.tools/v3/assert"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/apis"
-	fake_apis "github.com/artefactual-sdps/preprocessing-sfa/internal/apis/fake"
-	apisgen "github.com/artefactual-sdps/preprocessing-sfa/internal/apis/gen"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis"
+	fake_apis "github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis/fake"
+	apisgen "github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis/gen"
 )
 
 func TestPollImportTaskStatusActivity(t *testing.T) {

@@ -10,10 +10,10 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/fs"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/apis"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/config"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/fvalidate"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/persistence"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/config"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fvalidate"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence"
 )
 
 const testConfig = `# Config
@@ -27,7 +27,7 @@ maxConcurrentSessions = 1
 taskQueue = "sfa-enduro"
 [preprocessing]
 workflowName = "preprocessing"
-sharedPath = "/home/preprocessing/shared"
+sharedPath = "/home/enduro/shared"
 checkDuplicates = true
 [preprocessing.persistence]
 dsn = "file:/path/to/fake.db"
@@ -36,7 +36,7 @@ migrate = true
 [preprocessing.bagCreate]
 checksumAlgorithm = "md5"
 [preprocessing.fileFormat]
-allowlistPath = "/home/preprocessing/.config/allowed_file_formats.csv"
+allowlistPath = "/home/enduro/.config/allowed_file_formats.csv"
 [preprocessing.filevalidate.verapdf]
 path = "/opt/verapdf/verapdf"
 [poststorage]
@@ -77,7 +77,7 @@ func TestConfig(t *testing.T) {
 	for _, tc := range []test{
 		{
 			name:       "Loads configuration from a TOML file",
-			configFile: "preprocessing.toml",
+			configFile: "sfa-enduro.toml",
 			toml:       testConfig,
 			wantFound:  true,
 			wantCfg: config.Config{
@@ -99,7 +99,7 @@ func TestConfig(t *testing.T) {
 				},
 				Preprocessing: config.PreprocessingConfig{
 					WorkflowName:    "preprocessing",
-					SharedPath:      "/home/preprocessing/shared",
+					SharedPath:      "/home/enduro/shared",
 					CheckDuplicates: true,
 					Persistence: persistence.Config{
 						DSN:     "file:/path/to/fake.db",
@@ -110,7 +110,7 @@ func TestConfig(t *testing.T) {
 						ChecksumAlgorithm: "md5",
 					},
 					FileFormat: ffvalidate.Config{
-						AllowlistPath: "/home/preprocessing/.config/allowed_file_formats.csv",
+						AllowlistPath: "/home/enduro/.config/allowed_file_formats.csv",
 					},
 					FileValidate: fvalidate.Config{
 						VeraPDF: fvalidate.VeraPDFConfig{
@@ -131,7 +131,7 @@ func TestConfig(t *testing.T) {
 		},
 		{
 			name:       "Errors when configuration values are not valid",
-			configFile: "preprocessing.toml",
+			configFile: "sfa-enduro.toml",
 			toml: `# override default values to trigger validation errors
 [temporal]
 namespace = ""
@@ -151,7 +151,7 @@ Poststorage.AMSS.Key: missing required value`,
 		},
 		{
 			name:       "Errors when MaxConcurrentSessions is less than 1",
-			configFile: "preprocessing.toml",
+			configFile: "sfa-enduro.toml",
 			toml: `# Config
 [temporal]
 address = "host:port"
@@ -160,7 +160,7 @@ maxConcurrentSessions = -1
 taskQueue = "sfa-enduro"
 [preprocessing]
 workflowName = "preprocessing"
-sharedPath = "/home/preprocessing/shared"
+sharedPath = "/home/enduro/shared"
 ` + validPoststorageConfig,
 			wantFound: true,
 			wantErr: `invalid configuration
@@ -168,7 +168,7 @@ Worker.MaxConcurrentSessions: -1 is less than the minimum value (1)`,
 		},
 		{
 			name:       "Errors when bagcreate checksumAlgorithm is invalid",
-			configFile: "preprocessing.toml",
+			configFile: "sfa-enduro.toml",
 			toml: `# Config
 [temporal]
 address = "host:port"
@@ -176,7 +176,7 @@ address = "host:port"
 taskQueue = "sfa-enduro"
 [preprocessing]
 workflowName = "preprocessing"
-sharedPath = "/home/preprocessing/shared"
+sharedPath = "/home/enduro/shared"
 [preprocessing.bagCreate]
 checksumAlgorithm = "unknown"
 ` + validPoststorageConfig,
@@ -186,7 +186,7 @@ Preprocessing.BagCreate: ChecksumAlgorithm: invalid value "unknown", must be one
 		},
 		{
 			name:       "Errors when persistence configuration is missing",
-			configFile: "preprocessing.toml",
+			configFile: "sfa-enduro.toml",
 			toml: `# Config
 [temporal]
 address = "host:port"
@@ -194,7 +194,7 @@ address = "host:port"
 taskQueue = "sfa-enduro"
 [preprocessing]
 workflowName = "preprocessing"
-sharedPath = "/home/preprocessing/shared"
+sharedPath = "/home/enduro/shared"
 checkDuplicates = true
 ` + validPoststorageConfig,
 			wantFound: true,
@@ -204,7 +204,7 @@ Preprocessing.Persistence.Driver: missing required value`,
 		},
 		{
 			name:       "Loads APIS defaults when only URL is configured",
-			configFile: "preprocessing.toml",
+			configFile: "sfa-enduro.toml",
 			toml: `# Config
 [temporal]
 address = "host:port"
@@ -212,7 +212,7 @@ address = "host:port"
 taskQueue = "sfa-enduro"
 [preprocessing]
 workflowName = "preprocessing"
-sharedPath = "/home/preprocessing/shared"
+sharedPath = "/home/enduro/shared"
 [apis]
 enabled = true
 url = "http://apis.example.test"
@@ -235,7 +235,7 @@ url = "http://apis.example.test"
 				},
 				Preprocessing: config.PreprocessingConfig{
 					WorkflowName: "preprocessing",
-					SharedPath:   "/home/preprocessing/shared",
+					SharedPath:   "/home/enduro/shared",
 					BagCreate: bagcreate.Config{
 						ChecksumAlgorithm: "sha512",
 					},
@@ -253,7 +253,7 @@ url = "http://apis.example.test"
 		},
 		{
 			name:       "Errors when APIS URL is missing",
-			configFile: "preprocessing.toml",
+			configFile: "sfa-enduro.toml",
 			toml: `# Config
 [temporal]
 address = "host:port"
@@ -261,7 +261,7 @@ address = "host:port"
 taskQueue = "sfa-enduro"
 [preprocessing]
 workflowName = "preprocessing"
-sharedPath = "/home/preprocessing/shared"
+sharedPath = "/home/enduro/shared"
 [apis]
 enabled = true
 ` + validPoststorageConfig,
@@ -271,7 +271,7 @@ APIS.URL: missing required value`,
 		},
 		{
 			name:       "Errors when APIS timeout is invalid",
-			configFile: "preprocessing.toml",
+			configFile: "sfa-enduro.toml",
 			toml: `# Config
 [temporal]
 address = "host:port"
@@ -279,7 +279,7 @@ address = "host:port"
 taskQueue = "sfa-enduro"
 [preprocessing]
 workflowName = "preprocessing"
-sharedPath = "/home/preprocessing/shared"
+sharedPath = "/home/enduro/shared"
 [apis]
 enabled = true
 url = "http://apis.example.test"
@@ -291,7 +291,7 @@ APIS.Timeout: value -1s is less than 0`,
 		},
 		{
 			name:       "Errors when APIS poll interval is invalid",
-			configFile: "preprocessing.toml",
+			configFile: "sfa-enduro.toml",
 			toml: `# Config
 [temporal]
 address = "host:port"
@@ -299,7 +299,7 @@ address = "host:port"
 taskQueue = "sfa-enduro"
 [preprocessing]
 workflowName = "preprocessing"
-sharedPath = "/home/preprocessing/shared"
+sharedPath = "/home/enduro/shared"
 [apis]
 enabled = true
 url = "http://apis.example.test"
@@ -311,7 +311,7 @@ APIS.PollInterval: value -1s is less than or equal to 0`,
 		},
 		{
 			name:       "Loads explicit APIS timeout and poll interval",
-			configFile: "preprocessing.toml",
+			configFile: "sfa-enduro.toml",
 			toml: `# Config
 [temporal]
 address = "host:port"
@@ -319,7 +319,7 @@ address = "host:port"
 taskQueue = "sfa-enduro"
 [preprocessing]
 workflowName = "preprocessing"
-sharedPath = "/home/preprocessing/shared"
+sharedPath = "/home/enduro/shared"
 [apis]
 enabled = true
 url = "http://apis.example.test"
@@ -346,7 +346,7 @@ token = "mock-token"
 				},
 				Preprocessing: config.PreprocessingConfig{
 					WorkflowName: "preprocessing",
-					SharedPath:   "/home/preprocessing/shared",
+					SharedPath:   "/home/enduro/shared",
 					BagCreate: bagcreate.Config{
 						ChecksumAlgorithm: "sha512",
 					},
@@ -364,7 +364,7 @@ token = "mock-token"
 		},
 		{
 			name:       "Errors when TOML is invalid",
-			configFile: "preprocessing.toml",
+			configFile: "sfa-enduro.toml",
 			toml:       "bad TOML",
 			wantFound:  true,
 			wantErr:    "failed to read configuration file: While parsing config: toml: expected character =",
@@ -372,7 +372,7 @@ token = "mock-token"
 		{
 			name:            "Errors when no config file is found in the default paths",
 			wantFound:       false,
-			wantErrContains: "Config File \"preprocessing\" Not Found in \"[",
+			wantErrContains: "Config File \"sfa-enduro\" Not Found in \"[",
 		},
 		{
 			name:            "Errors when the given configFile is not found",
@@ -384,7 +384,7 @@ token = "mock-token"
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			tmpDir := fs.NewDir(t, "preprocessing-test", fs.WithFile("preprocessing.toml", tc.toml))
+			tmpDir := fs.NewDir(t, "sfa-enduro-test", fs.WithFile("sfa-enduro.toml", tc.toml))
 
 			configFile := ""
 			if tc.configFile != "" {

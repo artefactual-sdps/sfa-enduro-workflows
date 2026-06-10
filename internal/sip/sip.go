@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/enums"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/fsutil"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/enums"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fsutil"
 )
 
 type SIP struct {

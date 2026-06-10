@@ -5,8 +5,8 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/apis"
-	apisgen "github.com/artefactual-sdps/preprocessing-sfa/internal/apis/gen"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis"
+	apisgen "github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis/gen"
 )
 
 func TestCustomMetadataMarshal(t *testing.T) {

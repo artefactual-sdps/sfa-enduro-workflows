@@ -15,7 +15,7 @@ if os.environ.get('TRIGGER_MODE_AUTO', '').lower() in true:
 
 # Docker images
 custom_build(
-  ref="preprocessing-sfa-worker:dev",
+  ref="sfa-enduro-worker:dev",
   command=["hack/build_docker.sh"],
   deps=["."],
 )
@@ -36,7 +36,7 @@ k8s_yaml(encode_yaml_stream(kube_objects))
 
 # Tilt resources
 k8s_resource(
-  "preprocessing-worker",
+  "sfa-enduro-worker",
   labels=["SFA"],
   trigger_mode=trigger_mode,
 )

@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/hack/apis-mock/internal/gen"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/hack/apis-mock/internal/gen"
 )
 
 const (
@@ -249,7 +249,7 @@ func advanceTask(task *taskState) {
 	}
 }
 
-// taskStatusResponse only returns the fields preprocessing-sfa currently uses:
+// taskStatusResponse only returns the fields sfa-enduro-workflows currently uses:
 // the task status plus terminal analysis/import results.
 func taskStatusResponse(task *taskState) *gen.ImportTaskStatusResponse {
 	res := &gen.ImportTaskStatusResponse{Status: task.status}

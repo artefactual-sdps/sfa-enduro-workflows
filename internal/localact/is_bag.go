@@ -4,7 +4,7 @@ import (
 	"context"
 	"path/filepath"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/fsutil"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fsutil"
 )
 
 type (

@@ -10,7 +10,7 @@ import (
 	temporalsdk_testsuite "go.temporal.io/sdk/testsuite"
 	"gotest.tools/v3/assert"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/amss"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/amss"
 )
 
 func TestGetAIPPathActivity(t *testing.T) {

@@ -7,8 +7,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/hack/apis-mock/internal/gen"
-	"github.com/artefactual-sdps/preprocessing-sfa/hack/apis-mock/internal/mock"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/hack/apis-mock/internal/gen"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/hack/apis-mock/internal/mock"
 )
 
 const (

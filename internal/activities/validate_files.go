@@ -8,9 +8,9 @@ import (
 
 	temporalsdk_activity "go.temporal.io/sdk/activity"
 
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/fformat"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/fvalidate"
-	"github.com/artefactual-sdps/preprocessing-sfa/internal/sip"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fformat"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fvalidate"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/sip"
 )
 
 const ValidateFilesName = "validate-files"
