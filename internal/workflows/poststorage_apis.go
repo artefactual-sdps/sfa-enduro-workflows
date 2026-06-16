@@ -19,19 +19,15 @@ import (
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/config"
 )
 
-type Poststorage struct {
-	cfg         config.PoststorageConfig
-	apisEnabled bool
+type PoststorageAPIS struct {
+	cfg config.PoststorageConfig
 }
 
-func NewPoststorage(cfg config.PoststorageConfig, apisEnabled bool) *Poststorage {
-	return &Poststorage{
-		cfg:         cfg,
-		apisEnabled: apisEnabled,
-	}
+func NewPoststorageAPIS(cfg config.PoststorageConfig) *PoststorageAPIS {
+	return &PoststorageAPIS{cfg: cfg}
 }
 
-func (w *Poststorage) Execute(
+func (w *PoststorageAPIS) Execute(
 	ctx temporalsdk_workflow.Context,
 	params *childwf.PostStorageParams,
 ) (r *childwf.PostStorageResult, e error) {
@@ -42,10 +38,6 @@ func (w *Poststorage) Execute(
 	defer func() {
 		logger.Debug("Poststorage workflow finished!", "result", r, "error", e)
 	}()
-
-	if !w.apisEnabled {
-		return r, nil
-	}
 
 	aipUUID, err := uuid.Parse(params.AIPUUID)
 	if err != nil {
@@ -110,7 +102,7 @@ func (w *Poststorage) Execute(
 	return r, nil
 }
 
-func (w *Poststorage) SessionHandler(
+func (w *PoststorageAPIS) SessionHandler(
 	ctx temporalsdk_workflow.Context,
 	result *childwf.PostStorageResult,
 	aipUUID uuid.UUID,

@@ -9,14 +9,17 @@ import (
 	"ariga.io/sqlcomment"
 	"entgo.io/ent/dialect/sql"
 	"github.com/artefactual-sdps/temporal-activities/archiveextract"
+	"github.com/artefactual-sdps/temporal-activities/archivezip"
 	"github.com/artefactual-sdps/temporal-activities/bagcreate"
 	"github.com/artefactual-sdps/temporal-activities/bagvalidate"
+	"github.com/artefactual-sdps/temporal-activities/bucketupload"
 	"github.com/artefactual-sdps/temporal-activities/ffvalidate"
 	"github.com/artefactual-sdps/temporal-activities/removepaths"
 	"github.com/artefactual-sdps/temporal-activities/xmlvalidate"
 	"github.com/go-logr/logr"
 	"github.com/jonboulle/clockwork"
 	"go.artefactual.dev/ssclient"
+	"go.artefactual.dev/tools/bucket"
 	"go.artefactual.dev/tools/clientauth"
 	"go.artefactual.dev/tools/temporal"
 	temporalsdk_activity "go.temporal.io/sdk/activity"
@@ -24,11 +27,13 @@ import (
 	temporalsdk_interceptor "go.temporal.io/sdk/interceptor"
 	temporalsdk_worker "go.temporal.io/sdk/worker"
 	temporalsdk_workflow "go.temporal.io/sdk/workflow"
+	"gocloud.dev/blob"
 	_ "gocloud.dev/blob/fileblob"
 
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/activities"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/amss"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/cantons"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/config"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fformat"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fvalidate"
@@ -46,6 +51,7 @@ type Main struct {
 	temporalWorker temporalsdk_worker.Worker
 	temporalClient temporalsdk_client.Client
 	dbClient       *db.Client
+	bucket         *blob.Bucket
 }
 
 func NewMain(logger logr.Logger, cfg config.Config) *Main {
@@ -130,11 +136,18 @@ func (m *Main) Run(ctx context.Context) error {
 
 	ssClient, err := ssclient.New(m.cfg.Poststorage.AMSS)
 	if err != nil {
-		return fmt.Errorf("unable to create Storage Service client: %w", err)
+		return fmt.Errorf("unable to create Archivematica Storage Service client: %v", err)
+	}
+
+	if !m.cfg.APIS.Enabled {
+		m.bucket, err = bucket.NewWithConfig(ctx, &m.cfg.Poststorage.Cantons.Bucket)
+		if err != nil {
+			return fmt.Errorf("unable to open Cantons poststorage bucket: %v", err)
+		}
 	}
 
 	m.registerPreprocessingWorkflow(psvc, apisClient, veraPDFValidator)
-	m.registerPoststorageWorkflow(ssClient.Packages(), apisClient)
+	m.registerPoststorageWorkflow(ssClient.Packages(), apisClient, m.bucket)
 
 	if err := w.Start(); err != nil {
 		m.logger.Error(err, "Worker failed to start.")
@@ -153,6 +166,12 @@ func (m *Main) Close() error {
 
 	if m.temporalClient != nil {
 		m.temporalClient.Close()
+	}
+
+	if m.bucket != nil {
+		if err := m.bucket.Close(); err != nil {
+			e = errors.Join(e, fmt.Errorf("couldn't close Cantons poststorage bucket: %v", err))
+		}
 	}
 
 	if m.dbClient != nil {
@@ -267,12 +286,50 @@ func (m *Main) registerPreprocessingWorkflow(
 	)
 }
 
-func (m *Main) registerPoststorageWorkflow(packages *ssclient.PackagesService, apisClient apis.Client) {
-	m.temporalWorker.RegisterWorkflowWithOptions(
-		workflows.NewPoststorage(m.cfg.Poststorage, m.cfg.APIS.Enabled).Execute,
-		temporalsdk_workflow.RegisterOptions{Name: m.cfg.Poststorage.WorkflowName},
-	)
+func (m *Main) registerPoststorageWorkflow(
+	packages *ssclient.PackagesService,
+	apisClient apis.Client,
+	cantonsBucket *blob.Bucket,
+) {
+	if m.cfg.APIS.Enabled {
+		// Register APIS workflow and specific activities.
+		m.temporalWorker.RegisterWorkflowWithOptions(
+			workflows.NewPoststorageAPIS(m.cfg.Poststorage).Execute,
+			temporalsdk_workflow.RegisterOptions{Name: m.cfg.Poststorage.APIS.WorkflowName},
+		)
+		m.temporalWorker.RegisterActivityWithOptions(
+			apis.NewCreateImportRunActivity(apisClient).Execute,
+			temporalsdk_activity.RegisterOptions{Name: apis.CreateImportRunActivityName},
+		)
+		m.temporalWorker.RegisterActivityWithOptions(
+			apis.NewPollImportRunStatusActivity(apisClient, m.cfg.APIS.PollInterval).Execute,
+			temporalsdk_activity.RegisterOptions{Name: apis.PollImportRunStatusActivityName},
+		)
+	} else {
+		// Register Cantons workflow and specific activities.
+		m.temporalWorker.RegisterWorkflowWithOptions(
+			workflows.NewPoststorageCantons(m.cfg.Poststorage).Execute,
+			temporalsdk_workflow.RegisterOptions{Name: m.cfg.Poststorage.Cantons.WorkflowName},
+		)
+		m.temporalWorker.RegisterActivityWithOptions(
+			cantons.NewParseActivity().Execute,
+			temporalsdk_activity.RegisterOptions{Name: cantons.ParseActivityName},
+		)
+		m.temporalWorker.RegisterActivityWithOptions(
+			cantons.NewCombineMDActivity().Execute,
+			temporalsdk_activity.RegisterOptions{Name: cantons.CombineMDActivityName},
+		)
+		m.temporalWorker.RegisterActivityWithOptions(
+			archivezip.New().Execute,
+			temporalsdk_activity.RegisterOptions{Name: archivezip.Name},
+		)
+		m.temporalWorker.RegisterActivityWithOptions(
+			bucketupload.New(cantonsBucket).Execute,
+			temporalsdk_activity.RegisterOptions{Name: bucketupload.Name},
+		)
+	}
 
+	// Register common activities for both Cantons and APIS workflows.
 	m.temporalWorker.RegisterActivityWithOptions(
 		amss.NewGetAIPPathActivity(packages).Execute,
 		temporalsdk_activity.RegisterOptions{Name: amss.GetAIPPathActivityName},
@@ -284,13 +341,5 @@ func (m *Main) registerPoststorageWorkflow(packages *ssclient.PackagesService, a
 	m.temporalWorker.RegisterActivityWithOptions(
 		removepaths.New().Execute,
 		temporalsdk_activity.RegisterOptions{Name: removepaths.Name},
-	)
-	m.temporalWorker.RegisterActivityWithOptions(
-		apis.NewCreateImportRunActivity(apisClient).Execute,
-		temporalsdk_activity.RegisterOptions{Name: apis.CreateImportRunActivityName},
-	)
-	m.temporalWorker.RegisterActivityWithOptions(
-		apis.NewPollImportRunStatusActivity(apisClient, m.cfg.APIS.PollInterval).Execute,
-		temporalsdk_activity.RegisterOptions{Name: apis.PollImportRunStatusActivityName},
 	)
 }

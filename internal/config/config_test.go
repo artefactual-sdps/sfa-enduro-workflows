@@ -7,6 +7,7 @@ import (
 	"github.com/artefactual-sdps/temporal-activities/bagcreate"
 	"github.com/artefactual-sdps/temporal-activities/ffvalidate"
 	"go.artefactual.dev/ssclient"
+	"go.artefactual.dev/tools/bucket"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/fs"
 
@@ -40,8 +41,13 @@ allowlistPath = "/home/enduro/.config/allowed_file_formats.csv"
 [preprocessing.filevalidate.verapdf]
 path = "/opt/verapdf/verapdf"
 [poststorage]
-workflowName = "poststorage"
 workingDir = "/tmp"
+[poststorage.apis]
+workflowName = "poststorage-apis"
+[poststorage.cantons]
+workflowName = "poststorage-cantons"
+[poststorage.cantons.bucket]
+url = "file:///home/enduro/cantons?metadata=skip&no_tmp_dir=true&create_dir=true"
 [poststorage.amss]
 baseURL = "http://amss.example.test"
 username = "test"
@@ -53,8 +59,13 @@ url = "http://apis.example.test"
 
 const validPoststorageConfig = `
 [poststorage]
-workflowName = "poststorage"
 workingDir = "/tmp"
+[poststorage.apis]
+workflowName = "poststorage-apis"
+[poststorage.cantons]
+workflowName = "poststorage-cantons"
+[poststorage.cantons.bucket]
+url = "file:///home/enduro/cantons?metadata=skip&no_tmp_dir=true&create_dir=true"
 [poststorage.amss]
 baseURL = "http://amss.example.test"
 username = "test"
@@ -119,8 +130,16 @@ func TestConfig(t *testing.T) {
 					},
 				},
 				Poststorage: config.PoststorageConfig{
-					WorkflowName: "poststorage",
-					WorkingDir:   "/tmp",
+					WorkingDir: "/tmp",
+					APIS: config.PoststorageAPISConfig{
+						WorkflowName: "poststorage-apis",
+					},
+					Cantons: config.PoststorageCantonsConfig{
+						WorkflowName: "poststorage-cantons",
+						Bucket: bucket.Config{
+							URL: "file:///home/enduro/cantons?metadata=skip&no_tmp_dir=true&create_dir=true",
+						},
+					},
 					AMSS: ssclient.Config{
 						BaseURL:  "http://amss.example.test",
 						Username: "test",
@@ -143,11 +162,12 @@ Temporal.Namespace: missing required value
 Worker.TaskQueue: missing required value
 Preprocessing.SharedPath: missing required value
 Preprocessing.WorkflowName: missing required value
-Poststorage.WorkflowName: missing required value
 Poststorage.WorkingDir: missing required value
 Poststorage.AMSS.BaseURL: missing required value
 Poststorage.AMSS.Username: missing required value
-Poststorage.AMSS.Key: missing required value`,
+Poststorage.AMSS.Key: missing required value
+Poststorage.Cantons.WorkflowName: missing required value
+Poststorage.Cantons.Bucket: missing required value`,
 		},
 		{
 			name:       "Errors when MaxConcurrentSessions is less than 1",
@@ -241,8 +261,134 @@ url = "http://apis.example.test"
 					},
 				},
 				Poststorage: config.PoststorageConfig{
-					WorkflowName: "poststorage",
-					WorkingDir:   "/tmp",
+					WorkingDir: "/tmp",
+					APIS: config.PoststorageAPISConfig{
+						WorkflowName: "poststorage-apis",
+					},
+					Cantons: config.PoststorageCantonsConfig{
+						WorkflowName: "poststorage-cantons",
+						Bucket: bucket.Config{
+							URL: "file:///home/enduro/cantons?metadata=skip&no_tmp_dir=true&create_dir=true",
+						},
+					},
+					AMSS: ssclient.Config{
+						BaseURL:  "http://amss.example.test",
+						Username: "test",
+						Key:      "test",
+					},
+				},
+			},
+		},
+		{
+			name:       "Loads APIS poststorage config without Cantons config when APIS is enabled",
+			configFile: "sfa-enduro.toml",
+			toml: `# Config
+[temporal]
+address = "host:port"
+[worker]
+taskQueue = "sfa-enduro"
+[preprocessing]
+workflowName = "preprocessing"
+sharedPath = "/home/enduro/shared"
+[poststorage]
+workingDir = "/tmp"
+[poststorage.apis]
+workflowName = "poststorage-apis"
+[poststorage.amss]
+baseURL = "http://amss.example.test"
+username = "test"
+key = "test"
+[apis]
+enabled = true
+url = "http://apis.example.test"
+`,
+			wantFound: true,
+			wantCfg: config.Config{
+				Temporal: config.TemporalConfig{
+					Address:   "host:port",
+					Namespace: "default",
+				},
+				Worker: config.WorkerConfig{
+					MaxConcurrentSessions: 1,
+					TaskQueue:             "sfa-enduro",
+				},
+				APIS: apis.Config{
+					Enabled:      true,
+					URL:          "http://apis.example.test",
+					Timeout:      apis.DefaultTimeout,
+					PollInterval: apis.DefaultPollInterval,
+				},
+				Preprocessing: config.PreprocessingConfig{
+					WorkflowName: "preprocessing",
+					SharedPath:   "/home/enduro/shared",
+					BagCreate: bagcreate.Config{
+						ChecksumAlgorithm: "sha512",
+					},
+				},
+				Poststorage: config.PoststorageConfig{
+					WorkingDir: "/tmp",
+					APIS: config.PoststorageAPISConfig{
+						WorkflowName: "poststorage-apis",
+					},
+					AMSS: ssclient.Config{
+						BaseURL:  "http://amss.example.test",
+						Username: "test",
+						Key:      "test",
+					},
+				},
+			},
+		},
+		{
+			name:       "Loads Cantons poststorage config without APIS poststorage config when APIS is disabled",
+			configFile: "sfa-enduro.toml",
+			toml: `# Config
+[temporal]
+address = "host:port"
+[worker]
+taskQueue = "sfa-enduro"
+[preprocessing]
+workflowName = "preprocessing"
+sharedPath = "/home/enduro/shared"
+[poststorage]
+workingDir = "/tmp"
+[poststorage.cantons]
+workflowName = "poststorage-cantons"
+[poststorage.cantons.bucket]
+url = "file:///home/enduro/cantons?metadata=skip&no_tmp_dir=true&create_dir=true"
+[poststorage.amss]
+baseURL = "http://amss.example.test"
+username = "test"
+key = "test"
+`,
+			wantFound: true,
+			wantCfg: config.Config{
+				Temporal: config.TemporalConfig{
+					Address:   "host:port",
+					Namespace: "default",
+				},
+				Worker: config.WorkerConfig{
+					MaxConcurrentSessions: 1,
+					TaskQueue:             "sfa-enduro",
+				},
+				APIS: apis.Config{
+					Timeout:      apis.DefaultTimeout,
+					PollInterval: apis.DefaultPollInterval,
+				},
+				Preprocessing: config.PreprocessingConfig{
+					WorkflowName: "preprocessing",
+					SharedPath:   "/home/enduro/shared",
+					BagCreate: bagcreate.Config{
+						ChecksumAlgorithm: "sha512",
+					},
+				},
+				Poststorage: config.PoststorageConfig{
+					WorkingDir: "/tmp",
+					Cantons: config.PoststorageCantonsConfig{
+						WorkflowName: "poststorage-cantons",
+						Bucket: bucket.Config{
+							URL: "file:///home/enduro/cantons?metadata=skip&no_tmp_dir=true&create_dir=true",
+						},
+					},
 					AMSS: ssclient.Config{
 						BaseURL:  "http://amss.example.test",
 						Username: "test",
@@ -268,6 +414,56 @@ enabled = true
 			wantFound: true,
 			wantErr: `invalid configuration
 APIS.URL: missing required value`,
+		},
+		{
+			name:       "Errors when APIS poststorage workflow name is missing and APIS is enabled",
+			configFile: "sfa-enduro.toml",
+			toml: `# Config
+[temporal]
+address = "host:port"
+[worker]
+taskQueue = "sfa-enduro"
+[preprocessing]
+workflowName = "preprocessing"
+sharedPath = "/home/enduro/shared"
+[poststorage]
+workingDir = "/tmp"
+[poststorage.amss]
+baseURL = "http://amss.example.test"
+username = "test"
+key = "test"
+[apis]
+enabled = true
+url = "http://apis.example.test"
+`,
+			wantFound: true,
+			wantErr: `invalid configuration
+Poststorage.APIS.WorkflowName: missing required value`,
+		},
+		{
+			name:       "Errors when Cantons poststorage is missing and APIS is disabled",
+			configFile: "sfa-enduro.toml",
+			toml: `# Config
+[temporal]
+address = "host:port"
+[worker]
+taskQueue = "sfa-enduro"
+[preprocessing]
+workflowName = "preprocessing"
+sharedPath = "/home/enduro/shared"
+[poststorage]
+workingDir = "/tmp"
+[poststorage.amss]
+baseURL = "http://amss.example.test"
+username = "test"
+key = "test"
+[apis]
+enabled = false
+`,
+			wantFound: true,
+			wantErr: `invalid configuration
+Poststorage.Cantons.WorkflowName: missing required value
+Poststorage.Cantons.Bucket: missing required value`,
 		},
 		{
 			name:       "Errors when APIS timeout is invalid",
@@ -352,8 +548,16 @@ token = "mock-token"
 					},
 				},
 				Poststorage: config.PoststorageConfig{
-					WorkflowName: "poststorage",
-					WorkingDir:   "/tmp",
+					WorkingDir: "/tmp",
+					APIS: config.PoststorageAPISConfig{
+						WorkflowName: "poststorage-apis",
+					},
+					Cantons: config.PoststorageCantonsConfig{
+						WorkflowName: "poststorage-cantons",
+						Bucket: bucket.Config{
+							URL: "file:///home/enduro/cantons?metadata=skip&no_tmp_dir=true&create_dir=true",
+						},
+					},
 					AMSS: ssclient.Config{
 						BaseURL:  "http://amss.example.test",
 						Username: "test",

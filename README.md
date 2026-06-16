@@ -1,9 +1,9 @@
 # sfa-enduro-workflows
 
-**sfa-enduro-workflows** provides two Enduro child workflows for SFA: a
-preprocessing workflow that validates SFA SIPs, communicates with APIS, and
-restructures each SIP for preservation; and a poststorage workflow that
-downloads the AIP METS file from storage and completes the APIS integration.
+**sfa-enduro-workflows** provides one preprocessing workflow and two
+poststorage workflow implementations for SFA. The worker always registers the
+preprocessing workflow, then registers either `poststorage-apis` when APIS is
+enabled or `poststorage-cantons` when APIS is disabled.
 
 - [Configuration](#configuration)
 - [Local environment](#local-environment)
@@ -52,8 +52,21 @@ allowlistPath = "/home/enduro/.config/allowed_file_formats.csv"
 path = "/opt/verapdf/verapdf"
 
 [poststorage]
-workflowName = "poststorage"
 workingDir = "/tmp"
+
+[poststorage.apis]
+workflowName = "poststorage-apis"
+
+[poststorage.cantons]
+workflowName = "poststorage-cantons"
+
+[poststorage.cantons.bucket]
+endpoint = "https://s3.example.com"
+pathStyle = true
+accessKey = "example-access-key"
+secretKey = "example-secret-key"
+region = "us-west-1"
+bucket = "example-bucket"
 
 [poststorage.amss]
 baseURL = "http://ambox.enduro-sdps:64081"
@@ -83,6 +96,15 @@ retryBackoffCoefficient = 2.0
 
 ```
 
+When `apis.enabled = true`, the worker registers `preprocessing` and
+`poststorage-apis`. When `apis.enabled = false`, the worker registers
+`preprocessing` and `poststorage-cantons`; in that mode the
+`poststorage.cantons.bucket` section is required. The example above uses the
+generic S3-compatible bucket fields. Filesystem buckets can be configured with
+a `url` such as `file:///home/enduro/cantons?create_dir=true`. Other bucket
+settings are the same options documented in Enduro's
+[bucket configuration options].
+
 ### Enduro
 
 The child workflow sections for Enduro's configuration:
@@ -100,12 +122,31 @@ sharedPath = "/home/enduro/preprocessing"
 type = "poststorage"
 namespace = "default"
 taskQueue = "sfa-enduro"
-workflowName = "poststorage"
+workflowName = "poststorage-apis"
+```
+
+For a deployment without APIS, configure Enduro to use the Cantons poststorage
+workflow:
+
+```toml
+[[childWorkflows]]
+type = "preprocessing"
+namespace = "default"
+taskQueue = "sfa-enduro"
+workflowName = "preprocessing"
+extract = true
+sharedPath = "/home/enduro/preprocessing"
+
+[[childWorkflows]]
+type = "poststorage"
+namespace = "default"
+taskQueue = "sfa-enduro"
+workflowName = "poststorage-cantons"
 ```
 
 ## Local environment
 
-This project provides two child workflows for the Enduro development
+This project provides SFA child workflows for the Enduro development
 environment. The supported development workflow is to run `tilt up` from the
 Enduro repository and load this repository through Enduro's
 `CHILD_WORKFLOW_PATHS` mechanism.
@@ -478,6 +519,13 @@ file) also uses a number of other more general Enduro
 * `ffvalidate`
 * `xmlvalidate`
 
+The `poststorage-apis` workflow downloads the AIP METS file from Archivematica
+Storage Service and submits it to APIS. The `poststorage-cantons` workflow
+downloads the AIP METS file and the selected Arelda metadata file from
+Archivematica Storage Service, combines them, creates a ZIP bundle, and deposits
+the bundle in the configured bucket.
+
+[bucket configuration options]: https://enduro.readthedocs.io/admin-manual/configuration/#bucket-configuration-options
 [Enduro development manual]: https://enduro.readthedocs.io/dev-manual/devel/
 [go]: https://go.dev/doc/install
 [make]: https://www.gnu.org/software/make/

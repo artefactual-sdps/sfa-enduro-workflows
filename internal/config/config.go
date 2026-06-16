@@ -10,6 +10,7 @@ import (
 	"github.com/artefactual-sdps/temporal-activities/ffvalidate"
 	"github.com/spf13/viper"
 	"go.artefactual.dev/ssclient"
+	"go.artefactual.dev/tools/bucket"
 
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fvalidate"
@@ -146,21 +147,34 @@ func (c PreprocessingConfig) Validate() error {
 }
 
 type PoststorageConfig struct {
-	// WorkflowName is the poststorage Temporal workflow name (required).
-	WorkflowName string
-
-	// WorkingDir is used to download the METS file (required).
+	// WorkingDir is used to download and prepare poststorage files (required).
 	WorkingDir string
 
+	// APIS configures the APIS poststorage workflow.
+	APIS PoststorageAPISConfig
+
+	// Cantons configures the Cantons poststorage workflow.
+	Cantons PoststorageCantonsConfig
+
 	AMSS ssclient.Config
+}
+
+type PoststorageAPISConfig struct {
+	// WorkflowName is the APIS poststorage Temporal workflow name (required).
+	WorkflowName string
+}
+
+type PoststorageCantonsConfig struct {
+	// WorkflowName is the Cantons poststorage Temporal workflow name (required).
+	WorkflowName string
+
+	// Bucket is the destination for Cantons metadata bundles.
+	Bucket bucket.Config
 }
 
 func (c PoststorageConfig) Validate() error {
 	var errs error
 
-	if c.WorkflowName == "" {
-		errs = errors.Join(errs, errRequired("Poststorage.WorkflowName"))
-	}
 	if c.WorkingDir == "" {
 		errs = errors.Join(errs, errRequired("Poststorage.WorkingDir"))
 	}
@@ -177,14 +191,45 @@ func (c PoststorageConfig) Validate() error {
 	return errs
 }
 
+func (c PoststorageAPISConfig) Validate() error {
+	var errs error
+
+	if c.WorkflowName == "" {
+		errs = errors.Join(errs, errRequired("Poststorage.APIS.WorkflowName"))
+	}
+
+	return errs
+}
+
+func (c PoststorageCantonsConfig) Validate() error {
+	var errs error
+
+	if c.WorkflowName == "" {
+		errs = errors.Join(errs, errRequired("Poststorage.Cantons.WorkflowName"))
+	}
+	if c.Bucket.URL == "" && c.Bucket.Endpoint == "" {
+		errs = errors.Join(errs, errRequired("Poststorage.Cantons.Bucket"))
+	}
+
+	return errs
+}
+
 func (c Config) Validate() error {
-	return errors.Join(
+	errs := errors.Join(
 		c.Temporal.Validate(),
 		c.Worker.Validate(),
 		c.Preprocessing.Validate(),
 		c.Poststorage.Validate(),
 		c.APIS.Validate(),
 	)
+
+	if c.APIS.Enabled {
+		errs = errors.Join(errs, c.Poststorage.APIS.Validate())
+	} else {
+		errs = errors.Join(errs, c.Poststorage.Cantons.Validate())
+	}
+
+	return errs
 }
 
 func Read(config *Config, configFile string) (found bool, configFileUsed string, err error) {

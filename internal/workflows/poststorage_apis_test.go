@@ -30,7 +30,7 @@ type TestSuite struct {
 	temporalsdk_testsuite.WorkflowTestSuite
 
 	env      *temporalsdk_testsuite.TestWorkflowEnvironment
-	workflow *workflows.Poststorage
+	workflow *workflows.PoststorageAPIS
 }
 
 const (
@@ -67,7 +67,7 @@ var (
 	}
 )
 
-func (s *TestSuite) setup(cfg *config.PoststorageConfig, apisEnabled bool) {
+func (s *TestSuite) setup(cfg *config.PoststorageConfig) {
 	s.env = s.NewTestWorkflowEnvironment()
 	s.env.SetStartTime(poststorageTestTime)
 	s.env.SetWorkerOptions(temporalsdk_worker.Options{EnableSessionWorker: true})
@@ -94,10 +94,10 @@ func (s *TestSuite) setup(cfg *config.PoststorageConfig, apisEnabled bool) {
 		temporalsdk_activity.RegisterOptions{Name: apis.PollImportRunStatusActivityName},
 	)
 
-	s.workflow = workflows.NewPoststorage(*cfg, apisEnabled)
+	s.workflow = workflows.NewPoststorageAPIS(*cfg)
 }
 
-func TestPoststorage(t *testing.T) {
+func TestPoststorageAPIS(t *testing.T) {
 	suite.Run(t, new(TestSuite))
 }
 
@@ -117,21 +117,8 @@ func (s *TestSuite) assertWorkflow(expected *childwf.PostStorageResult, errorCon
 	s.Equal(expected, &result)
 }
 
-func (s *TestSuite) TestAPISDisabled() {
-	s.setup(&config.PoststorageConfig{}, false)
-
-	s.env.ExecuteWorkflow(
-		s.workflow.Execute,
-		&childwf.PostStorageParams{
-			AIPUUID: poststorageAIPUUIDString,
-		},
-	)
-
-	s.assertWorkflow(&childwf.PostStorageResult{}, "")
-}
-
 func (s *TestSuite) TestInvalidAIPUUID() {
-	s.setup(&config.PoststorageConfig{}, true)
+	s.setup(&config.PoststorageConfig{})
 
 	s.env.ExecuteWorkflow(
 		s.workflow.Execute,
@@ -144,7 +131,7 @@ func (s *TestSuite) TestInvalidAIPUUID() {
 }
 
 func (s *TestSuite) TestAPISMetadataMissing() {
-	s.setup(&config.PoststorageConfig{}, true)
+	s.setup(&config.PoststorageConfig{})
 
 	s.env.ExecuteWorkflow(
 		s.workflow.Execute,
@@ -157,7 +144,7 @@ func (s *TestSuite) TestAPISMetadataMissing() {
 }
 
 func (s *TestSuite) TestSuccess() {
-	s.setup(&config.PoststorageConfig{}, true)
+	s.setup(&config.PoststorageConfig{})
 	s.mockActivitiesSuccess()
 	s.env.OnActivity(
 		apis.CreateImportRunActivityName,
@@ -228,7 +215,7 @@ func (s *TestSuite) TestSuccess() {
 }
 
 func (s *TestSuite) TestDownloadFailure() {
-	s.setup(&config.PoststorageConfig{}, true)
+	s.setup(&config.PoststorageConfig{})
 	s.env.OnActivity(
 		amss.GetAIPPathActivityName,
 		poststorageSessionCtx,
@@ -278,7 +265,7 @@ The AIP is stored, but the poststorage workflow failed while downloading the AIP
 }
 
 func (s *TestSuite) TestAPISImportFailure() {
-	s.setup(&config.PoststorageConfig{}, true)
+	s.setup(&config.PoststorageConfig{})
 	s.mockActivitiesSuccess()
 	s.env.OnActivity(
 		apis.CreateImportRunActivityName,
