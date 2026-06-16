@@ -176,6 +176,20 @@ MOCK_ANALYSIS_RESULT=AlleNeu      # AlleNeu, AlleGleich, Konflikte, Fehler
 MOCK_IMPORT_RESULT=Erfolgreich    # Erfolgreich, Fehler
 ```
 
+When running the Cantons poststorage workflow in the development environment,
+the filesystem bucket configuration writes bundles to `/home/enduro/cantons`
+inside the worker pod. List the generated bundles and copy one to your working
+directory with:
+
+```bash
+kubectl -n enduro-sdps exec -c sfa-enduro-worker sfa-enduro-worker-0 -- \
+  ls -lh /home/enduro/cantons
+
+kubectl -n enduro-sdps cp -c sfa-enduro-worker \
+  sfa-enduro-worker-0:/home/enduro/cantons/<bundle>.zip \
+  ./<bundle>.zip
+```
+
 ### Requirements for development
 
 While we run the services inside a Kubernetes cluster we recomend installing
