@@ -46,10 +46,3 @@ k8s_resource(
   labels=["SFA"],
   trigger_mode=trigger_mode,
 )
-k8s_resource("mysql-create-prep-database", labels=["SFA"])
-k8s_resource(
-  "mysql-recreate-prep-database",
-  labels=["SFA"],
-  auto_init=False,
-  trigger_mode=TRIGGER_MODE_MANUAL,
-)

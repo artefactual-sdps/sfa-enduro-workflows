@@ -25,10 +25,7 @@ IGNORED_PACKAGES := \
 	github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis/gen \
 	github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/design \
 	github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/gen/% \
-	github.com/artefactual-sdps/sfa-enduro-workflows/internal/enums \
-	github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/ent/db \
-	github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/ent/db/% \
-	github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/ent/schema
+	github.com/artefactual-sdps/sfa-enduro-workflows/internal/enums
 
 PACKAGES := $(shell go list ./...)
 TEST_PACKAGES := $(filter-out $(IGNORED_PACKAGES),$(PACKAGES))
@@ -60,12 +57,6 @@ gen-apis-client: tool-ogen # @HELP Generate APIS client from the shared OpenAPI 
 gen-apis-mock: tool-ogen # @HELP Generate APIS mock server from the shared OpenAPI spec.
 	ogen --config hack/apis-mock/internal/gen/ogen.yml --target hack/apis-mock/internal/gen --package gen --clean apis/openapi3.json
 
-gen-ent: # @HELP Generate Ent assets.
-gen-ent: tool-ent
-	ent generate ./internal/persistence/ent/schema \
-		--feature sql/versioned-migration \
-		--target=./internal/persistence/ent/db
-
 gen-enums: # @HELP Generate go-enum assets.
 gen-enums: ENUM_FLAGS = --names --template=$(CURDIR)/hack/make/enums.tmpl
 gen-enums: tool-go-enum
@@ -86,7 +77,6 @@ gen-mock: tool-mockgen
 	mockgen -typed -destination=./internal/apis/fake/mock_client.go -package=fake github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis Client
 	mockgen -typed -destination=./internal/fformat/fake/mock_identifier.go -package=fake github.com/artefactual-sdps/sfa-enduro-workflows/internal/fformat Identifier
 	mockgen -typed -destination=./internal/fvalidate/fake/mock_validator.go -package=fake github.com/artefactual-sdps/sfa-enduro-workflows/internal/fvalidate Validator
-	mockgen -typed -destination=./internal/persistence/fake/mock_service.go -package=fake github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence Service
 
 gosec: # @HELP Run gosec security scanner.
 gosec: GOSEC_VERBOSITY ?= "-terse"

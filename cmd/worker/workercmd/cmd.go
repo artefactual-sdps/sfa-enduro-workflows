@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 
-	"ariga.io/sqlcomment"
-	"entgo.io/ent/dialect/sql"
 	"github.com/artefactual-sdps/temporal-activities/archiveextract"
 	"github.com/artefactual-sdps/temporal-activities/archivezip"
 	"github.com/artefactual-sdps/temporal-activities/bagcreate"
@@ -37,9 +35,6 @@ import (
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/config"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fformat"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fvalidate"
-	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence"
-	entclient "github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/ent/client"
-	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence/ent/db"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/workflows"
 )
 
@@ -50,7 +45,6 @@ type Main struct {
 	cfg            config.Config
 	temporalWorker temporalsdk_worker.Worker
 	temporalClient temporalsdk_client.Client
-	dbClient       *db.Client
 	bucket         *blob.Bucket
 }
 
@@ -81,37 +75,6 @@ func (m *Main) Run(ctx context.Context) error {
 		},
 	})
 	m.temporalWorker = w
-
-	var psvc persistence.Service
-	if m.cfg.Preprocessing.CheckDuplicates {
-		sqlDB, err := persistence.Open(
-			m.cfg.Preprocessing.Persistence.Driver,
-			m.cfg.Preprocessing.Persistence.DSN,
-		)
-		if err != nil {
-			m.logger.Error(err, "Error initializing database pool.")
-			return err
-		}
-		m.dbClient = db.NewClient(
-			db.Driver(
-				sqlcomment.NewDriver(
-					sql.OpenDB(m.cfg.Preprocessing.Persistence.Driver, sqlDB),
-					sqlcomment.WithDriverVerTag(),
-					sqlcomment.WithTags(sqlcomment.Tags{
-						sqlcomment.KeyApplication: Name,
-					}),
-				),
-			),
-		)
-		if m.cfg.Preprocessing.Persistence.Migrate {
-			err = m.dbClient.Schema.Create(ctx)
-			if err != nil {
-				m.logger.Error(err, "Error migrating database.")
-				return err
-			}
-		}
-		psvc = entclient.New(m.dbClient)
-	}
 
 	veraPDFValidator := fvalidate.NewVeraPDFValidator(m.cfg.Preprocessing.FileValidate.VeraPDF.Path)
 
@@ -146,7 +109,7 @@ func (m *Main) Run(ctx context.Context) error {
 		}
 	}
 
-	m.registerPreprocessingWorkflow(psvc, apisClient, veraPDFValidator)
+	m.registerPreprocessingWorkflow(apisClient, veraPDFValidator)
 	m.registerPoststorageWorkflow(ssClient.Packages(), apisClient, m.bucket)
 
 	if err := w.Start(); err != nil {
@@ -174,29 +137,18 @@ func (m *Main) Close() error {
 		}
 	}
 
-	if m.dbClient != nil {
-		if err := m.dbClient.Close(); err != nil {
-			e = errors.Join(e, fmt.Errorf("couldn't close database client: %v", err))
-		}
-	}
-
 	return e
 }
 
 func (m *Main) registerPreprocessingWorkflow(
-	psvc persistence.Service,
 	apisClient apis.Client,
 	veraPDFValidator fvalidate.Validator,
 ) {
 	m.temporalWorker.RegisterWorkflowWithOptions(
-		workflows.NewPreprocessing(psvc, m.cfg.Preprocessing, m.cfg.APIS.Enabled).Execute,
+		workflows.NewPreprocessing(m.cfg.Preprocessing, m.cfg.APIS.Enabled).Execute,
 		temporalsdk_workflow.RegisterOptions{Name: m.cfg.Preprocessing.WorkflowName},
 	)
 
-	m.temporalWorker.RegisterActivityWithOptions(
-		activities.NewChecksumSIP().Execute,
-		temporalsdk_activity.RegisterOptions{Name: activities.ChecksumSIPName},
-	)
 	m.temporalWorker.RegisterActivityWithOptions(
 		archiveextract.New(archiveextract.Config{}).Execute,
 		temporalsdk_activity.RegisterOptions{Name: archiveextract.Name},

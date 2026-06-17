@@ -20,19 +20,6 @@ spec:
       containers:
         - name: sfa-enduro-worker
           image: sfa-enduro-worker:dev
-          env:
-            - name: MYSQL_USER
-              valueFrom:
-                secretKeyRef:
-                  name: mysql-secret
-                  key: user
-            - name: MYSQL_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: mysql-secret
-                  key: password
-            - name: SFA_ENDURO_PREPROCESSING_PERSISTENCE_DSN
-              value: $(MYSQL_USER):$(MYSQL_PASSWORD)@tcp(mysql.enduro-sdps:3306)/preprocessing_sfa
           volumeMounts:
             - name: config
               mountPath: /home/enduro/.config

@@ -35,12 +35,6 @@ taskQueue = "sfa-enduro"
 [preprocessing]
 workflowName = "preprocessing"
 sharedPath = "/home/enduro/shared"
-checkDuplicates = false
-
-[preprocessing.persistence]
-dsn = "user:password@tcp(mysql.enduro-sdps:3306)/preprocessing_sfa"
-driver = "mysql"
-migrate = true
 
 [preprocessing.bagCreate]
 checksumAlgorithm = "md5"
@@ -223,8 +217,6 @@ GOARCH='amd64'
 Most of the activities documented below belong to the preprocessing child
 workflow.
 
-* [Calculate SIP checksum](#calculate-sip-checksum)
-* [Check for duplicate SIP](#check-for-duplicate-sip)
 * [Unbag SIP](#unbag-sip)
 * [Identify SIP structure](#identify-sip-structure)
 * [Validate SIP structure](#validate-sip-structure)
@@ -237,48 +229,6 @@ workflow.
 * [Restrucuture SIP](#restructure-sip)
 * [Create identifiers.json](#create-identifiersjson)
 * [Other activities](#other-activities)
-
-### Calculate SIP checksum
-
-Part 1 of a 2-part activity around duplicate checking - see also:
-
-* [Check for duplicate SIP](#check-for-duplicate-sip)
-
-Generates and stores a checksum for the entire SIP, so it can be used to check
-for duplicates
-
-#### Steps
-
-* Generate a SHA256 checksum for the incoming package
-* Read SIP name
-* Store SIP name and checksum in the persistence layer (`sips` table)
-
-#### Success critera
-
-* A SHA256 checksum is successfully generate for the SIP
-* the SIP name and generated checksum are stored in the persistence layer
-
-### Check for duplicate SIP
-
-Part 2 of a 2-part activity around duplicate checking - see also:
-
-* [Calculate SIP checksum](#calculate-sip-checksum)
-
-Determines if an identical SIP has previously been ingested
-
-#### Steps
-
-* Use the generated checksum from [part 1](#calculate-sip-checksum) to search
-  for an existing match in the `sips` database table
-* If an existing match is found, return a content error for a duplicateSIP and
-  terminate the workflow
-* Else, continue to next activity
-
-#### Success critera
-
-* The activity is able to read the generated checksum and the `sips` database
-  table
-* No matching checksum is found the SIPs database table
 
 ### Unbag SIP
 

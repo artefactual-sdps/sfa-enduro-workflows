@@ -130,20 +130,6 @@ var (
 
 	preAPISEvents = []*childwf.Task{
 		{
-			Name:        "Calculate SIP checksum",
-			Message:     "SIP checksum calculated using SHA-256",
-			Outcome:     childwf.TaskOutcomeSuccess,
-			StartedAt:   testTime,
-			CompletedAt: testTime,
-		},
-		{
-			Name:        "Check for duplicate SIP",
-			Message:     "SIP is not a duplicate",
-			Outcome:     childwf.TaskOutcomeSuccess,
-			StartedAt:   testTime,
-			CompletedAt: testTime,
-		},
-		{
 			Name:        "Extract SIP",
 			Message:     "SIP extracted",
 			Outcome:     childwf.TaskOutcomeSuccess,
@@ -285,10 +271,6 @@ func (s *PreprocessingTestSuite) SetupTest(cfg *config.Config) {
 		temporalsdk_activity.RegisterOptions{Name: archiveextract.Name},
 	)
 	s.env.RegisterActivityWithOptions(
-		activities.NewChecksumSIP().Execute,
-		temporalsdk_activity.RegisterOptions{Name: activities.ChecksumSIPName},
-	)
-	s.env.RegisterActivityWithOptions(
 		bagvalidate.New(nil).Execute,
 		temporalsdk_activity.RegisterOptions{Name: bagvalidate.Name},
 	)
@@ -365,7 +347,7 @@ func (s *PreprocessingTestSuite) SetupTest(cfg *config.Config) {
 		temporalsdk_activity.RegisterOptions{Name: bagcreate.Name},
 	)
 
-	s.workflow = workflows.NewPreprocessing(nil, cfg.Preprocessing, cfg.APIS.Enabled)
+	s.workflow = workflows.NewPreprocessing(cfg.Preprocessing, cfg.APIS.Enabled)
 	s.env.RegisterWorkflow(s.workflow.Execute)
 }
 
@@ -460,26 +442,7 @@ func (s *PreprocessingTestSuite) preAPISActivities(ar apisgen.AnalysisResult) (s
 	expectedSIP := s.digitizedAIP(extractPath)
 	ctx := mock.AnythingOfType("*context.valueCtx")
 	sessionCtx := mock.AnythingOfType("*context.timerCtx")
-	checksum := "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
-	s.env.OnActivity(
-		activities.ChecksumSIPName,
-		sessionCtx,
-		&activities.ChecksumSIPParams{Path: s.sipPath},
-	).Return(
-		&activities.ChecksumSIPResult{Algo: "SHA-256", Hash: checksum}, nil,
-	)
-	s.env.OnActivity(
-		localact.CheckDuplicate,
-		ctx,
-		nil,
-		&localact.CheckDuplicateParams{
-			Name:     filepath.Base(s.sipPath),
-			Checksum: checksum,
-		},
-	).Return(
-		&localact.CheckDuplicateResult{}, nil,
-	)
 	s.env.OnActivity(
 		archiveextract.Name,
 		sessionCtx,
@@ -784,9 +747,6 @@ func (s *PreprocessingTestSuite) executeAsChildWithHumanReview(
 func (s *PreprocessingTestSuite) TestSuccess() {
 	s.SetupTest(&config.Config{
 		APIS: apis.Config{Enabled: true},
-		Preprocessing: config.PreprocessingConfig{
-			CheckDuplicates: true,
-		},
 	})
 	s.writeBagitTxt(s.sipPath)
 
@@ -1250,9 +1210,6 @@ Enduro could not identify the package type. Please ensure that your SIP matches 
 func (s *PreprocessingTestSuite) TestHumanReviewContinueAndOverwrite() {
 	s.SetupTest(&config.Config{
 		APIS: apis.Config{Enabled: true},
-		Preprocessing: config.PreprocessingConfig{
-			CheckDuplicates: true,
-		},
 	})
 	s.writeBagitTxt(s.sipPath)
 
@@ -1296,9 +1253,6 @@ func (s *PreprocessingTestSuite) TestHumanReviewContinueAndOverwrite() {
 func (s *PreprocessingTestSuite) TestHumanReviewContinueAndAppend() {
 	s.SetupTest(&config.Config{
 		APIS: apis.Config{Enabled: true},
-		Preprocessing: config.PreprocessingConfig{
-			CheckDuplicates: true,
-		},
 	})
 	s.writeBagitTxt(s.sipPath)
 
@@ -1342,9 +1296,6 @@ func (s *PreprocessingTestSuite) TestHumanReviewContinueAndAppend() {
 func (s *PreprocessingTestSuite) TestHumanReviewCancelIngest() {
 	s.SetupTest(&config.Config{
 		APIS: apis.Config{Enabled: true},
-		Preprocessing: config.PreprocessingConfig{
-			CheckDuplicates: true,
-		},
 	})
 	s.writeBagitTxt(s.sipPath)
 
@@ -1387,9 +1338,6 @@ APIS detected metadata conflicts for import task ID %q and ingest was canceled b
 func (s *PreprocessingTestSuite) TestHumanReviewInvalidOption() {
 	s.SetupTest(&config.Config{
 		APIS: apis.Config{Enabled: true},
-		Preprocessing: config.PreprocessingConfig{
-			CheckDuplicates: true,
-		},
 	})
 	s.writeBagitTxt(s.sipPath)
 

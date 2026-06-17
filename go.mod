@@ -3,8 +3,6 @@ module github.com/artefactual-sdps/sfa-enduro-workflows
 go 1.26.4
 
 require (
-	ariga.io/sqlcomment v0.1.0
-	entgo.io/ent v0.14.5
 	github.com/antchfx/xmlquery v1.5.0
 	github.com/artefactual-sdps/enduro v0.30.1-0.20260619034008-f1746c6ca15b
 	github.com/artefactual-sdps/temporal-activities v0.0.0-20260406175419-303edb7db3db
@@ -13,11 +11,9 @@ require (
 	github.com/go-faster/errors v0.7.1
 	github.com/go-faster/jx v1.2.0
 	github.com/go-logr/logr v1.4.3
-	github.com/go-sql-driver/mysql v1.9.3
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-cleanhttp v0.5.2
 	github.com/jonboulle/clockwork v0.5.0
-	github.com/mattn/go-sqlite3 v1.14.34
 	github.com/ogen-go/ogen v1.20.3
 	github.com/richardlehane/siegfried v1.11.4
 	github.com/spf13/pflag v1.0.10
@@ -37,11 +33,9 @@ require (
 )
 
 require (
-	ariga.io/atlas v0.37.0 // indirect
 	cloud.google.com/go/auth v0.17.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
-	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.20.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.13.1 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.11.2 // indirect
@@ -50,10 +44,8 @@ require (
 	github.com/Azure/go-autorest/autorest/to v0.4.1 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.6.0 // indirect
 	github.com/STARRY-S/zip v0.2.3 // indirect
-	github.com/agext/levenshtein v1.2.3 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/antchfx/xpath v1.3.6 // indirect
-	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/artefactual-labs/bagit-gython v0.2.0 // indirect
 	github.com/artefactual-labs/bine v0.28.3 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.41.5 // indirect
@@ -76,7 +68,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.10 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.41.2 // indirect
 	github.com/aws/smithy-go v1.27.0 // indirect
-	github.com/bmatcuk/doublestar v1.3.4 // indirect
 	github.com/bodgit/plumbing v1.3.0 // indirect
 	github.com/bodgit/sevenzip v1.6.1 // indirect
 	github.com/bodgit/windows v1.0.1 // indirect
@@ -95,7 +86,6 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
-	github.com/go-openapi/inflect v0.19.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/gohugoio/hashstructure v0.6.0 // indirect
@@ -114,7 +104,6 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.8 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
-	github.com/hashicorp/hcl/v2 v2.19.1 // indirect
 	github.com/klauspost/compress v1.18.6 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/kluctl/go-embed-python v0.0.0-3.12.3-20240415-1 // indirect
@@ -131,7 +120,6 @@ require (
 	github.com/microsoft/kiota-serialization-text-go v1.1.3 // indirect
 	github.com/mikelolasagasti/xz v1.0.1 // indirect
 	github.com/minio/minlz v1.0.1 // indirect
-	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/nexus-rpc/sdk-go v0.5.1 // indirect
 	github.com/nwaples/rardecode/v2 v2.2.1 // indirect
 	github.com/nyudlts/go-bagit v0.3.0-alpha.0.20240515212815-8dab411c23af // indirect
@@ -163,9 +151,6 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/tailscale/hujson v0.0.0-20260302212456-ecc657c15afd // indirect
 	github.com/ulikunitz/xz v0.5.15 // indirect
-	github.com/zclconf/go-cty v1.14.4 // indirect
-	github.com/zclconf/go-cty-yaml v1.1.0 // indirect
-	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel/sdk v1.43.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.43.0 // indirect

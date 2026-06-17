@@ -14,7 +14,6 @@ import (
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/config"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fvalidate"
-	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence"
 )
 
 const testConfig = `# Config
@@ -29,11 +28,6 @@ taskQueue = "sfa-enduro"
 [preprocessing]
 workflowName = "preprocessing"
 sharedPath = "/home/enduro/shared"
-checkDuplicates = true
-[preprocessing.persistence]
-dsn = "file:/path/to/fake.db"
-driver = "sqlite3"
-migrate = true
 [preprocessing.bagCreate]
 checksumAlgorithm = "md5"
 [preprocessing.fileFormat]
@@ -109,14 +103,8 @@ func TestConfig(t *testing.T) {
 					PollInterval: apis.DefaultPollInterval,
 				},
 				Preprocessing: config.PreprocessingConfig{
-					WorkflowName:    "preprocessing",
-					SharedPath:      "/home/enduro/shared",
-					CheckDuplicates: true,
-					Persistence: persistence.Config{
-						DSN:     "file:/path/to/fake.db",
-						Driver:  "sqlite3",
-						Migrate: true,
-					},
+					WorkflowName: "preprocessing",
+					SharedPath:   "/home/enduro/shared",
 					BagCreate: bagcreate.Config{
 						ChecksumAlgorithm: "md5",
 					},
@@ -203,24 +191,6 @@ checksumAlgorithm = "unknown"
 			wantFound: true,
 			wantErr: `invalid configuration
 Preprocessing.BagCreate: ChecksumAlgorithm: invalid value "unknown", must be one of (md5, sha1, sha256, sha512)`,
-		},
-		{
-			name:       "Errors when persistence configuration is missing",
-			configFile: "sfa-enduro-worker.toml",
-			toml: `# Config
-[temporal]
-address = "host:port"
-[worker]
-taskQueue = "sfa-enduro"
-[preprocessing]
-workflowName = "preprocessing"
-sharedPath = "/home/enduro/shared"
-checkDuplicates = true
-` + validPoststorageConfig,
-			wantFound: true,
-			wantErr: `invalid configuration
-Preprocessing.Persistence.DSN: missing required value
-Preprocessing.Persistence.Driver: missing required value`,
 		},
 		{
 			name:       "Loads APIS defaults when only URL is configured",

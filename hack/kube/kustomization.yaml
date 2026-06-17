@@ -3,8 +3,6 @@ kind: Kustomization
 namespace: enduro-sdps
 resources:
   - apis-mock.yaml
-  - mysql-create-prep-database-job.yaml
-  - mysql-recreate-prep-database-job.yaml
   - pvc.yaml
   - secret.yaml
   - worker.yaml

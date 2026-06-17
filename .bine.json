@@ -3,11 +3,6 @@
   "project": "sfa-enduro-workflows",
   "bins": [
     {
-      "name": "ent",
-      "go_package": "entgo.io/ent/cmd/ent",
-      "version": "0.14.5"
-    },
-    {
       "name": "go-enum",
       "url": "https://github.com/abice/go-enum",
       "version": "0.9.2",

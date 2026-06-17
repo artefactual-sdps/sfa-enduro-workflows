@@ -23,24 +23,20 @@ import (
 	apisgen "github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis/gen"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/config"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/localact"
-	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/premis"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/sip"
 )
 
 type Preprocessing struct {
-	psvc        persistence.Service
 	cfg         config.PreprocessingConfig
 	apisEnabled bool
 }
 
 func NewPreprocessing(
-	psvc persistence.Service,
 	cfg config.PreprocessingConfig,
 	apisEnabled bool,
 ) *Preprocessing {
 	return &Preprocessing{
-		psvc:        psvc,
 		cfg:         cfg,
 		apisEnabled: apisEnabled,
 	}
@@ -68,65 +64,6 @@ func (w *Preprocessing) Execute(
 	result.RelativePath = params.RelativePath
 
 	localPath := filepath.Join(w.cfg.SharedPath, filepath.Clean(params.RelativePath))
-
-	if w.cfg.CheckDuplicates {
-		// Calculate SIP checksum.
-		task := result.NewTask(temporalsdk_workflow.Now(ctx), "Calculate SIP checksum")
-		var checksumSIP activities.ChecksumSIPResult
-		e = temporalsdk_workflow.ExecuteActivity(
-			withFilesystemActivityOpts(ctx),
-			activities.ChecksumSIPName,
-			&activities.ChecksumSIPParams{Path: localPath},
-		).Get(ctx, &checksumSIP)
-		if e != nil {
-			logger.Error("System error", "message", e.Error())
-			result.SystemError(
-				temporalsdk_workflow.Now(ctx),
-				task,
-				"checksum calculation has failed.",
-				"Enduro could not generate a checksum for the submitted SIP. Please try again, or ask a system administrator to investigate.",
-			)
-			return result, nil
-		}
-		task.Succeed(
-			temporalsdk_workflow.Now(ctx),
-			"SIP checksum calculated using %s",
-			checksumSIP.Algo,
-		)
-
-		// Check for duplicate SIP.
-		task = result.NewTask(temporalsdk_workflow.Now(ctx), "Check for duplicate SIP")
-		var checkDuplicate localact.CheckDuplicateResult
-		e = temporalsdk_workflow.ExecuteLocalActivity(
-			withLocalActOpts(ctx),
-			localact.CheckDuplicate,
-			w.psvc,
-			&localact.CheckDuplicateParams{
-				Name:     filepath.Base(localPath),
-				Checksum: checksumSIP.Hash,
-			},
-		).Get(ctx, &checkDuplicate)
-		if e != nil {
-			logger.Error("System error", "message", e.Error())
-			result.SystemError(
-				temporalsdk_workflow.Now(ctx),
-				task,
-				"checking for a duplicate SIP has failed.",
-				"An error occurred when checking whether SIP is a duplicate. Please try again, or ask a system administrator to investigate.",
-			)
-			return result, nil
-		}
-		if checkDuplicate.IsDuplicate {
-			result.ValidationError(
-				temporalsdk_workflow.Now(ctx),
-				task,
-				"SIP is a duplicate.",
-				"A previously submitted SIP has the same checksum. Please ensure that your package has not already been ingested.",
-			)
-			return result, nil
-		}
-		task.Succeed(temporalsdk_workflow.Now(ctx), "SIP is not a duplicate")
-	}
 
 	// Extract SIP.
 	localPath = w.extractSIP(ctx, result, localPath, params.SIPName)

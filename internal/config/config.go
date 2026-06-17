@@ -14,7 +14,6 @@ import (
 
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fvalidate"
-	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/persistence"
 )
 
 type ConfigurationValidator interface {
@@ -107,15 +106,7 @@ type PreprocessingConfig struct {
 	// Enduro and preservation processing.
 	SharedPath string
 
-	// CheckDuplicates enables or disables a check for SIPs that have already
-	// been processed. When enabled, the persistence configuration below will
-	// be required, and a SIP that has already been processed will fail the
-	// preprocessing workflow.
-	CheckDuplicates bool
-
-	Persistence persistence.Config
-	BagCreate   bagcreate.Config
-
+	BagCreate    bagcreate.Config
 	FileFormat   ffvalidate.Config
 	FileValidate fvalidate.Config
 }
@@ -132,15 +123,6 @@ func (c PreprocessingConfig) Validate() error {
 
 	if err := c.BagCreate.Validate(); err != nil {
 		errs = errors.Join(errs, fmt.Errorf("Preprocessing.BagCreate: %v", err))
-	}
-
-	if c.CheckDuplicates {
-		if c.Persistence.DSN == "" {
-			errs = errors.Join(errs, errRequired("Preprocessing.Persistence.DSN"))
-		}
-		if c.Persistence.Driver == "" {
-			errs = errors.Join(errs, errRequired("Preprocessing.Persistence.Driver"))
-		}
 	}
 
 	return errs
