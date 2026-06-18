@@ -1,6 +1,6 @@
 module github.com/artefactual-sdps/sfa-enduro-workflows
 
-go 1.26.3
+go 1.26.4
 
 require (
 	ariga.io/sqlcomment v0.1.0
