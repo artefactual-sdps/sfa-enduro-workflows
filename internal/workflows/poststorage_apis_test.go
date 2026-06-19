@@ -42,6 +42,7 @@ const (
 	poststorageMETSName      = "METS." + poststorageAIPUUIDString + ".xml"
 	poststorageMETSRelPath   = poststorageAIPName + "/data/" + poststorageMETSName
 	poststorageWorkflowUser  = "sfa-enduro"
+	poststorageUserEmail     = "operator@example.com"
 )
 
 var (
@@ -153,7 +154,7 @@ func (s *TestSuite) TestSuccess() {
 			TaskID:          poststorageImportTaskID,
 			METSPath:        poststorageMETSPath,
 			ImportBehaviour: apisgen.ImportBehaviourTypeOverwriteAndAppend,
-			Username:        poststorageWorkflowUser,
+			Username:        poststorageUserEmail,
 		},
 	).Return(
 		&apis.CreateImportRunResult{RunID: poststorageImportRunID}, nil,
@@ -169,6 +170,7 @@ func (s *TestSuite) TestSuccess() {
 	s.env.ExecuteWorkflow(
 		s.workflow.Execute,
 		&childwf.PostStorageParams{
+			User:           &childwf.User{Email: poststorageUserEmail},
 			AIPUUID:        poststorageAIPUUIDString,
 			CustomMetadata: poststorageOverwriteMetadata,
 		},

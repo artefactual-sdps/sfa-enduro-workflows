@@ -513,7 +513,7 @@ func (w *Preprocessing) Execute(
 
 	// Create APIS import task.
 	if w.apisEnabled {
-		if ok := w.createAPISImportTask(ctx, result, sip); !ok {
+		if ok := w.createAPISImportTask(ctx, result, sip, apisUsername(params.User)); !ok {
 			return result, nil
 		}
 	}
@@ -605,6 +605,7 @@ func (w *Preprocessing) createAPISImportTask(
 	ctx temporalsdk_workflow.Context,
 	result *childwf.PreprocessingResult,
 	sip sip.SIP,
+	username string,
 ) bool {
 	logger := temporalsdk_workflow.GetLogger(ctx)
 
@@ -622,7 +623,7 @@ func (w *Preprocessing) createAPISImportTask(
 		apis.CreateImportTaskActivityName,
 		&apis.CreateImportTaskParams{
 			SIP:      sip,
-			Username: "sfa-enduro", // TODO: Use real username.
+			Username: username,
 		},
 	).Get(ctx, &createAPISImportTask)
 	if err != nil {

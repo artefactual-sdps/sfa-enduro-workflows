@@ -66,7 +66,7 @@ func (w *PoststorageAPIS) Execute(
 				return nil, fmt.Errorf("error creating session: %v", err)
 			}
 
-			sessErr = w.SessionHandler(sessCtx, r, aipUUID, apisMetadata)
+			sessErr = w.SessionHandler(sessCtx, r, aipUUID, apisMetadata, apisUsername(params.User))
 
 			// We want to retry the session if it has been canceled as a result
 			// of losing the worker but not otherwise. This scenario seems to be
@@ -107,6 +107,7 @@ func (w *PoststorageAPIS) SessionHandler(
 	result *childwf.PostStorageResult,
 	aipUUID uuid.UUID,
 	apisMetadata apis.CustomMetadata,
+	username string,
 ) (e error) {
 	logger := temporalsdk_workflow.GetLogger(ctx)
 	removePaths := []string{}
@@ -208,7 +209,7 @@ func (w *PoststorageAPIS) SessionHandler(
 			TaskID:          apisMetadata.ImportTaskID,
 			METSPath:        metsPath,
 			ImportBehaviour: importBehaviour,
-			Username:        "sfa-enduro", // TODO: Use real username.
+			Username:        username,
 		},
 	).Get(ctx, &createImportRun)
 	if err != nil {

@@ -37,8 +37,9 @@ import (
 )
 
 const (
-	sipName    = "SIP_20240606_dept.zip"
-	apisTaskID = "task-000001"
+	sipName                   = "SIP_20240606_dept.zip"
+	apisTaskID                = "task-000001"
+	preprocessingWorkflowUser = "sfa-enduro"
 
 	// The relPath reflects an actual SFA ZIP path passed from Enduro to
 	// sfa-enduro-workflows — it seems that ingest prepends "SIP_" to the original
@@ -564,7 +565,7 @@ func (s *PreprocessingTestSuite) preAPISActivities(ar apisgen.AnalysisResult) (s
 		sessionCtx,
 		&apis.CreateImportTaskParams{
 			SIP:      expectedSIP,
-			Username: "sfa-enduro",
+			Username: preprocessingWorkflowUser,
 		},
 	).Return(
 		&apis.CreateImportTaskResult{TaskID: apisTaskID}, nil,
