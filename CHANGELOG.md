@@ -8,6 +8,18 @@ requests.
 
 ## [Unreleased]
 
+### Added
+
+- Restore legacy AIS bundle poststorage workflow ([#222])
+
+### Changed
+
+- Include child workflow user email in APIS requests ([#173])
+
+### Removed
+
+- Duplicate SIP check from preprocessing workflow ([#106])
+
 ## [0.19.0] - 2026-05-14
 
 ### Added
@@ -197,6 +209,7 @@ Initial release.
 [0.3.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/releases/tag/v0.1.0
+[#222]: https://github.com/artefactual-sdps/sfa-enduro-workflows/issues/222
 [#202]: https://github.com/artefactual-sdps/sfa-enduro-workflows/pull/202
 [#174]: https://github.com/artefactual-sdps/sfa-enduro-workflows/issues/174
 [#173]: https://github.com/artefactual-sdps/sfa-enduro-workflows/issues/173
