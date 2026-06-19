@@ -238,8 +238,8 @@ func Read(config *Config, configFile string) (found bool, configFileUsed string,
 	v.AddConfigPath(".")
 	v.AddConfigPath("$HOME/.config/")
 	v.AddConfigPath("/etc")
-	v.SetConfigName("sfa-enduro")
-	v.SetEnvPrefix("SFA_ENDURO")
+	v.SetConfigName("sfa-enduro-worker")
+	v.SetEnvPrefix("SFA_ENDURO_WORKER")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 

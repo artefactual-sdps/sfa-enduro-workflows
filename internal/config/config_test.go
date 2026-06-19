@@ -88,7 +88,7 @@ func TestConfig(t *testing.T) {
 	for _, tc := range []test{
 		{
 			name:       "Loads configuration from a TOML file",
-			configFile: "sfa-enduro.toml",
+			configFile: "sfa-enduro-worker.toml",
 			toml:       testConfig,
 			wantFound:  true,
 			wantCfg: config.Config{
@@ -150,7 +150,7 @@ func TestConfig(t *testing.T) {
 		},
 		{
 			name:       "Errors when configuration values are not valid",
-			configFile: "sfa-enduro.toml",
+			configFile: "sfa-enduro-worker.toml",
 			toml: `# override default values to trigger validation errors
 [temporal]
 namespace = ""
@@ -171,7 +171,7 @@ Poststorage.Cantons.Bucket: missing required value`,
 		},
 		{
 			name:       "Errors when MaxConcurrentSessions is less than 1",
-			configFile: "sfa-enduro.toml",
+			configFile: "sfa-enduro-worker.toml",
 			toml: `# Config
 [temporal]
 address = "host:port"
@@ -188,7 +188,7 @@ Worker.MaxConcurrentSessions: -1 is less than the minimum value (1)`,
 		},
 		{
 			name:       "Errors when bagcreate checksumAlgorithm is invalid",
-			configFile: "sfa-enduro.toml",
+			configFile: "sfa-enduro-worker.toml",
 			toml: `# Config
 [temporal]
 address = "host:port"
@@ -206,7 +206,7 @@ Preprocessing.BagCreate: ChecksumAlgorithm: invalid value "unknown", must be one
 		},
 		{
 			name:       "Errors when persistence configuration is missing",
-			configFile: "sfa-enduro.toml",
+			configFile: "sfa-enduro-worker.toml",
 			toml: `# Config
 [temporal]
 address = "host:port"
@@ -224,7 +224,7 @@ Preprocessing.Persistence.Driver: missing required value`,
 		},
 		{
 			name:       "Loads APIS defaults when only URL is configured",
-			configFile: "sfa-enduro.toml",
+			configFile: "sfa-enduro-worker.toml",
 			toml: `# Config
 [temporal]
 address = "host:port"
@@ -281,7 +281,7 @@ url = "http://apis.example.test"
 		},
 		{
 			name:       "Loads APIS poststorage config without Cantons config when APIS is enabled",
-			configFile: "sfa-enduro.toml",
+			configFile: "sfa-enduro-worker.toml",
 			toml: `# Config
 [temporal]
 address = "host:port"
@@ -340,7 +340,7 @@ url = "http://apis.example.test"
 		},
 		{
 			name:       "Loads Cantons poststorage config without APIS poststorage config when APIS is disabled",
-			configFile: "sfa-enduro.toml",
+			configFile: "sfa-enduro-worker.toml",
 			toml: `# Config
 [temporal]
 address = "host:port"
@@ -399,7 +399,7 @@ key = "test"
 		},
 		{
 			name:       "Errors when APIS URL is missing",
-			configFile: "sfa-enduro.toml",
+			configFile: "sfa-enduro-worker.toml",
 			toml: `# Config
 [temporal]
 address = "host:port"
@@ -417,7 +417,7 @@ APIS.URL: missing required value`,
 		},
 		{
 			name:       "Errors when APIS poststorage workflow name is missing and APIS is enabled",
-			configFile: "sfa-enduro.toml",
+			configFile: "sfa-enduro-worker.toml",
 			toml: `# Config
 [temporal]
 address = "host:port"
@@ -442,7 +442,7 @@ Poststorage.APIS.WorkflowName: missing required value`,
 		},
 		{
 			name:       "Errors when Cantons poststorage is missing and APIS is disabled",
-			configFile: "sfa-enduro.toml",
+			configFile: "sfa-enduro-worker.toml",
 			toml: `# Config
 [temporal]
 address = "host:port"
@@ -467,7 +467,7 @@ Poststorage.Cantons.Bucket: missing required value`,
 		},
 		{
 			name:       "Errors when APIS timeout is invalid",
-			configFile: "sfa-enduro.toml",
+			configFile: "sfa-enduro-worker.toml",
 			toml: `# Config
 [temporal]
 address = "host:port"
@@ -487,7 +487,7 @@ APIS.Timeout: value -1s is less than 0`,
 		},
 		{
 			name:       "Errors when APIS poll interval is invalid",
-			configFile: "sfa-enduro.toml",
+			configFile: "sfa-enduro-worker.toml",
 			toml: `# Config
 [temporal]
 address = "host:port"
@@ -507,7 +507,7 @@ APIS.PollInterval: value -1s is less than or equal to 0`,
 		},
 		{
 			name:       "Loads explicit APIS timeout and poll interval",
-			configFile: "sfa-enduro.toml",
+			configFile: "sfa-enduro-worker.toml",
 			toml: `# Config
 [temporal]
 address = "host:port"
@@ -568,7 +568,7 @@ token = "mock-token"
 		},
 		{
 			name:       "Errors when TOML is invalid",
-			configFile: "sfa-enduro.toml",
+			configFile: "sfa-enduro-worker.toml",
 			toml:       "bad TOML",
 			wantFound:  true,
 			wantErr:    "failed to read configuration file: While parsing config: toml: expected character =",
@@ -576,7 +576,7 @@ token = "mock-token"
 		{
 			name:            "Errors when no config file is found in the default paths",
 			wantFound:       false,
-			wantErrContains: "Config File \"sfa-enduro\" Not Found in \"[",
+			wantErrContains: "Config File \"sfa-enduro-worker\" Not Found in \"[",
 		},
 		{
 			name:            "Errors when the given configFile is not found",
@@ -588,7 +588,7 @@ token = "mock-token"
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			tmpDir := fs.NewDir(t, "sfa-enduro-test", fs.WithFile("sfa-enduro.toml", tc.toml))
+			tmpDir := fs.NewDir(t, "sfa-enduro-worker-test", fs.WithFile("sfa-enduro-worker.toml", tc.toml))
 
 			configFile := ""
 			if tc.configFile != "" {
