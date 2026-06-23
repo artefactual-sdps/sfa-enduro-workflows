@@ -1,6 +1,7 @@
 package workflows
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"slices"
@@ -31,6 +32,10 @@ type Preprocessing struct {
 	cfg         config.PreprocessingConfig
 	apisEnabled bool
 }
+
+const APISDefaultValuesFailureMessage = "No matching SIP information for this accession number could be found " +
+	"in the AIS, causing the analysis to fail. Please check if the accession information in the SIP matches with " +
+	"the record in the AIS and if it is linked with a (Teil-)Bestand and then restart the ingest."
 
 func NewPreprocessing(
 	cfg config.PreprocessingConfig,
@@ -564,6 +569,15 @@ func (w *Preprocessing) createAPISImportTask(
 		},
 	).Get(ctx, &createAPISImportTask)
 	if err != nil {
+		if isCreateAPISImportTaskDefaultValuesError(err) {
+			result.Outcome = childwf.OutcomeContentError
+			task.Complete(
+				temporalsdk_workflow.Now(ctx),
+				childwf.TaskOutcomeValidationFailure,
+				APISDefaultValuesFailureMessage,
+			)
+			return false
+		}
 		logger.Error("System error", "message", err.Error())
 		result.SystemError(
 			temporalsdk_workflow.Now(ctx),
@@ -663,6 +677,11 @@ func (w *Preprocessing) createAPISImportTask(
 	result.CustomMetadata = childwf.CustomMetadata{apis.CustomMetadataKey: data}
 
 	return true
+}
+
+func isCreateAPISImportTaskDefaultValuesError(err error) bool {
+	var applicationErr *temporalsdk_temporal.ApplicationError
+	return errors.As(err, &applicationErr) && applicationErr.Type() == apis.CreateImportTaskDefaultValuesErrorType
 }
 
 // waitForAPISDecision asks the parent workflow for a decision. It returns the

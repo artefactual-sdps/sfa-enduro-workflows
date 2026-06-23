@@ -5,15 +5,21 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	ogenhttp "github.com/ogen-go/ogen/http"
 	"go.artefactual.dev/tools/temporal"
+	temporalsdk_temporal "go.temporal.io/sdk/temporal"
 
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis/gen"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/sip"
 )
 
-const CreateImportTaskActivityName = "create-apis-import-task"
+const (
+	CreateImportTaskActivityName             = "create-apis-import-task"
+	CreateImportTaskDefaultValuesErrorType   = "APISImportTaskDefaultValuesError"
+	CreateImportTaskDefaultValuesErrorDetail = "The uploaded package contains information that didn't allow us to determine the default values."
+)
 
 type (
 	CreateImportTaskActivity struct {
@@ -75,9 +81,17 @@ func (a *CreateImportTaskActivity) Execute(
 		}
 		return &CreateImportTaskResult{TaskID: t.ImportTaskId}, nil
 	case *gen.APIImporttasksPostBadRequest:
+		detail := problemDetail(t.Detail)
+		if strings.Contains(detail, CreateImportTaskDefaultValuesErrorDetail) {
+			return nil, temporalsdk_temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("create APIS import task: bad request: %s", detail),
+				CreateImportTaskDefaultValuesErrorType,
+				nil,
+			)
+		}
 		return nil, temporal.NewNonRetryableError(fmt.Errorf(
 			"create APIS import task: bad request: %s",
-			problemDetail(t.Detail),
+			detail,
 		))
 	case *gen.APIImporttasksPostUnsupportedMediaType:
 		return nil, temporal.NewNonRetryableError(fmt.Errorf(

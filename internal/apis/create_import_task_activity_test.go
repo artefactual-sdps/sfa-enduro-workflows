@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	temporalsdk_activity "go.temporal.io/sdk/activity"
+	temporalsdk_temporal "go.temporal.io/sdk/temporal"
 	temporalsdk_testsuite "go.temporal.io/sdk/testsuite"
 	"go.uber.org/mock/gomock"
 	"gotest.tools/v3/assert"
@@ -42,6 +43,7 @@ func TestCreateImportTaskActivity(t *testing.T) {
 		expect  func(*fake_apis.MockClientMockRecorder)
 		want    apis.CreateImportTaskResult
 		wantErr string
+		errType string
 	}{
 		{
 			name: "creates import task",
@@ -108,6 +110,22 @@ func TestCreateImportTaskActivity(t *testing.T) {
 			wantErr: "create APIS import task: bad request: invalid payload",
 		},
 		{
+			name: "returns typed default values error",
+			params: apis.CreateImportTaskParams{
+				SIP: sipValue,
+			},
+			expect: func(m *fake_apis.MockClientMockRecorder) {
+				m.APIImporttasksPost(gomock.Any(), gomock.Any()).Return(
+					&apisgen.APIImporttasksPostBadRequest{
+						Detail: apisgen.NewOptNilString(apis.CreateImportTaskDefaultValuesErrorDetail),
+					},
+					nil,
+				)
+			},
+			wantErr: "create APIS import task: bad request: " + apis.CreateImportTaskDefaultValuesErrorDetail,
+			errType: apis.CreateImportTaskDefaultValuesErrorType,
+		},
+		{
 			name: "returns unauthorized error",
 			params: apis.CreateImportTaskParams{
 				SIP: sipValue,
@@ -155,6 +173,11 @@ func TestCreateImportTaskActivity(t *testing.T) {
 					t.Fatalf("expected error containing %q", tt.wantErr)
 				}
 				assert.ErrorContains(t, err, tt.wantErr)
+				if tt.errType != "" {
+					var applicationErr *temporalsdk_temporal.ApplicationError
+					assert.Assert(t, errors.As(err, &applicationErr))
+					assert.Equal(t, applicationErr.Type(), tt.errType)
+				}
 
 				return
 			}

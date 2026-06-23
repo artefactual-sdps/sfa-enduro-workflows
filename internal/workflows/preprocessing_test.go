@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"go.artefactual.dev/tools/fsutil"
 	temporalsdk_activity "go.temporal.io/sdk/activity"
+	temporalsdk_temporal "go.temporal.io/sdk/temporal"
 	temporalsdk_testsuite "go.temporal.io/sdk/testsuite"
 	temporalsdk_worker "go.temporal.io/sdk/worker"
 	temporalsdk_workflow "go.temporal.io/sdk/workflow"
@@ -437,7 +438,7 @@ Tag-File-Character-Encoding: UTF-8
 	}
 }
 
-func (s *PreprocessingTestSuite) preAPISActivities(ar apisgen.AnalysisResult) (sip.SIP, string, string) {
+func (s *PreprocessingTestSuite) preAPISValidationActivities() (sip.SIP, string) {
 	extractPath := filepath.Join(filepath.Dir(s.sipPath), fsutil.BaseNoExt(filepath.Base(sipName)))
 	expectedSIP := s.digitizedAIP(extractPath)
 	ctx := mock.AnythingOfType("*context.valueCtx")
@@ -523,6 +524,14 @@ func (s *PreprocessingTestSuite) preAPISActivities(ar apisgen.AnalysisResult) (s
 	).Return(
 		&activities.ValidatePREMISResult{}, nil,
 	)
+
+	return expectedSIP, extractPath
+}
+
+func (s *PreprocessingTestSuite) preAPISActivities(ar apisgen.AnalysisResult) (sip.SIP, string, string) {
+	expectedSIP, extractPath := s.preAPISValidationActivities()
+	sessionCtx := mock.AnythingOfType("*context.timerCtx")
+
 	s.env.OnActivity(
 		apis.CreateImportTaskActivityName,
 		sessionCtx,
@@ -785,6 +794,65 @@ func (s *PreprocessingTestSuite) TestSuccess() {
 				childwf.TaskOutcomeSuccess,
 				true,
 			),
+		},
+		&result,
+	)
+}
+
+func (s *PreprocessingTestSuite) TestAPISCreateImportTaskDefaultValuesFailure() {
+	s.SetupTest(&config.Config{
+		APIS: apis.Config{Enabled: true},
+	})
+	s.writeBagitTxt(s.sipPath)
+
+	expectedSIP, extractPath := s.preAPISValidationActivities()
+	sessionCtx := mock.AnythingOfType("*context.timerCtx")
+	s.env.OnActivity(
+		apis.CreateImportTaskActivityName,
+		sessionCtx,
+		&apis.CreateImportTaskParams{
+			SIP:      expectedSIP,
+			Username: preprocessingWorkflowUser,
+		},
+	).Return(
+		nil,
+		temporalsdk_temporal.NewNonRetryableApplicationError(
+			"create APIS import task: bad request: "+apis.CreateImportTaskDefaultValuesErrorDetail,
+			apis.CreateImportTaskDefaultValuesErrorType,
+			nil,
+		),
+	)
+
+	s.env.ExecuteWorkflow(
+		s.workflow.Execute,
+		&childwf.PreprocessingParams{
+			RelativePath: relPath,
+			SIPID:        sipUUID,
+			SIPName:      sipName,
+		},
+	)
+	s.True(s.env.IsWorkflowCompleted())
+
+	updatedRelPath, err := filepath.Rel(s.testDir, extractPath)
+	s.NoError(err)
+
+	tasks := append([]*childwf.Task{}, preAPISEvents...)
+	tasks = append(tasks, &childwf.Task{
+		Name:        "Submit metadata to APIS",
+		Message:     workflows.APISDefaultValuesFailureMessage,
+		Outcome:     childwf.TaskOutcomeValidationFailure,
+		StartedAt:   testTime,
+		CompletedAt: testTime,
+	})
+
+	var result childwf.PreprocessingResult
+	err = s.env.GetWorkflowResult(&result)
+	s.NoError(err)
+	s.Equal(
+		&childwf.PreprocessingResult{
+			Outcome:      childwf.OutcomeContentError,
+			RelativePath: updatedRelPath,
+			Tasks:        tasks,
 		},
 		&result,
 	)
