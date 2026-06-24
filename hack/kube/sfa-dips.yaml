@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sfa-dips
+  labels:
+    app: sfa-dips
+spec:
+  selector:
+    matchLabels:
+      app: sfa-dips
+  template:
+    metadata:
+      labels:
+        app: sfa-dips
+    spec:
+      serviceAccountName: sdps
+      containers:
+        - name: sfa-dips
+          image: sfa-dips:dev
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: config
+              mountPath: /home/enduro/.config
+              readOnly: true
+          resources: {}
+      volumes:
+        - name: config
+          secret:
+            secretName: sfa-dips-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sfa-dips
+  labels:
+    app: sfa-dips
+spec:
+  selector:
+    app: sfa-dips
+  ports:
+    - port: 8080
