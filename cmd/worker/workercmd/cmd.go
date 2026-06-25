@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/artefactual-labs/bagit-gython"
 	"github.com/artefactual-sdps/temporal-activities/archiveextract"
 	"github.com/artefactual-sdps/temporal-activities/archivezip"
 	"github.com/artefactual-sdps/temporal-activities/bagcreate"
@@ -78,6 +79,18 @@ func (m *Main) Run(ctx context.Context) error {
 
 	veraPDFValidator := fvalidate.NewVeraPDFValidator(m.cfg.Preprocessing.FileValidate.VeraPDF.Path)
 
+	// Set up BagIt validator.
+	bagValidator, err := bagit.NewValidator(bagit.WithPoolSize(1))
+	if err != nil {
+		m.logger.Error(err, "Unable to create BagIt validator.")
+		return err
+	}
+	defer func() {
+		if err := bagValidator.Close(); err != nil {
+			m.logger.Error(err, "Error closing BagIt validator.")
+		}
+	}()
+
 	// Set up APIS client.
 	var apisClient apis.Client
 	if m.cfg.APIS.Enabled {
@@ -109,7 +122,7 @@ func (m *Main) Run(ctx context.Context) error {
 		}
 	}
 
-	m.registerPreprocessingWorkflow(apisClient, veraPDFValidator)
+	m.registerPreprocessingWorkflow(apisClient, veraPDFValidator, bagValidator)
 	m.registerPoststorageWorkflow(ssClient.Packages(), apisClient, m.bucket)
 
 	if err := w.Start(); err != nil {
@@ -143,6 +156,7 @@ func (m *Main) Close() error {
 func (m *Main) registerPreprocessingWorkflow(
 	apisClient apis.Client,
 	veraPDFValidator fvalidate.Validator,
+	bagValidator bagvalidate.BagValidator,
 ) {
 	m.temporalWorker.RegisterWorkflowWithOptions(
 		workflows.NewPreprocessing(m.cfg.Preprocessing, m.cfg.APIS.Enabled).Execute,
@@ -154,7 +168,7 @@ func (m *Main) registerPreprocessingWorkflow(
 		temporalsdk_activity.RegisterOptions{Name: archiveextract.Name},
 	)
 	m.temporalWorker.RegisterActivityWithOptions(
-		bagvalidate.New(nil).Execute,
+		bagvalidate.New(bagValidator).Execute,
 		temporalsdk_activity.RegisterOptions{Name: bagvalidate.Name},
 	)
 	m.temporalWorker.RegisterActivityWithOptions(
