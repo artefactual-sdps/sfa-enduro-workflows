@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/artefactual-labs/bagit-gython"
 	"github.com/artefactual-sdps/temporal-activities/archiveextract"
 	"github.com/artefactual-sdps/temporal-activities/archivezip"
 	"github.com/artefactual-sdps/temporal-activities/bagcreate"
@@ -46,6 +47,7 @@ type Main struct {
 	temporalWorker temporalsdk_worker.Worker
 	temporalClient temporalsdk_client.Client
 	bucket         *blob.Bucket
+	bagValidator   *bagit.Validator
 }
 
 func NewMain(logger logr.Logger, cfg config.Config) *Main {
@@ -77,6 +79,13 @@ func (m *Main) Run(ctx context.Context) error {
 	m.temporalWorker = w
 
 	veraPDFValidator := fvalidate.NewVeraPDFValidator(m.cfg.Preprocessing.FileValidate.VeraPDF.Path)
+
+	// Set up BagIt validator.
+	m.bagValidator, err = bagit.NewValidator(bagit.WithPoolSize(1))
+	if err != nil {
+		m.logger.Error(err, "Unable to create BagIt validator.")
+		return err
+	}
 
 	// Set up APIS client.
 	var apisClient apis.Client
@@ -137,6 +146,10 @@ func (m *Main) Close() error {
 		}
 	}
 
+	if err := m.bagValidator.Close(); err != nil {
+		e = errors.Join(e, fmt.Errorf("couldn't close BagIt validator: %v", err))
+	}
+
 	return e
 }
 
@@ -154,7 +167,7 @@ func (m *Main) registerPreprocessingWorkflow(
 		temporalsdk_activity.RegisterOptions{Name: archiveextract.Name},
 	)
 	m.temporalWorker.RegisterActivityWithOptions(
-		bagvalidate.New(nil).Execute,
+		bagvalidate.New(m.bagValidator).Execute,
 		temporalsdk_activity.RegisterOptions{Name: bagvalidate.Name},
 	)
 	m.temporalWorker.RegisterActivityWithOptions(
