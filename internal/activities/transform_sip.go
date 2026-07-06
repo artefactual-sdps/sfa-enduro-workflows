@@ -104,7 +104,7 @@ func (a *TransformSIP) Execute(ctx context.Context, params *TransformSIPParams) 
 
 	// Remove the old top-level directories.
 	for _, path := range params.SIP.TopLevelPaths {
-		if removeErr := os.RemoveAll(path); err != nil {
+		if removeErr := os.RemoveAll(path); removeErr != nil {
 			err = errors.Join(err, removeErr)
 		}
 	}
