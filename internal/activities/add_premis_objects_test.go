@@ -1,7 +1,6 @@
 package activities_test
 
 import (
-	"fmt"
 	pseudorand "math/rand"
 	"os"
 	"testing"
@@ -40,19 +39,6 @@ func TestAddPREMISObjects(t *testing.T) {
 
 	premisFilePathNormal := contentFilesNormal.Join("digitized_Vecteur_SIP", "metadata", "premis.xml")
 
-	// No files (for execution expected to work).
-	contentNoFiles := fs.NewDir(t, "",
-		fs.WithDir("digitized_Vecteur_SIP",
-			fs.WithDir("content",
-				fs.WithDir("content",
-					fs.WithDir("d_0000001"),
-				),
-			),
-		),
-	)
-
-	premisFilePathNoFiles := contentNoFiles.Join("digitized_Vecteur_SIP", "metadata", "premis.xml")
-
 	tests := []struct {
 		name       string
 		params     activities.AddPREMISObjectsParams
@@ -67,52 +53,7 @@ func TestAddPREMISObjects(t *testing.T) {
 				PREMISFilePath: premisFilePathNormal,
 			},
 			result: activities.AddPREMISObjectsResult{},
-		},
-		{
-			name: "Error when manifest is missing",
-			params: activities.AddPREMISObjectsParams{
-				SIP:            testSIP(t, contentNoFiles.Join("digitized_Vecteur_SIP")),
-				PREMISFilePath: premisFilePathNoFiles,
-			},
-			result: activities.AddPREMISObjectsResult{},
-			wantErr: fmt.Sprintf(
-				"open manifest file: open %s: no such file or directory",
-				contentNoFiles.Join("digitized_Vecteur_SIP", "header", "metadata.xml"),
-			),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			ts := &temporalsdk_testsuite.WorkflowTestSuite{}
-			env := ts.NewTestActivityEnvironment()
-			rng := pseudorand.New(pseudorand.NewSource(1)) // #nosec G404
-			env.RegisterActivityWithOptions(
-				activities.NewAddPREMISObjects(rng).Execute,
-				temporalsdk_activity.RegisterOptions{Name: activities.AddPREMISObjectsName},
-			)
-
-			var res activities.AddPREMISObjectsResult
-			future, err := env.ExecuteActivity(activities.AddPREMISObjectsName, tt.params)
-
-			if tt.wantErr != "" {
-				if err == nil {
-					t.Errorf("error is nil, expecting: %q", tt.wantErr)
-				} else {
-					assert.ErrorContains(t, err, tt.wantErr)
-				}
-
-				return
-			}
-			assert.NilError(t, err)
-
-			future.Get(&res)
-			assert.DeepEqual(t, res, tt.result)
-
-			b, err := os.ReadFile(tt.params.PREMISFilePath)
-			assert.NilError(t, err)
-			assert.Equal(t, string(b), `<?xml version="1.0" encoding="UTF-8"?>
+			wantPREMIS: `<?xml version="1.0" encoding="UTF-8"?>
 <premis:premis xmlns:premis="http://www.loc.gov/premis/v3" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.loc.gov/premis/v3 https://www.loc.gov/standards/premis/premis.xsd" version="3.0">
   <premis:object xsi:type="premis:file">
     <premis:objectIdentifier>
@@ -185,7 +126,40 @@ func TestAddPREMISObjects(t *testing.T) {
     <premis:originalName>data/metadata/Prozess_Digitalisierung_PREMIS.xml</premis:originalName>
   </premis:object>
 </premis:premis>
-`)
+`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ts := &temporalsdk_testsuite.WorkflowTestSuite{}
+			env := ts.NewTestActivityEnvironment()
+			rng := pseudorand.New(pseudorand.NewSource(1)) // #nosec G404
+			env.RegisterActivityWithOptions(
+				activities.NewAddPREMISObjects(rng).Execute,
+				temporalsdk_activity.RegisterOptions{Name: activities.AddPREMISObjectsName},
+			)
+
+			var res activities.AddPREMISObjectsResult
+			future, err := env.ExecuteActivity(activities.AddPREMISObjectsName, tt.params)
+			if tt.wantErr != "" {
+				if err == nil {
+					t.Errorf("error is nil, expecting: %q", tt.wantErr)
+				} else {
+					assert.ErrorContains(t, err, tt.wantErr)
+				}
+
+				return
+			}
+			assert.NilError(t, err)
+
+			assert.NilError(t, future.Get(&res))
+			assert.DeepEqual(t, res, tt.result)
+
+			b, err := os.ReadFile(tt.params.PREMISFilePath)
+			assert.NilError(t, err)
+			assert.Equal(t, string(b), tt.wantPREMIS)
 		})
 	}
 }

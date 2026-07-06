@@ -51,12 +51,6 @@ func (a *AddPREMISObjectsActivity) Execute(
 		return nil, err
 	}
 
-	f, err := os.Open(params.SIP.ManifestPath)
-	if err != nil {
-		return nil, fmt.Errorf("open manifest file: %v", err)
-	}
-	defer f.Close()
-
 	for _, subpath := range subpaths {
 		id, err := uuid.NewRandomFromReader(a.rng)
 		if err != nil {
