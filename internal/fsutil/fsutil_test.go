@@ -12,7 +12,7 @@ import (
 func TestFileExists(t *testing.T) {
 	t.Parallel()
 
-	td := fs.NewDir(t, "sfa-enduro-workflows-test",
+	td := fs.NewDir(t, "enduro-workflows-test",
 		fs.WithDir("a", fs.WithFile("needle", "")),
 	)
 
@@ -23,7 +23,7 @@ func TestFileExists(t *testing.T) {
 func TestFindFilename(t *testing.T) {
 	t.Parallel()
 
-	td := fs.NewDir(t, "sfa-enduro-workflows-test",
+	td := fs.NewDir(t, "enduro-workflows-test",
 		fs.WithDir("a",
 			fs.WithFile("needle", ""),
 			fs.WithFile("hay", ""),

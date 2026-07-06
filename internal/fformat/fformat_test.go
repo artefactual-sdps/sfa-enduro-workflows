@@ -7,7 +7,6 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/fs"
 
-	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/enums"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fformat"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/sip"
 )
@@ -21,7 +20,6 @@ func TestIdentifyFormats(t *testing.T) {
 	)
 
 	testSIP := sip.SIP{
-		Type:        enums.SIPTypeBornDigitalAIP,
 		ContentPath: testDir.Path(),
 	}
 
