@@ -208,12 +208,12 @@ func (w *Preprocessing) Execute(
 
 	// Validate SIP name.
 	task = result.NewTask(temporalsdk_workflow.Now(ctx), "Validate SIP name")
-	var ValidateSIPName activities.ValidateSIPNameResult
+	var validateSIPName activities.ValidateSIPNameResult
 	e = temporalsdk_workflow.ExecuteActivity(
 		withFilesystemActivityOpts(ctx),
 		activities.ValidateSIPNameName,
 		&activities.ValidateSIPNameParams{SIP: sip},
-	).Get(ctx, &ValidateSIPName)
+	).Get(ctx, &validateSIPName)
 	if e != nil {
 		logger.Error("System error", "message", e.Error())
 		result.SystemError(
@@ -224,7 +224,7 @@ func (w *Preprocessing) Execute(
 		)
 		return result, nil
 	}
-	if ValidateSIPName.Failures != nil {
+	if validateSIPName.Failures != nil {
 		result.ValidationError(
 			temporalsdk_workflow.Now(ctx),
 			task,
@@ -233,7 +233,7 @@ func (w *Preprocessing) Execute(
 				"The name used for the package does not match the expected convention for the %q type.",
 				sip.Type,
 			),
-			ul(ValidateSIPName.Failures),
+			ul(validateSIPName.Failures),
 			"Please review the naming conventions specified for this type of SIP.",
 		)
 	} else {
