@@ -83,7 +83,6 @@ func TestAddPREMISAgent(t *testing.T) {
 
 			var res activities.AddPREMISAgentResult
 			future, err := env.ExecuteActivity(activities.AddPREMISAgentName, tt.params)
-
 			if tt.wantErr != "" {
 				if err == nil {
 					t.Errorf("error is nil, expecting: %q", tt.wantErr)
@@ -93,11 +92,9 @@ func TestAddPREMISAgent(t *testing.T) {
 
 				return
 			}
-
 			assert.NilError(t, err)
 
-			future.Get(&res)
-			assert.NilError(t, err)
+			assert.NilError(t, future.Get(&res))
 			assert.DeepEqual(t, res, tt.result)
 
 			_, err = premis.ParseFile(tt.params.PREMISFilePath)

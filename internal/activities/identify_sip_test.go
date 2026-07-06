@@ -69,7 +69,6 @@ func TestIdentifySIP(t *testing.T) {
 
 			var res activities.IdentifySIPResult
 			future, err := env.ExecuteActivity(activities.IdentifySIPName, tt.params)
-
 			if tt.wantErr != "" {
 				if err == nil {
 					t.Errorf("error is nil, expecting: %q", tt.wantErr)
@@ -79,9 +78,9 @@ func TestIdentifySIP(t *testing.T) {
 
 				return
 			}
-
-			future.Get(&res)
 			assert.NilError(t, err)
+
+			assert.NilError(t, future.Get(&res))
 			assert.DeepEqual(t, res, tt.result)
 		})
 	}

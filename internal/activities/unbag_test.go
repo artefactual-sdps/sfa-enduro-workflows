@@ -98,7 +98,6 @@ func TestUnbag(t *testing.T) {
 
 			var res activities.UnbagResult
 			future, err := env.ExecuteActivity(activities.UnbagName, tt.params(tt.path))
-
 			if tt.wantErr != "" {
 				if err == nil {
 					t.Errorf("error is nil, expecting: %q", tt.wantErr)
@@ -110,7 +109,7 @@ func TestUnbag(t *testing.T) {
 			}
 			assert.NilError(t, err)
 
-			future.Get(&res)
+			assert.NilError(t, future.Get(&res))
 			assert.DeepEqual(t, res, tt.result(tt.path))
 		})
 	}

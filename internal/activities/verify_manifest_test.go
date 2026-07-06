@@ -616,7 +616,7 @@ func TestVerifyManifest(t *testing.T) {
 			assert.NilError(t, err)
 
 			var res activities.VerifyManifestResult
-			future.Get(&res)
+			assert.NilError(t, future.Get(&res))
 			assert.DeepEqual(t, res, tt.want)
 		})
 	}

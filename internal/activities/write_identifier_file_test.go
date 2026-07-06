@@ -184,7 +184,7 @@ func TestWriteIdentifierFile(t *testing.T) {
 			assert.NilError(t, err)
 
 			var res activities.WriteIdentifierFileResult
-			future.Get(&res)
+			assert.NilError(t, future.Get(&res))
 			p := filepath.Join(tt.params.PIP.Path, "metadata", "identifiers.json")
 			assert.DeepEqual(t, res, activities.WriteIdentifierFileResult{Path: p})
 

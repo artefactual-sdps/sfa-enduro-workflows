@@ -132,7 +132,7 @@ func TestValidateSIPName(t *testing.T) {
 			assert.NilError(t, err)
 
 			var result activities.ValidateSIPNameResult
-			_ = enc.Get(&result)
+			assert.NilError(t, enc.Get(&result))
 			assert.DeepEqual(t, result, tt.want)
 		})
 	}

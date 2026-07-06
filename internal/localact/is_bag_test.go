@@ -45,7 +45,7 @@ func TestIsBag(t *testing.T) {
 			enc, err := env.ExecuteLocalActivity(localact.IsBag, &tt.params)
 			assert.NilError(t, err)
 
-			enc.Get(&res)
+			assert.NilError(t, enc.Get(&res))
 			assert.DeepEqual(t, res, tt.want)
 		})
 	}
