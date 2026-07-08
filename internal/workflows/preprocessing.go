@@ -396,7 +396,7 @@ func (w *Preprocessing) Execute(
 
 	if validateMetadata.Failures != nil {
 		for idx, f := range validateMetadata.Failures {
-			validateMetadata.Failures[idx] = strings.ReplaceAll(f, sip.Path+"/", "")
+			validateMetadata.Failures[idx] = strings.ReplaceAll(f, sip.Path+string(filepath.Separator), "")
 		}
 		result.ValidationError(
 			temporalsdk_workflow.Now(ctx),
