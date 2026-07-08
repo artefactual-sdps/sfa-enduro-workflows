@@ -17,7 +17,6 @@ type Validator interface {
 	// Name of the validator.
 	Name() string
 
-	// Validate validates the file or directory at path.
 	// PREMISAgent returns a PREMIS agent representing the validator.
 	PREMISAgent() premis.Agent
 
