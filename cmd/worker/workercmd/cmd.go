@@ -81,7 +81,10 @@ func (m *Main) Run(ctx context.Context) error {
 	veraPDFValidator := fvalidate.NewVeraPDFValidator(m.cfg.Preprocessing.FileValidate.VeraPDF.Path)
 
 	// Set up BagIt validator.
-	m.bagValidator, err = bagit.NewValidator(bagit.WithPoolSize(1))
+	m.bagValidator, err = bagit.NewValidator(
+		bagit.WithCacheDir(m.cfg.Preprocessing.BagValidate.CacheDir),
+		bagit.WithPoolSize(m.cfg.Preprocessing.BagValidate.PoolSize),
+	)
 	if err != nil {
 		m.logger.Error(err, "Unable to create BagIt validator.")
 		return err

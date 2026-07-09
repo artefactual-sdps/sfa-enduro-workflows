@@ -39,6 +39,10 @@ sharedPath = "/home/enduro/shared"
 [preprocessing.bagCreate]
 checksumAlgorithm = "md5"
 
+[preprocessing.bagValidate]
+cacheDir = ""
+poolSize = 1
+
 [preprocessing.fileFormat]
 allowlistPath = "/home/enduro/.config/allowed_file_formats.csv"
 

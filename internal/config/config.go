@@ -107,6 +107,7 @@ type PreprocessingConfig struct {
 	SharedPath string
 
 	BagCreate    bagcreate.Config
+	BagValidate  BagValidator
 	FileFormat   ffvalidate.Config
 	FileValidate fvalidate.Config
 }
@@ -123,6 +124,9 @@ func (c PreprocessingConfig) Validate() error {
 
 	if err := c.BagCreate.Validate(); err != nil {
 		errs = errors.Join(errs, fmt.Errorf("Preprocessing.BagCreate: %v", err))
+	}
+	if err := c.BagValidate.Validate(); err != nil {
+		errs = errors.Join(errs, fmt.Errorf("Preprocessing.BagValidate: %v", err))
 	}
 
 	return errs
@@ -231,6 +235,7 @@ func Read(config *Config, configFile string) (found bool, configFileUsed string,
 	v.SetDefault("Temporal.Namespace", "default")
 	v.SetDefault("Worker.MaxConcurrentSessions", 1)
 	v.SetDefault("Preprocessing.BagCreate.ChecksumAlgorithm", "sha512")
+	v.SetDefault("Preprocessing.BagValidate.PoolSize", 1)
 
 	if configFile != "" {
 		// Viper will not return a viper.ConfigFileNotFoundError error when

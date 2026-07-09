@@ -30,6 +30,9 @@ workflowName = "preprocessing"
 sharedPath = "/home/enduro/shared"
 [preprocessing.bagCreate]
 checksumAlgorithm = "md5"
+[preprocessing.bagValidate]
+cacheDir = "/home/enduro/.cache/bagit-gython"
+poolSize = 2
 [preprocessing.fileFormat]
 allowlistPath = "/home/enduro/.config/allowed_file_formats.csv"
 [preprocessing.filevalidate.verapdf]
@@ -108,6 +111,10 @@ func TestConfig(t *testing.T) {
 					BagCreate: bagcreate.Config{
 						ChecksumAlgorithm: "md5",
 					},
+					BagValidate: config.BagValidator{
+						CacheDir: "/home/enduro/.cache/bagit-gython",
+						PoolSize: 2,
+					},
 					FileFormat: ffvalidate.Config{
 						AllowlistPath: "/home/enduro/.config/allowed_file_formats.csv",
 					},
@@ -142,6 +149,8 @@ func TestConfig(t *testing.T) {
 			toml: `# override default values to trigger validation errors
 [temporal]
 namespace = ""
+[preprocessing.bagValidate]
+poolSize = 0
 `,
 			wantFound: true,
 			wantErr: `invalid configuration
@@ -150,6 +159,7 @@ Temporal.Namespace: missing required value
 Worker.TaskQueue: missing required value
 Preprocessing.SharedPath: missing required value
 Preprocessing.WorkflowName: missing required value
+Preprocessing.BagValidate: PoolSize: 0 is less than the minimum value (1)
 Poststorage.WorkingDir: missing required value
 Poststorage.AMSS.BaseURL: missing required value
 Poststorage.AMSS.Username: missing required value
@@ -229,6 +239,9 @@ url = "http://apis.example.test"
 					BagCreate: bagcreate.Config{
 						ChecksumAlgorithm: "sha512",
 					},
+					BagValidate: config.BagValidator{
+						PoolSize: 1,
+					},
 				},
 				Poststorage: config.PoststorageConfig{
 					WorkingDir: "/tmp",
@@ -294,6 +307,9 @@ url = "http://apis.example.test"
 					BagCreate: bagcreate.Config{
 						ChecksumAlgorithm: "sha512",
 					},
+					BagValidate: config.BagValidator{
+						PoolSize: 1,
+					},
 				},
 				Poststorage: config.PoststorageConfig{
 					WorkingDir: "/tmp",
@@ -349,6 +365,9 @@ key = "test"
 					SharedPath:   "/home/enduro/shared",
 					BagCreate: bagcreate.Config{
 						ChecksumAlgorithm: "sha512",
+					},
+					BagValidate: config.BagValidator{
+						PoolSize: 1,
 					},
 				},
 				Poststorage: config.PoststorageConfig{
@@ -515,6 +534,9 @@ token = "mock-token"
 					SharedPath:   "/home/enduro/shared",
 					BagCreate: bagcreate.Config{
 						ChecksumAlgorithm: "sha512",
+					},
+					BagValidate: config.BagValidator{
+						PoolSize: 1,
 					},
 				},
 				Poststorage: config.PoststorageConfig{

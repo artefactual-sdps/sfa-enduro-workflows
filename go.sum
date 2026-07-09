@@ -68,8 +68,8 @@ github.com/antchfx/xmlquery v1.5.0/go.mod h1:lJfWRXzYMK1ss32zm1GQV3gMIW/HFey3xDZ
 github.com/antchfx/xpath v1.3.5/go.mod h1:i54GszH55fYfBmoZXapTHN8T8tkcHfRgLyVwwqzXNcs=
 github.com/antchfx/xpath v1.3.6 h1:s0y+ElRRtTQdfHP609qFu0+c6bglDv20pqOViQjjdPI=
 github.com/antchfx/xpath v1.3.6/go.mod h1:i54GszH55fYfBmoZXapTHN8T8tkcHfRgLyVwwqzXNcs=
-github.com/artefactual-labs/bagit-gython v0.5.0 h1:BbHKdjY57wVbCtgieIu5AB681oGsBCWEBPUhcbIRlb0=
-github.com/artefactual-labs/bagit-gython v0.5.0/go.mod h1:4l3AoC/OlXJgfC2me9g9SC6QLV2n/wi8ZltiGB2NQvU=
+github.com/artefactual-labs/bagit-gython v0.6.1 h1:yCs4Zk+xDn4m2YvYZSGOapp7RQhrS6P2RVVYZEaXwmk=
+github.com/artefactual-labs/bagit-gython v0.6.1/go.mod h1:4l3AoC/OlXJgfC2me9g9SC6QLV2n/wi8ZltiGB2NQvU=
 github.com/artefactual-labs/bine v0.28.3 h1:pDPcxuxjL102JPa3aG7oitYkuZxRJqVZEoW1IHBVtjE=
 github.com/artefactual-labs/bine v0.28.3/go.mod h1:E0JTUTzaakkToz6UlUOViEMkCCzHbGTKw5G5mgeYj0M=
 github.com/artefactual-sdps/enduro v0.30.1-0.20260619034008-f1746c6ca15b h1:d6H32dPkQfMigudeO7ZNnQ4x6X234pwjyHoBJS20A4w=
