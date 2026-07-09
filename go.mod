@@ -4,7 +4,7 @@ go 1.26.4
 
 require (
 	github.com/antchfx/xmlquery v1.5.0
-	github.com/artefactual-labs/bagit-gython v0.5.0
+	github.com/artefactual-labs/bagit-gython v0.6.1
 	github.com/artefactual-sdps/enduro v0.30.1-0.20260619034008-f1746c6ca15b
 	github.com/artefactual-sdps/temporal-activities v0.0.0-20260406175419-303edb7db3db
 	github.com/beevik/etree v1.6.0
