@@ -5,7 +5,7 @@ go 1.26.5
 require (
 	github.com/antchfx/xmlquery v1.5.0
 	github.com/artefactual-labs/bagit-gython v0.6.1
-	github.com/artefactual-sdps/enduro v0.30.1-0.20260619034008-f1746c6ca15b
+	github.com/artefactual-sdps/enduro v0.31.0
 	github.com/artefactual-sdps/temporal-activities v0.0.0-20260406175419-303edb7db3db
 	github.com/beevik/etree v1.6.0
 	github.com/deckarep/golang-set/v2 v2.8.0
@@ -28,7 +28,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.44.0
 	go.temporal.io/sdk v1.40.0
 	go.uber.org/mock v0.6.0
-	goa.design/goa/v3 v3.28.0
+	goa.design/goa/v3 v3.28.1-0.20260609150533-6d3bad5b49d6
 	gocloud.dev v0.45.0
 	gotest.tools/v3 v3.5.2
 )
@@ -161,13 +161,13 @@ require (
 	go4.org v0.0.0-20230225012048-214862532bf5 // indirect
 	golang.org/x/crypto v0.52.0 // indirect
 	golang.org/x/exp v0.0.0-20240325151524-a685a6edb6d8 // indirect
-	golang.org/x/image v0.41.0 // indirect
+	golang.org/x/image v0.43.0 // indirect
 	golang.org/x/mod v0.36.0 // indirect
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
-	golang.org/x/text v0.37.0 // indirect
+	golang.org/x/text v0.38.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 	golang.org/x/tools v0.45.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
