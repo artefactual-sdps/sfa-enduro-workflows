@@ -17,16 +17,30 @@ import (
 
 // Client is the "DIPs" service client.
 type Client struct {
+	LivezEndpoint  goa.Endpoint
 	CreateEndpoint goa.Endpoint
 	ShowEndpoint   goa.Endpoint
 }
 
 // NewClient initializes a "DIPs" service client given the endpoints.
-func NewClient(create, show goa.Endpoint) *Client {
+func NewClient(livez, create, show goa.Endpoint) *Client {
 	return &Client{
+		LivezEndpoint:  livez,
 		CreateEndpoint: create,
 		ShowEndpoint:   show,
 	}
+}
+
+// Livez calls the "livez" endpoint of the "DIPs" service.
+// Livez may return the following errors:
+//   - "bad_request" (type *goa.ServiceError)
+//   - "unauthorized" (type *goa.ServiceError)
+//   - "not_found" (type *goa.ServiceError)
+//   - "internal_server_error" (type *goa.ServiceError)
+//   - error: internal error
+func (c *Client) Livez(ctx context.Context) (err error) {
+	_, err = c.LivezEndpoint(ctx, nil)
+	return
 }
 
 // Create calls the "create" endpoint of the "DIPs" service.

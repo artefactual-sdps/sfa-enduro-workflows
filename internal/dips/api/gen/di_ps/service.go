@@ -18,7 +18,12 @@ import (
 
 // The DIPs service requests DIP creation and retrieves DIP details.
 type Service interface {
-	// The create method requests DIP creation for a document key.
+	// The livez method provides a simple check that the DIPs service is running
+	// and able to respond to requests. A successful response indicates that the
+	// service is running, but does not guarantee that it is able to process
+	// requests successfully.
+	Livez(context.Context) (err error)
+	// The create method requests DIP creation for the given document key.
 	Create(context.Context, *CreatePayload) (res *CreateResult, err error)
 	// The show method retrieves DIP details.
 	Show(context.Context, *ShowPayload) (res *ShowResult, err error)
@@ -34,7 +39,7 @@ type Auther interface {
 const APIName = "DIPs"
 
 // APIVersion is the version of the API as defined in the design.
-const APIVersion = "0.1.0"
+const APIVersion = "0.2.0"
 
 // ServiceName is the name of the service as defined in the design. This is the
 // same value that is set in the endpoint request contexts under the ServiceKey
@@ -44,7 +49,7 @@ const ServiceName = "DIPs"
 // MethodNames lists the service method names as defined in the design. These
 // are the same values that are set in the endpoint request contexts under the
 // MethodKey key.
-var MethodNames = [2]string{"create", "show"}
+var MethodNames = [3]string{"livez", "create", "show"}
 
 // CreatePayload is the payload type of the DIPs service create method.
 type CreatePayload struct {
@@ -52,6 +57,11 @@ type CreatePayload struct {
 	Token string
 	// The docKey field contains the document key used to create the DIP.
 	DocKey DocKey
+	// The ignoreCache field indicates whether to ignore a cached DIP previously
+	// created for this docKey. When ignoreCache is true, a new DIP is created for
+	// the given docKey even if a cached DIP exists. When ignoreCache is false or
+	// omitted, the ID of a cached DIP may be returned.
+	IgnoreCache bool
 }
 
 // CreateResult is the result type of the DIPs service create method.
@@ -91,6 +101,8 @@ type ShowResult struct {
 	DocKey DocKey
 	// The status field contains the current DIP status.
 	Status DIPStatus
+	// The error_message field contains an error message if the DIP failed.
+	ErrorMessage *string
 	// The created_at field contains the time when the DIP was requested.
 	CreatedAt DateTime
 	// The started_at field contains the time when DIP processing started.

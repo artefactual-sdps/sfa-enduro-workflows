@@ -13,6 +13,11 @@ import (
 	"fmt"
 )
 
+// LivezDIPsPath returns the URL path to the DIPs service livez HTTP endpoint.
+func LivezDIPsPath() string {
+	return "/livez"
+}
+
 // CreateDIPsPath returns the URL path to the DIPs service create HTTP endpoint.
 func CreateDIPsPath() string {
 	return "/dips"

@@ -21,6 +21,65 @@ import (
 	goahttp "goa.design/goa/v3/http"
 )
 
+// BuildLivezRequest instantiates a HTTP request object with method and path
+// set to call the "DIPs" service "livez" endpoint
+func (c *Client) BuildLivezRequest(ctx context.Context, v any) (*http.Request, error) {
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: LivezDIPsPath()}
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("DIPs", "livez", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// DecodeLivezResponse returns a decoder for responses returned by the DIPs
+// livez endpoint. restoreBody controls whether the response body should be
+// restored after having been read.
+// DecodeLivezResponse may return the following errors:
+//   - "internal_server_error" (type *goa.ServiceError): http.StatusInternalServerError
+//   - error: internal error
+func DecodeLivezResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			return nil, nil
+		case http.StatusInternalServerError:
+			var (
+				body LivezInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("DIPs", "livez", err)
+			}
+			err = ValidateLivezInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("DIPs", "livez", err)
+			}
+			return nil, NewLivezInternalServerError(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("DIPs", "livez", resp.StatusCode, string(body))
+		}
+	}
+}
+
 // BuildCreateRequest instantiates a HTTP request object with method and path
 // set to call the "DIPs" service "create" endpoint
 func (c *Client) BuildCreateRequest(ctx context.Context, v any) (*http.Request, error) {
@@ -196,8 +255,8 @@ func EncodeShowRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.R
 // endpoint. restoreBody controls whether the response body should be restored
 // after having been read.
 // DecodeShowResponse may return the following errors:
-//   - "not_found" (type *goa.ServiceError): http.StatusNotFound
 //   - "bad_request" (type *goa.ServiceError): http.StatusBadRequest
+//   - "not_found" (type *goa.ServiceError): http.StatusNotFound
 //   - "unauthorized" (type *goa.ServiceError): http.StatusUnauthorized
 //   - "internal_server_error" (type *goa.ServiceError): http.StatusInternalServerError
 //   - error: internal error
@@ -231,20 +290,6 @@ func DecodeShowResponse(decoder func(*http.Response) goahttp.Decoder, restoreBod
 			}
 			res := NewShowResultOK(&body)
 			return res, nil
-		case http.StatusNotFound:
-			var (
-				body ShowNotFoundResponseBody
-				err  error
-			)
-			err = decoder(resp).Decode(&body)
-			if err != nil {
-				return nil, goahttp.ErrDecodingError("DIPs", "show", err)
-			}
-			err = ValidateShowNotFoundResponseBody(&body)
-			if err != nil {
-				return nil, goahttp.ErrValidationError("DIPs", "show", err)
-			}
-			return nil, NewShowNotFound(&body)
 		case http.StatusBadRequest:
 			var (
 				body ShowBadRequestResponseBody
@@ -259,6 +304,20 @@ func DecodeShowResponse(decoder func(*http.Response) goahttp.Decoder, restoreBod
 				return nil, goahttp.ErrValidationError("DIPs", "show", err)
 			}
 			return nil, NewShowBadRequest(&body)
+		case http.StatusNotFound:
+			var (
+				body ShowNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("DIPs", "show", err)
+			}
+			err = ValidateShowNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("DIPs", "show", err)
+			}
+			return nil, NewShowNotFound(&body)
 		case http.StatusUnauthorized:
 			var (
 				body ShowUnauthorizedResponseBody
