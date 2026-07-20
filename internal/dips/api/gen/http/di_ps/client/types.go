@@ -32,6 +32,8 @@ type ShowResponseBody struct {
 	DocKey *string `form:"docKey,omitempty" json:"docKey,omitempty" xml:"docKey,omitempty"`
 	// The status field contains the current DIP status.
 	Status *string `form:"status,omitempty" json:"status,omitempty" xml:"status,omitempty"`
+	// The error_message field contains an error message if the DIP failed.
+	ErrorMessage *string `form:"error_message,omitempty" json:"error_message,omitempty" xml:"error_message,omitempty"`
 	// The created_at field contains the time when the DIP was requested.
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// The started_at field contains the time when DIP processing started.
@@ -40,6 +42,24 @@ type ShowResponseBody struct {
 	CompletedAt *string `form:"completed_at,omitempty" json:"completed_at,omitempty" xml:"completed_at,omitempty"`
 	// The object_key field contains the object store key for the completed DIP.
 	ObjectKey *string `form:"object_key,omitempty" json:"object_key,omitempty" xml:"object_key,omitempty"`
+}
+
+// LivezInternalServerErrorResponseBody is the type of the "DIPs" service
+// "livez" endpoint HTTP response body for the "internal_server_error" error.
+type LivezInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
 // CreateBadRequestResponseBody is the type of the "DIPs" service "create"
@@ -96,9 +116,9 @@ type CreateInternalServerErrorResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// ShowNotFoundResponseBody is the type of the "DIPs" service "show" endpoint
-// HTTP response body for the "not_found" error.
-type ShowNotFoundResponseBody struct {
+// ShowBadRequestResponseBody is the type of the "DIPs" service "show" endpoint
+// HTTP response body for the "bad_request" error.
+type ShowBadRequestResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -114,9 +134,9 @@ type ShowNotFoundResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// ShowBadRequestResponseBody is the type of the "DIPs" service "show" endpoint
-// HTTP response body for the "bad_request" error.
-type ShowBadRequestResponseBody struct {
+// ShowNotFoundResponseBody is the type of the "DIPs" service "show" endpoint
+// HTTP response body for the "not_found" error.
+type ShowNotFoundResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -166,6 +186,21 @@ type ShowInternalServerErrorResponseBody struct {
 	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
 	// Is the error a server-side fault?
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// NewLivezInternalServerError builds a DIPs service livez endpoint
+// internal_server_error error.
+func NewLivezInternalServerError(body *LivezInternalServerErrorResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
 }
 
 // NewCreateResultAccepted builds a "DIPs" service "create" endpoint result
@@ -226,10 +261,11 @@ func NewCreateInternalServerError(body *CreateInternalServerErrorResponseBody) *
 // "OK" response.
 func NewShowResultOK(body *ShowResponseBody) *dips.ShowResult {
 	v := &dips.ShowResult{
-		ID:        dips.DIPID(*body.ID),
-		DocKey:    dips.DocKey(*body.DocKey),
-		Status:    dips.DIPStatus(*body.Status),
-		CreatedAt: dips.DateTime(*body.CreatedAt),
+		ID:           dips.DIPID(*body.ID),
+		DocKey:       dips.DocKey(*body.DocKey),
+		Status:       dips.DIPStatus(*body.Status),
+		ErrorMessage: body.ErrorMessage,
+		CreatedAt:    dips.DateTime(*body.CreatedAt),
 	}
 	if body.StartedAt != nil {
 		startedAt := dips.DateTime(*body.StartedAt)
@@ -247,8 +283,8 @@ func NewShowResultOK(body *ShowResponseBody) *dips.ShowResult {
 	return v
 }
 
-// NewShowNotFound builds a DIPs service show endpoint not_found error.
-func NewShowNotFound(body *ShowNotFoundResponseBody) *goa.ServiceError {
+// NewShowBadRequest builds a DIPs service show endpoint bad_request error.
+func NewShowBadRequest(body *ShowBadRequestResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -261,8 +297,8 @@ func NewShowNotFound(body *ShowNotFoundResponseBody) *goa.ServiceError {
 	return v
 }
 
-// NewShowBadRequest builds a DIPs service show endpoint bad_request error.
-func NewShowBadRequest(body *ShowBadRequestResponseBody) *goa.ServiceError {
+// NewShowNotFound builds a DIPs service show endpoint not_found error.
+func NewShowNotFound(body *ShowNotFoundResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -359,6 +395,30 @@ func ValidateShowResponseBody(body *ShowResponseBody) (err error) {
 	return
 }
 
+// ValidateLivezInternalServerErrorResponseBody runs the validations defined on
+// livez_internal_server_error_response_body
+func ValidateLivezInternalServerErrorResponseBody(body *LivezInternalServerErrorResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
 // ValidateCreateBadRequestResponseBody runs the validations defined on
 // create_bad_request_response_body
 func ValidateCreateBadRequestResponseBody(body *CreateBadRequestResponseBody) (err error) {
@@ -431,9 +491,9 @@ func ValidateCreateInternalServerErrorResponseBody(body *CreateInternalServerErr
 	return
 }
 
-// ValidateShowNotFoundResponseBody runs the validations defined on
-// show_not_found_response_body
-func ValidateShowNotFoundResponseBody(body *ShowNotFoundResponseBody) (err error) {
+// ValidateShowBadRequestResponseBody runs the validations defined on
+// show_bad_request_response_body
+func ValidateShowBadRequestResponseBody(body *ShowBadRequestResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -455,9 +515,9 @@ func ValidateShowNotFoundResponseBody(body *ShowNotFoundResponseBody) (err error
 	return
 }
 
-// ValidateShowBadRequestResponseBody runs the validations defined on
-// show_bad_request_response_body
-func ValidateShowBadRequestResponseBody(body *ShowBadRequestResponseBody) (err error) {
+// ValidateShowNotFoundResponseBody runs the validations defined on
+// show_not_found_response_body
+func ValidateShowNotFoundResponseBody(body *ShowNotFoundResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}

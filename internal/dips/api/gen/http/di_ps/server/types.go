@@ -30,6 +30,8 @@ type ShowResponseBody struct {
 	DocKey string `form:"docKey" json:"docKey" xml:"docKey"`
 	// The status field contains the current DIP status.
 	Status string `form:"status" json:"status" xml:"status"`
+	// The error_message field contains an error message if the DIP failed.
+	ErrorMessage *string `form:"error_message,omitempty" json:"error_message,omitempty" xml:"error_message,omitempty"`
 	// The created_at field contains the time when the DIP was requested.
 	CreatedAt string `form:"created_at" json:"created_at" xml:"created_at"`
 	// The started_at field contains the time when DIP processing started.
@@ -38,6 +40,24 @@ type ShowResponseBody struct {
 	CompletedAt *string `form:"completed_at,omitempty" json:"completed_at,omitempty" xml:"completed_at,omitempty"`
 	// The object_key field contains the object store key for the completed DIP.
 	ObjectKey *string `form:"object_key,omitempty" json:"object_key,omitempty" xml:"object_key,omitempty"`
+}
+
+// LivezInternalServerErrorResponseBody is the type of the "DIPs" service
+// "livez" endpoint HTTP response body for the "internal_server_error" error.
+type LivezInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
 // CreateBadRequestResponseBody is the type of the "DIPs" service "create"
@@ -94,9 +114,9 @@ type CreateInternalServerErrorResponseBody struct {
 	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
-// ShowNotFoundResponseBody is the type of the "DIPs" service "show" endpoint
-// HTTP response body for the "not_found" error.
-type ShowNotFoundResponseBody struct {
+// ShowBadRequestResponseBody is the type of the "DIPs" service "show" endpoint
+// HTTP response body for the "bad_request" error.
+type ShowBadRequestResponseBody struct {
 	// Name is the name of this class of errors.
 	Name string `form:"name" json:"name" xml:"name"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -112,9 +132,9 @@ type ShowNotFoundResponseBody struct {
 	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
-// ShowBadRequestResponseBody is the type of the "DIPs" service "show" endpoint
-// HTTP response body for the "bad_request" error.
-type ShowBadRequestResponseBody struct {
+// ShowNotFoundResponseBody is the type of the "DIPs" service "show" endpoint
+// HTTP response body for the "not_found" error.
+type ShowNotFoundResponseBody struct {
 	// Name is the name of this class of errors.
 	Name string `form:"name" json:"name" xml:"name"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -179,10 +199,11 @@ func NewCreateResponseBody(res *dips.CreateResult) *CreateResponseBody {
 // "show" endpoint of the "DIPs" service.
 func NewShowResponseBody(res *dips.ShowResult) *ShowResponseBody {
 	body := &ShowResponseBody{
-		ID:        string(res.ID),
-		DocKey:    string(res.DocKey),
-		Status:    string(res.Status),
-		CreatedAt: string(res.CreatedAt),
+		ID:           string(res.ID),
+		DocKey:       string(res.DocKey),
+		Status:       string(res.Status),
+		ErrorMessage: res.ErrorMessage,
+		CreatedAt:    string(res.CreatedAt),
 	}
 	if res.StartedAt != nil {
 		startedAt := string(*res.StartedAt)
@@ -195,6 +216,20 @@ func NewShowResponseBody(res *dips.ShowResult) *ShowResponseBody {
 	if res.ObjectKey != nil {
 		objectKey := string(*res.ObjectKey)
 		body.ObjectKey = &objectKey
+	}
+	return body
+}
+
+// NewLivezInternalServerErrorResponseBody builds the HTTP response body from
+// the result of the "livez" endpoint of the "DIPs" service.
+func NewLivezInternalServerErrorResponseBody(res *goa.ServiceError) *LivezInternalServerErrorResponseBody {
+	body := &LivezInternalServerErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
 	}
 	return body
 }
@@ -241,10 +276,10 @@ func NewCreateInternalServerErrorResponseBody(res *goa.ServiceError) *CreateInte
 	return body
 }
 
-// NewShowNotFoundResponseBody builds the HTTP response body from the result of
-// the "show" endpoint of the "DIPs" service.
-func NewShowNotFoundResponseBody(res *goa.ServiceError) *ShowNotFoundResponseBody {
-	body := &ShowNotFoundResponseBody{
+// NewShowBadRequestResponseBody builds the HTTP response body from the result
+// of the "show" endpoint of the "DIPs" service.
+func NewShowBadRequestResponseBody(res *goa.ServiceError) *ShowBadRequestResponseBody {
+	body := &ShowBadRequestResponseBody{
 		Name:      res.Name,
 		ID:        res.ID,
 		Message:   res.Message,
@@ -255,10 +290,10 @@ func NewShowNotFoundResponseBody(res *goa.ServiceError) *ShowNotFoundResponseBod
 	return body
 }
 
-// NewShowBadRequestResponseBody builds the HTTP response body from the result
-// of the "show" endpoint of the "DIPs" service.
-func NewShowBadRequestResponseBody(res *goa.ServiceError) *ShowBadRequestResponseBody {
-	body := &ShowBadRequestResponseBody{
+// NewShowNotFoundResponseBody builds the HTTP response body from the result of
+// the "show" endpoint of the "DIPs" service.
+func NewShowNotFoundResponseBody(res *goa.ServiceError) *ShowNotFoundResponseBody {
+	body := &ShowNotFoundResponseBody{
 		Name:      res.Name,
 		ID:        res.ID,
 		Message:   res.Message,
@@ -301,10 +336,21 @@ func NewShowInternalServerErrorResponseBody(res *goa.ServiceError) *ShowInternal
 func NewCreatePayload(body struct {
 	// The docKey field contains the document key used to create the DIP.
 	DocKey *string `form:"docKey" json:"docKey" xml:"docKey"`
+	// The ignoreCache field indicates whether to ignore a cached DIP previously
+	// created for this docKey. When ignoreCache is true, a new DIP is created for
+	// the given docKey even if a cached DIP exists. When ignoreCache is false or
+	// omitted, the ID of a cached DIP may be returned.
+	IgnoreCache *bool `form:"ignoreCache" json:"ignoreCache" xml:"ignoreCache"`
 }, token string) *dips.CreatePayload {
 	v := &dips.CreatePayload{}
 	if body.DocKey != nil {
 		v.DocKey = dips.DocKey(*body.DocKey)
+	}
+	if body.IgnoreCache != nil {
+		v.IgnoreCache = *body.IgnoreCache
+	}
+	if body.IgnoreCache == nil {
+		v.IgnoreCache = false
 	}
 	v.Token = token
 

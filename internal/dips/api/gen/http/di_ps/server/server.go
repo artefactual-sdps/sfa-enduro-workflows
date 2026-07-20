@@ -21,6 +21,7 @@ import (
 // Server lists the DIPs service endpoint HTTP handlers.
 type Server struct {
 	Mounts []*MountPoint
+	Livez  http.Handler
 	Create http.Handler
 	Show   http.Handler
 }
@@ -52,9 +53,11 @@ func New(
 ) *Server {
 	return &Server{
 		Mounts: []*MountPoint{
+			{"Livez", "GET", "/livez"},
 			{"Create", "POST", "/dips"},
 			{"Show", "GET", "/dips/{id}"},
 		},
+		Livez:  NewLivezHandler(e.Livez, mux, decoder, encoder, errhandler, formatter),
 		Create: NewCreateHandler(e.Create, mux, decoder, encoder, errhandler, formatter),
 		Show:   NewShowHandler(e.Show, mux, decoder, encoder, errhandler, formatter),
 	}
@@ -65,6 +68,7 @@ func (s *Server) Service() string { return "DIPs" }
 
 // Use wraps the server handlers with the given middleware.
 func (s *Server) Use(m func(http.Handler) http.Handler) {
+	s.Livez = m(s.Livez)
 	s.Create = m(s.Create)
 	s.Show = m(s.Show)
 }
@@ -74,6 +78,7 @@ func (s *Server) MethodNames() []string { return dips.MethodNames[:] }
 
 // Mount configures the mux to serve the DIPs endpoints.
 func Mount(mux goahttp.Muxer, h *Server) {
+	MountLivezHandler(mux, h.Livez)
 	MountCreateHandler(mux, h.Create)
 	MountShowHandler(mux, h.Show)
 }
@@ -81,6 +86,52 @@ func Mount(mux goahttp.Muxer, h *Server) {
 // Mount configures the mux to serve the DIPs endpoints.
 func (s *Server) Mount(mux goahttp.Muxer) {
 	Mount(mux, s)
+}
+
+// MountLivezHandler configures the mux to serve the "DIPs" service "livez"
+// endpoint.
+func MountLivezHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("GET", "/livez", f)
+}
+
+// NewLivezHandler creates a HTTP handler which loads the HTTP request and
+// calls the "DIPs" service "livez" endpoint.
+func NewLivezHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		encodeResponse = EncodeLivezResponse(encoder)
+		encodeError    = EncodeLivezError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "livez")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "DIPs")
+		var err error
+		res, err := endpoint(ctx, nil)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+		}
+	})
 }
 
 // MountCreateHandler configures the mux to serve the "DIPs" service "create"

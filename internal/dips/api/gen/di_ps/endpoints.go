@@ -18,6 +18,7 @@ import (
 
 // Endpoints wraps the "DIPs" service endpoints.
 type Endpoints struct {
+	Livez  goa.Endpoint
 	Create goa.Endpoint
 	Show   goa.Endpoint
 }
@@ -27,6 +28,7 @@ func NewEndpoints(s Service) *Endpoints {
 	// Casting service to Auther interface
 	a := s.(Auther)
 	return &Endpoints{
+		Livez:  NewLivezEndpoint(s),
 		Create: NewCreateEndpoint(s, a.BearerAuth),
 		Show:   NewShowEndpoint(s, a.BearerAuth),
 	}
@@ -34,8 +36,17 @@ func NewEndpoints(s Service) *Endpoints {
 
 // Use applies the given middleware to all the "DIPs" service endpoints.
 func (e *Endpoints) Use(m func(goa.Endpoint) goa.Endpoint) {
+	e.Livez = m(e.Livez)
 	e.Create = m(e.Create)
 	e.Show = m(e.Show)
+}
+
+// NewLivezEndpoint returns an endpoint function that calls the method "livez"
+// of service "DIPs".
+func NewLivezEndpoint(s Service) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		return nil, s.Livez(ctx)
+	}
 }
 
 // NewCreateEndpoint returns an endpoint function that calls the method

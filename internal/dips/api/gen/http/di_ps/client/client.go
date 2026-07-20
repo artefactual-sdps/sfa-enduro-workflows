@@ -19,6 +19,9 @@ import (
 
 // Client lists the DIPs service endpoint HTTP clients.
 type Client struct {
+	// Livez Doer is the HTTP client used to make requests to the livez endpoint.
+	LivezDoer goahttp.Doer
+
 	// Create Doer is the HTTP client used to make requests to the create endpoint.
 	CreateDoer goahttp.Doer
 
@@ -45,6 +48,7 @@ func NewClient(
 	restoreBody bool,
 ) *Client {
 	return &Client{
+		LivezDoer:           doer,
 		CreateDoer:          doer,
 		ShowDoer:            doer,
 		RestoreResponseBody: restoreBody,
@@ -52,6 +56,25 @@ func NewClient(
 		host:                host,
 		decoder:             dec,
 		encoder:             enc,
+	}
+}
+
+// Livez returns an endpoint that makes HTTP requests to the DIPs service livez
+// server.
+func (c *Client) Livez() goa.Endpoint {
+	var (
+		decodeResponse = DecodeLivezResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildLivezRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.LivezDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("DIPs", "livez", err)
+		}
+		return decodeResponse(resp)
 	}
 }
 

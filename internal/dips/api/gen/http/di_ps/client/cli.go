@@ -24,20 +24,33 @@ func BuildCreatePayload(dIPsCreateBody string, dIPsCreateToken string) (*dips.Cr
 	var body struct {
 		// The docKey field contains the document key used to create the DIP.
 		DocKey *string `form:"docKey" json:"docKey" xml:"docKey"`
+		// The ignoreCache field indicates whether to ignore a cached DIP previously
+		// created for this docKey. When ignoreCache is true, a new DIP is created for
+		// the given docKey even if a cached DIP exists. When ignoreCache is false or
+		// omitted, the ID of a cached DIP may be returned.
+		IgnoreCache bool `form:"ignoreCache" json:"ignoreCache" xml:"ignoreCache"`
 	}
 	{
 		err = json.Unmarshal([]byte(dIPsCreateBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"docKey\": \"CH-000001\"\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"docKey\": \"CH-000001\",\n      \"ignoreCache\": true\n   }'")
 		}
 	}
 	var token string
 	{
 		token = dIPsCreateToken
 	}
-	v := &dips.CreatePayload{}
+	v := &dips.CreatePayload{
+		IgnoreCache: body.IgnoreCache,
+	}
 	if body.DocKey != nil {
 		v.DocKey = dips.DocKey(*body.DocKey)
+	}
+	{
+		var zero bool
+		if v.IgnoreCache == zero {
+			v.IgnoreCache = false
+		}
 	}
 	v.Token = token
 

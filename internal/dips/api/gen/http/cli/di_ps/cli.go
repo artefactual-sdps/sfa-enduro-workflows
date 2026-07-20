@@ -25,13 +25,13 @@ import (
 //	command (subcommand1|subcommand2|...)
 func UsageCommands() []string {
 	return []string{
-		"di-ps (create|show)",
+		"di-ps (livez|create|show)",
 	}
 }
 
 // UsageExamples produces an example of a valid invocation of the CLI tool.
 func UsageExamples() string {
-	return os.Args[0] + " " + "di-ps create --body '{\n      \"docKey\": \"CH-000001\"\n   }' --token \"Facilis repellendus a.\"" + "\n" +
+	return os.Args[0] + " " + "di-ps livez" + "\n" +
 		""
 }
 
@@ -47,6 +47,8 @@ func ParseEndpoint(
 	var (
 		dIPsFlags = flag.NewFlagSet("di-ps", flag.ContinueOnError)
 
+		dIPsLivezFlags = flag.NewFlagSet("livez", flag.ExitOnError)
+
 		dIPsCreateFlags     = flag.NewFlagSet("create", flag.ExitOnError)
 		dIPsCreateBodyFlag  = dIPsCreateFlags.String("body", "REQUIRED", "")
 		dIPsCreateTokenFlag = dIPsCreateFlags.String("token", "REQUIRED", "")
@@ -56,6 +58,7 @@ func ParseEndpoint(
 		dIPsShowTokenFlag = dIPsShowFlags.String("token", "REQUIRED", "")
 	)
 	dIPsFlags.Usage = dIPsUsage
+	dIPsLivezFlags.Usage = dIPsLivezUsage
 	dIPsCreateFlags.Usage = dIPsCreateUsage
 	dIPsShowFlags.Usage = dIPsShowUsage
 
@@ -93,6 +96,9 @@ func ParseEndpoint(
 		switch svcn {
 		case "di-ps":
 			switch epn {
+			case "livez":
+				epf = dIPsLivezFlags
+
 			case "create":
 				epf = dIPsCreateFlags
 
@@ -124,6 +130,8 @@ func ParseEndpoint(
 		case "di-ps":
 			c := dipsc.NewClient(scheme, host, doer, enc, dec, restore)
 			switch epn {
+			case "livez":
+				endpoint = c.Livez()
 			case "create":
 				endpoint = c.Create()
 				data, err = dipsc.BuildCreatePayload(*dIPsCreateBodyFlag, *dIPsCreateTokenFlag)
@@ -145,12 +153,29 @@ func dIPsUsage() {
 	fmt.Fprintln(os.Stderr, `The DIPs service requests DIP creation and retrieves DIP details.`)
 	fmt.Fprintf(os.Stderr, "Usage:\n    %s [globalflags] di-ps COMMAND [flags]\n\n", os.Args[0])
 	fmt.Fprintln(os.Stderr, "COMMAND:")
-	fmt.Fprintln(os.Stderr, `    create: The create method requests DIP creation for a document key.`)
+	fmt.Fprintln(os.Stderr, `    livez: The livez method provides a simple check that the DIPs service is running and able to respond to requests. A successful response indicates that the service is running, but does not guarantee that it is able to process requests successfully.`)
+	fmt.Fprintln(os.Stderr, `    create: The create method requests DIP creation for the given document key.`)
 	fmt.Fprintln(os.Stderr, `    show: The show method retrieves DIP details.`)
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Additional help:")
 	fmt.Fprintf(os.Stderr, "    %s di-ps COMMAND --help\n", os.Args[0])
 }
+func dIPsLivezUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] di-ps livez", os.Args[0])
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `The livez method provides a simple check that the DIPs service is running and able to respond to requests. A successful response indicates that the service is running, but does not guarantee that it is able to process requests successfully.`)
+
+	// Flags list
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "di-ps livez")
+}
+
 func dIPsCreateUsage() {
 	// Header with flags
 	fmt.Fprintf(os.Stderr, "%s [flags] di-ps create", os.Args[0])
@@ -160,7 +185,7 @@ func dIPsCreateUsage() {
 
 	// Description
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, `The create method requests DIP creation for a document key.`)
+	fmt.Fprintln(os.Stderr, `The create method requests DIP creation for the given document key.`)
 
 	// Flags list
 	fmt.Fprintln(os.Stderr, `    -body JSON: `)
@@ -168,7 +193,7 @@ func dIPsCreateUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "di-ps create --body '{\n      \"docKey\": \"CH-000001\"\n   }' --token \"Facilis repellendus a.\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "di-ps create --body '{\n      \"docKey\": \"CH-000001\",\n      \"ignoreCache\": true\n   }' --token \"Quas quia.\"")
 }
 
 func dIPsShowUsage() {
@@ -188,5 +213,5 @@ func dIPsShowUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "di-ps show --id \"3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb\" --token \"Sit ad.\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "di-ps show --id \"3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb\" --token \"Odit blanditiis sequi reprehenderit.\"")
 }
