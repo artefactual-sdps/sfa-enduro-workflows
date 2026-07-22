@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/enums"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/sip"
 )
 
@@ -35,6 +34,7 @@ type dir struct {
 
 type validationResult struct {
 	dirs                   []dir
+	dossierCount           int
 	fileCount              int
 	invalidNames           []string
 	hasContentDir          bool
@@ -43,7 +43,6 @@ type validationResult struct {
 	hasUpdatedAreldaMDFile bool
 	hasLogicalMDFile       bool
 	extraDirs              []string
-	extraFiles             []string
 }
 
 func NewValidateStructure() *ValidateStructure {
@@ -112,9 +111,9 @@ func validateStructure(sip sip.SIP) (*validationResult, error) {
 			}
 		}
 
-		// Check for unexpected files in the content directory.
-		if filepath.Dir(path) == sip.ContentPath && !d.IsDir() {
-			res.extraFiles = append(res.extraFiles, relativePath)
+		// Count dossier directories.
+		if filepath.Join(sip.Path, parentPath) == sip.ContentPath && d.IsDir() {
+			res.dossierCount++
 		}
 
 		// Check for missing directories.
@@ -208,22 +207,10 @@ func reportFailures(res *validationResult, sip sip.SIP) []string {
 		failures = append(failures, fmt.Sprintf("Unexpected directory: %q", path))
 	}
 
-	// Report unexpected files.
-	for _, path := range res.extraFiles {
-		failures = append(failures, fmt.Sprintf("Unexpected file: %q", path))
-	}
-
 	// Report more than one dossier in the content dir for digitized SIPs and
 	// AIPs.
-	if sip.Type == enums.SIPTypeDigitizedSIP || sip.Type == enums.SIPTypeDigitizedAIP && res.hasContentDir {
-		for _, d := range res.dirs {
-			if filepath.Join(sip.Path, d.path) == sip.ContentPath {
-				if d.children > 1 {
-					failures = append(failures, "More than one dossier in the content directory")
-				}
-				break
-			}
-		}
+	if sip.IsDigitized() && res.dossierCount > 1 {
+		failures = append(failures, "More than one dossier in the content directory")
 	}
 
 	return failures

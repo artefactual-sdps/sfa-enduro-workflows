@@ -128,6 +128,10 @@ func (s SIP) IsSIP() bool {
 	return s.Type == enums.SIPTypeBornDigitalSIP || s.Type == enums.SIPTypeDigitizedSIP
 }
 
+func (s SIP) IsDigitized() bool {
+	return s.Type == enums.SIPTypeDigitizedAIP || s.Type == enums.SIPTypeDigitizedSIP
+}
+
 func (s SIP) HasValidName() bool {
 	yyyymmdd := "(\\d{4})(\\d{2})(\\d{2})"
 	alphaNum := "[a-zA-Z0-9]"
