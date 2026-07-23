@@ -295,17 +295,38 @@ received by Archivematica.
 #### Steps
 
 * Read SIP type from previous activity
-* Check for presence of `content` and `header` directories
+* Check if the SIP is empty (no files or directories) and if so, return a
+  validation error immediately without performing any subsequent checks
 * Check all file and directory names for invalid characters
 * Check for empty directories
+* Check for presence of the `content` directory
+* Check for the presence of the `metadata.xml` file
+* Check for the presence of the `arelda.xsd` XML schema file
+* (AIPs only) Check for the presence of the `UpdatedAreldaMetadata.xml` file
+* (AIPs only) Check for the presence of a logical metadata PREMIS file
+* (AIPs only) Check for any top-level directories other than `content` and
+  `additional`
+* (SIPs only) Check for any top-level directories other than `content` and
+  `header`
+* (Digitized only) Check that there is only one dossier in the `content`
+  directory
 
 #### Success critera
 
-* Files and directories only contain valid characters
-  * `A-Z`, `a-z`, `0-9`, or `-_.()`
-* SIPs contain `content` and `header` directories
-  * If content type is an AIP, it also contains an `additional` directory
-* No empty directories are found
+* SIP is not empty
+* Files and directories only contain valid characters (`A-Z`, `a-z`, `0-9`, or
+  `-_.()`)
+* There are no empty directories
+* There is a `content` directory
+* There is a `metadata.xml` file
+* There is an `arelda.xsd` XML schema file
+* (AIPs only) There is an `UpdatedAreldaMetadata.xml` file
+* (AIPs only) There is a logical metadata PREMIS file
+* (AIPs only) There are no top-level directories other than `content` and
+  `additional`
+* (SIPs only) There are no top-level directories other than `content` and
+  `header`
+* (Digitized only) There is only one dossier in the `content` directory
 
 ### Validate SIP name
 
