@@ -38,7 +38,7 @@ type validationResult struct {
 	fileCount              int
 	invalidNames           []string
 	hasContentDir          bool
-	hasXSDDir              bool
+	hasAreldaFile          bool
 	hasMetadataFile        bool
 	hasUpdatedAreldaMDFile bool
 	hasLogicalMDFile       bool
@@ -120,9 +120,6 @@ func validateStructure(sip sip.SIP) (*validationResult, error) {
 		if path == sip.ContentPath {
 			res.hasContentDir = true
 		}
-		if path == sip.XSDPath {
-			res.hasXSDDir = true
-		}
 
 		// Check for missing files.
 		if path == sip.MetadataPath {
@@ -133,6 +130,9 @@ func validateStructure(sip sip.SIP) (*validationResult, error) {
 		}
 		if path == sip.LogicalMDPath {
 			res.hasLogicalMDFile = true
+		}
+		if path == sip.XSDPath {
+			res.hasAreldaFile = true
 		}
 
 		return nil
@@ -178,11 +178,6 @@ func reportFailures(res *validationResult, sip sip.SIP) []string {
 		failures = append(failures, "Content folder is missing")
 	}
 
-	// Report missing XSD directory.
-	if !res.hasXSDDir {
-		failures = append(failures, "XSD folder is missing")
-	}
-
 	// Report missing metadata file.
 	if !res.hasMetadataFile {
 		failures = append(failures, fmt.Sprintf(
@@ -190,19 +185,26 @@ func reportFailures(res *validationResult, sip sip.SIP) []string {
 		))
 	}
 
-	// Report missing UpdatedAreldaMetadata file (AIPs only).
-	if sip.IsAIP() && !res.hasUpdatedAreldaMDFile {
-		failures = append(failures, fmt.Sprintf(
-			"%s is missing", filepath.Base(sip.UpdatedAreldaMDPath),
-		))
+	// Report missing arelda.xsd file.
+	if !res.hasAreldaFile {
+		failures = append(failures, "arelda.xsd is missing")
 	}
 
-	// Report missing logical metadata file (AIPs only).
-	if sip.IsAIP() && !res.hasLogicalMDFile {
-		failures = append(failures, fmt.Sprintf("%s is missing", filepath.Base(sip.LogicalMDPath)))
+	if sip.IsAIP() {
+		// Report missing UpdatedAreldaMetadata file (AIPs only).
+		if !res.hasUpdatedAreldaMDFile {
+			failures = append(failures, fmt.Sprintf(
+				"%s is missing", filepath.Base(sip.UpdatedAreldaMDPath),
+			))
+		}
+
+		// Report missing logical metadata file (AIPs only).
+		if !res.hasLogicalMDFile {
+			failures = append(failures, fmt.Sprintf("%s is missing", filepath.Base(sip.LogicalMDPath)))
+		}
 	}
 
-	// Report unexpected directories.
+	// Report unexpected top-level directories.
 	for _, path := range res.extraDirs {
 		failures = append(failures, fmt.Sprintf("Unexpected directory: %q", path))
 	}
