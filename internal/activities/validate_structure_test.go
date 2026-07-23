@@ -163,8 +163,8 @@ func TestValidateStructure(t *testing.T) {
 			want: activities.ValidateStructureResult{
 				Failures: []string{
 					"Content folder is missing",
-					"XSD folder is missing",
 					"metadata.xml is missing",
+					"arelda.xsd is missing",
 				},
 			},
 		},
@@ -189,7 +189,7 @@ func TestValidateStructure(t *testing.T) {
 			want: activities.ValidateStructureResult{
 				Failures: []string{
 					"Content folder is missing",
-					"XSD folder is missing",
+					"arelda.xsd is missing",
 				},
 			},
 		},
@@ -266,8 +266,8 @@ func TestValidateStructure(t *testing.T) {
 			want: activities.ValidateStructureResult{
 				Failures: []string{
 					"Content folder is missing",
-					"XSD folder is missing",
 					"metadata.xml is missing",
+					"arelda.xsd is missing",
 					"UpdatedAreldaMetadata.xml is missing",
 					"AIP-1234-premis.xml is missing",
 				},
