@@ -82,15 +82,6 @@ func TestWriteIdentifierFile(t *testing.T) {
 			},
 			wantJSON: `[
     {
-        "file": "metadata/Prozess_Digitalisierung_PREMIS.xml",
-        "identifiers": [
-            {
-                "identifier": "_cQ6sm5CChWVqtqmrWvne0W",
-                "identifierType": "local"
-            }
-        ]
-    },
-    {
         "file": "objects/Test_Digitized_SIP/content/d_0000001/00000001.jp2",
         "identifiers": [
             {
@@ -122,6 +113,15 @@ func TestWriteIdentifierFile(t *testing.T) {
         "identifiers": [
             {
                 "identifier": "_Ohk77y2DJa82RXqsWG4S90",
+                "identifierType": "local"
+            }
+        ]
+    },
+    {
+        "file": "objects/Test_Digitized_SIP/content/d_0000001/Prozess_Digitalisierung_PREMIS.xml",
+        "identifiers": [
+            {
+                "identifier": "_cQ6sm5CChWVqtqmrWvne0W",
                 "identifierType": "local"
             }
         ]
