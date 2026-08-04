@@ -42,7 +42,7 @@ func (p PIP) Name() string {
 
 func (p PIP) ConvertSIPPath(path string) string {
 	switch name := filepath.Base(path); name {
-	case "Prozess_Digitalisierung_PREMIS.xml", "UpdatedAreldaMetadata.xml":
+	case "UpdatedAreldaMetadata.xml":
 		return filepath.Join("metadata", name)
 	case "metadata.xml":
 		return filepath.Join("objects", p.Name(), "header", name)

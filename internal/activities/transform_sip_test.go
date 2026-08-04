@@ -79,6 +79,7 @@ func TestTransformSIP(t *testing.T) {
 					fs.WithDir("d_0000001", fs.WithMode(dmode),
 						fs.WithFile("00000001.jp2", "", fs.WithMode(fmode)),
 						fs.WithFile("00000001_PREMIS.xml", "", fs.WithMode(fmode)),
+						fs.WithFile("Prozess_Digitalisierung_PREMIS.xml", "", fs.WithMode(fmode)),
 					),
 				),
 				fs.WithDir("header", fs.WithMode(dmode),
@@ -88,7 +89,6 @@ func TestTransformSIP(t *testing.T) {
 		),
 		fs.WithDir("metadata", fs.WithMode(dmode),
 			fs.WithFile("UpdatedAreldaMetadata.xml", "", fs.WithMode(fmode)),
-			fs.WithFile("Prozess_Digitalisierung_PREMIS.xml", "", fs.WithMode(fmode)),
 			fs.WithFile("Vecteur_Digitized_AIP-premis.xml", "", fs.WithMode(fmode)),
 		),
 	)
@@ -100,15 +100,13 @@ func TestTransformSIP(t *testing.T) {
 					fs.WithDir("d_0000001", fs.WithMode(dmode),
 						fs.WithFile("00000001.jp2", "", fs.WithMode(fmode)),
 						fs.WithFile("00000001_PREMIS.xml", "", fs.WithMode(fmode)),
+						fs.WithFile("Prozess_Digitalisierung_PREMIS.xml", "", fs.WithMode(fmode)),
 					),
 				),
 				fs.WithDir("header", fs.WithMode(dmode),
 					fs.WithFile("metadata.xml", "", fs.WithMode(fmode)),
 				),
 			),
-		),
-		fs.WithDir("metadata", fs.WithMode(dmode),
-			fs.WithFile("Prozess_Digitalisierung_PREMIS.xml", "", fs.WithMode(fmode)),
 		),
 	)
 
