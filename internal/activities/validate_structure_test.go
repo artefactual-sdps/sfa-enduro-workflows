@@ -12,7 +12,7 @@ import (
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/sip"
 )
 
-func digitizedAIP(t *testing.T, hasNoContent bool) sip.SIP {
+func digitizedAIP(t *testing.T, content ...fs.PathOp) sip.SIP {
 	t.Helper()
 
 	path := fs.NewDir(t, "extract-",
@@ -22,20 +22,7 @@ func digitizedAIP(t *testing.T, hasNoContent bool) sip.SIP {
 				fs.WithFile("UpdatedAreldaMetadata.xml", ""),
 			),
 			fs.WithDir("content",
-				fs.WithDir("content",
-					func() fs.PathOp {
-						if hasNoContent {
-							// Return an empty dossier.
-							return fs.WithDir("d_0000001")
-						}
-
-						return fs.WithDir("d_0000001",
-							fs.WithFile("00000001.jp2", ""),
-							fs.WithFile("00000001_PREMIS.xml", ""),
-							fs.WithFile("Prozess_Digitalisierung_PREMIS.xml", ""),
-						)
-					}(),
-				),
+				fs.WithDir("content", content...),
 				fs.WithDir("header",
 					fs.WithDir("old",
 						fs.WithDir("SIP",
@@ -89,24 +76,27 @@ func digitizedSIP(t *testing.T, hasExtraDossier bool) sip.SIP {
 	return testSIP(t, path)
 }
 
-func unexpectedNamesSIP(t *testing.T) sip.SIP {
+// extraTLDSIP returns a born-digital SIP with an extra top-level directory.
+func extraTLDSIP(t *testing.T) sip.SIP {
 	t.Helper()
 
 	path := fs.NewDir(t, "extract-",
 		fs.WithDir("SIP_202200915_dept",
 			fs.WithDir("content",
 				fs.WithDir("d_0000001",
-					fs.WithFile("content.txt", ""),
+					fs.WithFile("00000001.jp2", ""),
+					fs.WithFile("00000001_PREMIS.xml", ""),
 				),
-				fs.WithFile("unexpected.txt", ""),
+				fs.WithFile("00000002.jp2", ""),
+				fs.WithFile("00000002_PREMIS.xml", ""),
 			),
 			fs.WithDir("header",
-				fs.WithFile("metadata.xml", ""),
 				fs.WithDir("xsd",
 					fs.WithFile("arelda.xsd", ""),
 				),
+				fs.WithFile("metadata.xml", ""),
 			),
-			fs.WithDir("unexpected",
+			fs.WithDir("extra",
 				fs.WithFile("data.txt", ""),
 			),
 		),
@@ -149,7 +139,7 @@ func TestValidateStructure(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name: "Returns failures when a SIP is empty",
+			name: "Returns only one failure when SIP is empty",
 			params: activities.ValidateStructureParams{
 				SIP: testSIP(t, fs.NewDir(t, "extract-",
 					fs.WithDir("AIP-1234"),
@@ -162,7 +152,7 @@ func TestValidateStructure(t *testing.T) {
 			},
 		},
 		{
-			name: "Returns failures when a SIP has a single file",
+			name: "Returns multiple failures when a SIP has a single file",
 			params: activities.ValidateStructureParams{
 				SIP: testSIP(t, fs.NewDir(t, "extract-",
 					fs.WithDir("AIP-1234",
@@ -173,19 +163,16 @@ func TestValidateStructure(t *testing.T) {
 			want: activities.ValidateStructureResult{
 				Failures: []string{
 					"Content folder is missing",
-					"XSD folder is missing",
 					"metadata.xml is missing",
+					"arelda.xsd is missing",
 				},
 			},
 		},
 		{
-			name:   "Returns failures when a SIP has unexpected files or directories",
-			params: activities.ValidateStructureParams{SIP: unexpectedNamesSIP(t)},
+			name:   "Returns a failure when a SIP has an extra top-level directory",
+			params: activities.ValidateStructureParams{SIP: extraTLDSIP(t)},
 			want: activities.ValidateStructureResult{
-				Failures: []string{
-					`Unexpected directory: "unexpected"`,
-					`Unexpected file: "content/unexpected.txt"`,
-				},
+				Failures: []string{`Unexpected directory: "extra"`},
 			},
 		},
 		{
@@ -202,7 +189,7 @@ func TestValidateStructure(t *testing.T) {
 			want: activities.ValidateStructureResult{
 				Failures: []string{
 					"Content folder is missing",
-					"XSD folder is missing",
+					"arelda.xsd is missing",
 				},
 			},
 		},
@@ -229,12 +216,32 @@ func TestValidateStructure(t *testing.T) {
 			},
 		},
 		{
-			name:   "Validates a digitized AIP",
-			params: activities.ValidateStructureParams{SIP: digitizedAIP(t, false)},
+			name: "Validates a digitized AIP",
+			params: activities.ValidateStructureParams{
+				SIP: digitizedAIP(t,
+					fs.WithDir("d_0000001",
+						fs.WithFile("00000001.jp2", ""),
+						fs.WithFile("00000001_PREMIS.xml", ""),
+						fs.WithFile("Prozess_Digitalisierung_PREMIS.xml", ""),
+					),
+				),
+			},
 		},
 		{
-			name:   "Returns a failure when a digitized AIP has an empty directory",
-			params: activities.ValidateStructureParams{SIP: digitizedAIP(t, true)},
+			name: "Validates a digitized AIP without dossiers",
+			params: activities.ValidateStructureParams{
+				SIP: digitizedAIP(t,
+					fs.WithFile("00000001.jp2", ""),
+					fs.WithFile("00000001_PREMIS.xml", ""),
+					fs.WithFile("Prozess_Digitalisierung_PREMIS.xml", ""),
+				),
+			},
+		},
+		{
+			name: "Returns a failure when a digitized AIP has an empty directory",
+			params: activities.ValidateStructureParams{
+				SIP: digitizedAIP(t, fs.WithDir("d_0000001")),
+			},
 			want: activities.ValidateStructureResult{
 				Failures: []string{
 					"An empty directory has been found - content/content/d_0000001",
@@ -259,8 +266,8 @@ func TestValidateStructure(t *testing.T) {
 			want: activities.ValidateStructureResult{
 				Failures: []string{
 					"Content folder is missing",
-					"XSD folder is missing",
 					"metadata.xml is missing",
+					"arelda.xsd is missing",
 					"UpdatedAreldaMetadata.xml is missing",
 					"AIP-1234-premis.xml is missing",
 				},
