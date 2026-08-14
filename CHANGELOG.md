@@ -8,6 +8,12 @@ requests.
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-08-14
+
+### Fixed
+
+- Allow files in the SIP content directory ([#233])
+
 ## [0.21.0] - 2026-08-10
 
 ### Fixed
@@ -199,7 +205,8 @@ requests.
 
 Initial release.
 
-[unreleased]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.21.0...HEAD
+[unreleased]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.22.0...HEAD
+[0.22.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.18.0...v0.19.0
@@ -222,6 +229,7 @@ Initial release.
 [0.2.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/releases/tag/v0.1.0
 [#241]: https://github.com/artefactual-sdps/sfa-enduro-workflows/issues/241
+[#233]: https://github.com/artefactual-sdps/sfa-enduro-workflows/issues/233
 [#230]: https://github.com/artefactual-sdps/sfa-enduro-workflows/pull/230
 [#222]: https://github.com/artefactual-sdps/sfa-enduro-workflows/issues/222
 [#202]: https://github.com/artefactual-sdps/sfa-enduro-workflows/pull/202
