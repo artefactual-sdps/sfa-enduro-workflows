@@ -124,6 +124,7 @@ func TestUnbag(t *testing.T) {
 
 			assert.NilError(t, future.Get(&res))
 			assert.DeepEqual(t, res, tt.result(tt.path))
+			assert.Assert(t, fs.Equal(tt.path, tt.wantFS))
 
 			if !tt.wantPayloadModTime.IsZero() {
 				info, err := os.Stat(filepath.Join(
