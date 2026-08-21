@@ -6,7 +6,7 @@ require (
 	github.com/antchfx/xmlquery v1.5.0
 	github.com/artefactual-labs/bagit-gython v0.6.1
 	github.com/artefactual-sdps/enduro v0.31.0
-	github.com/artefactual-sdps/temporal-activities v0.0.0-20260406175419-303edb7db3db
+	github.com/artefactual-sdps/temporal-activities v0.0.0-20260821134126-0e928212f6c5
 	github.com/beevik/etree v1.6.0
 	github.com/deckarep/golang-set/v2 v2.8.0
 	github.com/go-faster/errors v0.7.1
