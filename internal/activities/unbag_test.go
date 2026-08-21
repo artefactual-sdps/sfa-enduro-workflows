@@ -1,7 +1,10 @@
 package activities_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
 	temporalsdk_activity "go.temporal.io/sdk/activity"
 	temporalsdk_testsuite "go.temporal.io/sdk/testsuite"
@@ -14,26 +17,35 @@ import (
 func TestUnbag(t *testing.T) {
 	t.Parallel()
 
+	bagPath := fs.NewDir(t, "enduro-test",
+		fs.WithDir("data",
+			fs.WithDir("d_0000001",
+				fs.WithFile("Prozess_Digitalisierung_PREMIS.xml", ""),
+			),
+			fs.WithDir("additional"),
+		),
+		fs.WithFile("bagit.txt", ""),
+		fs.WithFile("manifest-md5.txt", ""),
+	).Path()
+	bagPayloadModTime := time.Date(2001, time.February, 3, 4, 5, 6, 0, time.UTC)
+	assert.NilError(t, os.Chtimes(
+		filepath.Join(bagPath, "data", "d_0000001", "Prozess_Digitalisierung_PREMIS.xml"),
+		bagPayloadModTime,
+		bagPayloadModTime,
+	))
+
 	tests := []struct {
-		name    string
-		path    string
-		params  func(string) activities.UnbagParams
-		result  func(string) activities.UnbagResult
-		wantFS  fs.Manifest
-		wantErr string
+		name               string
+		path               string
+		params             func(string) activities.UnbagParams
+		result             func(string) activities.UnbagResult
+		wantFS             fs.Manifest
+		wantPayloadModTime time.Time
+		wantErr            string
 	}{
 		{
 			name: "Unbags a bag",
-			path: fs.NewDir(t, "enduro-test",
-				fs.WithDir("data",
-					fs.WithDir("d_0000001",
-						fs.WithFile("Prozess_Digitalisierung_PREMIS.xml", ""),
-					),
-					fs.WithDir("additional"),
-				),
-				fs.WithFile("bagit.txt", ""),
-				fs.WithFile("manifest-md5.txt", ""),
-			).Path(),
+			path: bagPath,
 			params: func(path string) activities.UnbagParams {
 				return activities.UnbagParams{Path: path}
 			},
@@ -46,6 +58,7 @@ func TestUnbag(t *testing.T) {
 				),
 				fs.WithDir("additional"),
 			),
+			wantPayloadModTime: bagPayloadModTime,
 		},
 		{
 			name: "Does nothing when path is not a bag",
@@ -111,6 +124,16 @@ func TestUnbag(t *testing.T) {
 
 			assert.NilError(t, future.Get(&res))
 			assert.DeepEqual(t, res, tt.result(tt.path))
+
+			if !tt.wantPayloadModTime.IsZero() {
+				info, err := os.Stat(filepath.Join(
+					tt.path,
+					"d_0000001",
+					"Prozess_Digitalisierung_PREMIS.xml",
+				))
+				assert.NilError(t, err)
+				assert.Equal(t, info.ModTime().UTC(), tt.wantPayloadModTime)
+			}
 		})
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	temporalsdk_activity "go.temporal.io/sdk/activity"
 	temporalsdk_testsuite "go.temporal.io/sdk/testsuite"
@@ -66,6 +67,12 @@ func TestTransformSIP(t *testing.T) {
 			),
 		),
 	).Path()
+	digitizedSIPPayloadModTime := time.Date(2002, time.March, 4, 5, 6, 8, 0, time.UTC)
+	assert.NilError(t, os.Chtimes(
+		filepath.Join(digitizedSIPPath, "content", "d_0000001", "00000001.jp2"),
+		digitizedSIPPayloadModTime,
+		digitizedSIPPayloadModTime,
+	))
 
 	digitizedAIP, err := sip.New(digitizedAIPPath)
 	assert.NilError(t, err)
@@ -129,10 +136,11 @@ func TestTransformSIP(t *testing.T) {
 	assert.NilError(t, err)
 
 	tests := []struct {
-		name    string
-		params  activities.TransformSIPParams
-		wantSIP fs.Manifest
-		wantErr string
+		name               string
+		params             activities.TransformSIPParams
+		wantSIP            fs.Manifest
+		wantPayloadModTime time.Time
+		wantErr            string
 	}{
 		{
 			name:    "Transforms a digitized AIP",
@@ -140,9 +148,10 @@ func TestTransformSIP(t *testing.T) {
 			wantSIP: expectedDigitizedAIP,
 		},
 		{
-			name:    "Transforms a digitized SIP",
-			params:  activities.TransformSIPParams{SIP: digitizedSIP},
-			wantSIP: expectedDigitizedSIP,
+			name:               "Transforms a digitized SIP",
+			params:             activities.TransformSIPParams{SIP: digitizedSIP},
+			wantSIP:            expectedDigitizedSIP,
+			wantPayloadModTime: digitizedSIPPayloadModTime,
 		},
 		{
 			name:   "Fails when the metadata file is missing",
@@ -190,6 +199,20 @@ func TestTransformSIP(t *testing.T) {
 
 			assert.NilError(t, err)
 			assert.Assert(t, fs.Equal(tt.params.SIP.Path, tt.wantSIP))
+
+			if !tt.wantPayloadModTime.IsZero() {
+				transformedPath := filepath.Join(
+					tt.params.SIP.Path,
+					"objects",
+					filepath.Base(tt.params.SIP.Path),
+					"content",
+					"d_0000001",
+					"00000001.jp2",
+				)
+				info, err := os.Stat(transformedPath)
+				assert.NilError(t, err)
+				assert.Equal(t, info.ModTime().UTC(), tt.wantPayloadModTime)
+			}
 		})
 	}
 }

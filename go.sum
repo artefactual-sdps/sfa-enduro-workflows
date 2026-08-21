@@ -74,8 +74,8 @@ github.com/artefactual-labs/bine v0.28.3 h1:pDPcxuxjL102JPa3aG7oitYkuZxRJqVZEoW1
 github.com/artefactual-labs/bine v0.28.3/go.mod h1:E0JTUTzaakkToz6UlUOViEMkCCzHbGTKw5G5mgeYj0M=
 github.com/artefactual-sdps/enduro v0.31.0 h1:0xDWBYxyp0tCXW05MVLPhoiFQ8RsCY28UFy6cBEfZ7Q=
 github.com/artefactual-sdps/enduro v0.31.0/go.mod h1:krDtSny3W29GiluugptnU/BNZgosPQi2wDVlfB/hO0I=
-github.com/artefactual-sdps/temporal-activities v0.0.0-20260406175419-303edb7db3db h1:/oTyIMjn5Goo/+OK9LEA4iqpWXomSwxmhovO/+Z2MQw=
-github.com/artefactual-sdps/temporal-activities v0.0.0-20260406175419-303edb7db3db/go.mod h1:6GCIagAHHlLlfI5rr7gr/z2NiSFoIBj7WmVUHMecHO8=
+github.com/artefactual-sdps/temporal-activities v0.0.0-20260821134126-0e928212f6c5 h1:kfhFY+Oh0vBdFak0ghsibiILmsI5X2BmIPKChKrvOdc=
+github.com/artefactual-sdps/temporal-activities v0.0.0-20260821134126-0e928212f6c5/go.mod h1:apjykeFf9cvBJNzbHajrfpV8+0O1Zd20Lv8Nf47e9sw=
 github.com/aws/aws-sdk-go-v2 v1.41.5 h1:dj5kopbwUsVUVFgO4Fi5BIT3t4WyqIDjGKCangnV/yY=
 github.com/aws/aws-sdk-go-v2 v1.41.5/go.mod h1:mwsPRE8ceUUpiTgF7QmQIJ7lgsKUPQOUl3o72QBrE1o=
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.8 h1:eBMB84YGghSocM7PsjmmPffTa+1FBUeNvGvFou6V/4o=
