@@ -8,6 +8,12 @@ requests.
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-08-24
+
+### Fixed
+
+- Preserve payload modification times ([#246])
+
 ## [0.22.0] - 2026-08-14
 
 ### Fixed
@@ -205,7 +211,8 @@ requests.
 
 Initial release.
 
-[unreleased]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.22.0...HEAD
+[unreleased]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.23.0...HEAD
+[0.23.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.19.0...v0.20.0
@@ -228,6 +235,7 @@ Initial release.
 [0.3.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/releases/tag/v0.1.0
+[#246]: https://github.com/artefactual-sdps/sfa-enduro-workflows/pull/246
 [#241]: https://github.com/artefactual-sdps/sfa-enduro-workflows/issues/241
 [#233]: https://github.com/artefactual-sdps/sfa-enduro-workflows/issues/233
 [#230]: https://github.com/artefactual-sdps/sfa-enduro-workflows/pull/230
