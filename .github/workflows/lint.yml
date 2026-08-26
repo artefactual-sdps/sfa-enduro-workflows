@@ -29,7 +29,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-golangci-lint-cache-
       - name: Run golangci-lint
-        run: make lint
+        run: make lint LINT_FLAGS=--fix=0
         env:
           GOLANGCI_LINT_CACHE: ${{ runner.temp }}/golangci-lint-cache
       - name: Run golangci-lint fmt
