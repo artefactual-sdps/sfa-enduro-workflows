@@ -25,6 +25,8 @@ linters:
           alias: temporalsdk_$1
         - pkg: go.temporal.io/api/(\w+)
           alias: temporalapi_$1
+        - pkg: github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/gen/di_ps$
+          alias: goadips
       no-unaliased: true
       no-extra-aliases: false
     revive:

@@ -6,11 +6,11 @@ import (
 
 	"goa.design/goa/v3/security"
 
-	di_ps "github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/gen/di_ps"
+	goadips "github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/gen/di_ps"
 )
 
 type Service interface {
-	di_ps.Service
+	goadips.Service
 }
 
 type svcImpl struct{}
@@ -30,13 +30,13 @@ func (svc *svcImpl) BearerAuth(
 }
 
 func (svc *svcImpl) Livez(context.Context) error {
-	return di_ps.MakeNotImplemented(errors.New("not implemented"))
+	return goadips.MakeNotImplemented(errors.New("not implemented"))
 }
 
-func (svc *svcImpl) Create(ctx context.Context, p *di_ps.CreatePayload) (*di_ps.CreateResult, error) {
-	return nil, di_ps.MakeNotImplemented(errors.New("not implemented"))
+func (svc *svcImpl) Create(ctx context.Context, p *goadips.CreatePayload) (*goadips.CreateResult, error) {
+	return nil, goadips.MakeNotImplemented(errors.New("not implemented"))
 }
 
-func (svc *svcImpl) Show(ctx context.Context, p *di_ps.ShowPayload) (*di_ps.ShowResult, error) {
-	return nil, di_ps.MakeNotImplemented(errors.New("not implemented"))
+func (svc *svcImpl) Show(ctx context.Context, p *goadips.ShowPayload) (*goadips.ShowResult, error) {
+	return nil, goadips.MakeNotImplemented(errors.New("not implemented"))
 }
