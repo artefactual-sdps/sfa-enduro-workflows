@@ -13,11 +13,11 @@ import (
 	"goa.design/goa/v3/security"
 	"gotest.tools/v3/assert"
 
-	dips "github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/gen/di_ps"
+	goadips "github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/gen/di_ps"
 )
 
 type testDIPsService struct {
-	showResult *dips.ShowResult
+	showResult *goadips.ShowResult
 	showErr    error
 }
 
@@ -33,11 +33,11 @@ func (s *testDIPsService) Livez(context.Context) error {
 	return nil
 }
 
-func (s *testDIPsService) Create(context.Context, *dips.CreatePayload) (*dips.CreateResult, error) {
+func (s *testDIPsService) Create(context.Context, *goadips.CreatePayload) (*goadips.CreateResult, error) {
 	return nil, nil
 }
 
-func (s *testDIPsService) Show(context.Context, *dips.ShowPayload) (*dips.ShowResult, error) {
+func (s *testDIPsService) Show(context.Context, *goadips.ShowPayload) (*goadips.ShowResult, error) {
 	return s.showResult, s.showErr
 }
 
@@ -69,8 +69,8 @@ func TestHTTPServer(t *testing.T) {
 	api := newTestAPI(t)
 
 	dipID := "7fd0bb89-df4a-4aeb-a1bd-6db3907bb832"
-	api.dips.showResult = &dips.ShowResult{
-		ID:        dips.DIPID(dipID),
+	api.dips.showResult = &goadips.ShowResult{
+		ID:        goadips.DIPID(dipID),
 		DocKey:    "CH-000001",
 		Status:    "queued",
 		CreatedAt: "2025-01-01T00:00:00Z",
@@ -94,7 +94,7 @@ func TestHTTPServer(t *testing.T) {
 
 func TestHTTPServerInternalError(t *testing.T) {
 	api := newTestAPI(t)
-	internalErr := dips.MakeInternalError(errors.New("database password leaked"))
+	internalErr := goadips.MakeInternalError(errors.New("database password leaked"))
 	api.dips.showErr = internalErr
 
 	req := httptest.NewRequest(
