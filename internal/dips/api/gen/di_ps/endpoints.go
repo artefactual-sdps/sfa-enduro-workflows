@@ -24,14 +24,18 @@ type Endpoints struct {
 }
 
 // NewEndpoints wraps the methods of the "DIPs" service with endpoints.
-func NewEndpoints(s Service) *Endpoints {
+func NewEndpoints(s Service, si ServerInterceptors) *Endpoints {
 	// Casting service to Auther interface
 	a := s.(Auther)
-	return &Endpoints{
+	endpoints := &Endpoints{
 		Livez:  NewLivezEndpoint(s),
 		Create: NewCreateEndpoint(s, a.BearerAuth),
 		Show:   NewShowEndpoint(s, a.BearerAuth),
 	}
+	endpoints.Livez = WrapLivezEndpoint(endpoints.Livez, si)
+	endpoints.Create = WrapCreateEndpoint(endpoints.Create, si)
+	endpoints.Show = WrapShowEndpoint(endpoints.Show, si)
+	return endpoints
 }
 
 // Use applies the given middleware to all the "DIPs" service endpoints.

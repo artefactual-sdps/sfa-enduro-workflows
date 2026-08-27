@@ -36,7 +36,8 @@ func NewClient(livez, create, show goa.Endpoint) *Client {
 //   - "bad_request" (type *goa.ServiceError)
 //   - "unauthorized" (type *goa.ServiceError)
 //   - "not_found" (type *goa.ServiceError)
-//   - "internal_server_error" (type *goa.ServiceError)
+//   - "internal_error" (type *goa.ServiceError)
+//   - "not_implemented" (type *goa.ServiceError)
 //   - error: internal error
 func (c *Client) Livez(ctx context.Context) (err error) {
 	_, err = c.LivezEndpoint(ctx, nil)
@@ -48,7 +49,8 @@ func (c *Client) Livez(ctx context.Context) (err error) {
 //   - "bad_request" (type *goa.ServiceError)
 //   - "unauthorized" (type *goa.ServiceError)
 //   - "not_found" (type *goa.ServiceError)
-//   - "internal_server_error" (type *goa.ServiceError)
+//   - "internal_error" (type *goa.ServiceError)
+//   - "not_implemented" (type *goa.ServiceError)
 //   - error: internal error
 func (c *Client) Create(ctx context.Context, p *CreatePayload) (res *CreateResult, err error) {
 	var ires any
@@ -64,7 +66,8 @@ func (c *Client) Create(ctx context.Context, p *CreatePayload) (res *CreateResul
 //   - "bad_request" (type *goa.ServiceError)
 //   - "unauthorized" (type *goa.ServiceError)
 //   - "not_found" (type *goa.ServiceError)
-//   - "internal_server_error" (type *goa.ServiceError)
+//   - "internal_error" (type *goa.ServiceError)
+//   - "not_implemented" (type *goa.ServiceError)
 //   - error: internal error
 func (c *Client) Show(ctx context.Context, p *ShowPayload) (res *ShowResult, err error) {
 	var ires any

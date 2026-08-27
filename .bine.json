@@ -17,7 +17,7 @@
     {
       "name": "goa",
       "go_package": "goa.design/goa/v3/cmd/goa",
-      "version": "3.27.0"
+      "version": "3.29.2"
     },
     {
       "name": "golangci-lint",

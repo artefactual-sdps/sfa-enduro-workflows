@@ -12,10 +12,12 @@ package server
 import (
 	"context"
 	"net/http"
+	"os"
 
 	dips "github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/gen/di_ps"
 	goahttp "goa.design/goa/v3/http"
 	goa "goa.design/goa/v3/pkg"
+	"goa.design/plugins/v3/cors"
 )
 
 // Server lists the DIPs service endpoint HTTP handlers.
@@ -24,6 +26,7 @@ type Server struct {
 	Livez  http.Handler
 	Create http.Handler
 	Show   http.Handler
+	CORS   http.Handler
 }
 
 // MountPoint holds information about the mounted endpoints.
@@ -56,10 +59,14 @@ func New(
 			{"Livez", "GET", "/livez"},
 			{"Create", "POST", "/dips"},
 			{"Show", "GET", "/dips/{id}"},
+			{"CORS", "OPTIONS", "/livez"},
+			{"CORS", "OPTIONS", "/dips"},
+			{"CORS", "OPTIONS", "/dips/{id}"},
 		},
 		Livez:  NewLivezHandler(e.Livez, mux, decoder, encoder, errhandler, formatter),
 		Create: NewCreateHandler(e.Create, mux, decoder, encoder, errhandler, formatter),
 		Show:   NewShowHandler(e.Show, mux, decoder, encoder, errhandler, formatter),
+		CORS:   NewCORSHandler(),
 	}
 }
 
@@ -71,6 +78,7 @@ func (s *Server) Use(m func(http.Handler) http.Handler) {
 	s.Livez = m(s.Livez)
 	s.Create = m(s.Create)
 	s.Show = m(s.Show)
+	s.CORS = m(s.CORS)
 }
 
 // MethodNames returns the methods served.
@@ -81,6 +89,7 @@ func Mount(mux goahttp.Muxer, h *Server) {
 	MountLivezHandler(mux, h.Livez)
 	MountCreateHandler(mux, h.Create)
 	MountShowHandler(mux, h.Show)
+	MountCORSHandler(mux, h.CORS)
 }
 
 // Mount configures the mux to serve the DIPs endpoints.
@@ -91,7 +100,7 @@ func (s *Server) Mount(mux goahttp.Muxer) {
 // MountLivezHandler configures the mux to serve the "DIPs" service "livez"
 // endpoint.
 func MountLivezHandler(mux goahttp.Muxer, h http.Handler) {
-	f, ok := h.(http.HandlerFunc)
+	f, ok := HandleDIPsOrigin(h).(http.HandlerFunc)
 	if !ok {
 		f = func(w http.ResponseWriter, r *http.Request) {
 			h.ServeHTTP(w, r)
@@ -137,7 +146,7 @@ func NewLivezHandler(
 // MountCreateHandler configures the mux to serve the "DIPs" service "create"
 // endpoint.
 func MountCreateHandler(mux goahttp.Muxer, h http.Handler) {
-	f, ok := h.(http.HandlerFunc)
+	f, ok := HandleDIPsOrigin(h).(http.HandlerFunc)
 	if !ok {
 		f = func(w http.ResponseWriter, r *http.Request) {
 			h.ServeHTTP(w, r)
@@ -190,7 +199,7 @@ func NewCreateHandler(
 // MountShowHandler configures the mux to serve the "DIPs" service "show"
 // endpoint.
 func MountShowHandler(mux goahttp.Muxer, h http.Handler) {
-	f, ok := h.(http.HandlerFunc)
+	f, ok := HandleDIPsOrigin(h).(http.HandlerFunc)
 	if !ok {
 		f = func(w http.ResponseWriter, r *http.Request) {
 			h.ServeHTTP(w, r)
@@ -237,5 +246,53 @@ func NewShowHandler(
 				errhandler(ctx, w, err)
 			}
 		}
+	})
+}
+
+// MountCORSHandler configures the mux to serve the CORS endpoints for the
+// service DIPs.
+func MountCORSHandler(mux goahttp.Muxer, h http.Handler) {
+	h = HandleDIPsOrigin(h)
+	mux.Handle("OPTIONS", "/livez", h.ServeHTTP)
+	mux.Handle("OPTIONS", "/dips", h.ServeHTTP)
+	mux.Handle("OPTIONS", "/dips/{id}", h.ServeHTTP)
+}
+
+// NewCORSHandler creates a HTTP handler which returns a simple 204 response.
+func NewCORSHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(204)
+	})
+}
+
+// HandleDIPsOrigin applies the CORS response headers corresponding to the
+// origin for the service DIPs.
+func HandleDIPsOrigin(h http.Handler) http.Handler {
+	originStr0, present := os.LookupEnv("SFA_DIPS_API_CORS_ORIGIN")
+	if !present {
+		panic("CORS origin environment variable \"SFA_DIPS_API_CORS_ORIGIN\" not set!")
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			// Not a CORS request
+			h.ServeHTTP(w, r)
+			return
+		}
+		if cors.MatchOrigin(origin, originStr0) {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Vary", "Origin")
+			if acrm := r.Header.Get("Access-Control-Request-Method"); acrm != "" {
+				// We are handling a preflight request
+				w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, POST, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+				w.WriteHeader(204)
+				return
+			}
+			h.ServeHTTP(w, r)
+			return
+		}
+		h.ServeHTTP(w, r)
+		return
 	})
 }

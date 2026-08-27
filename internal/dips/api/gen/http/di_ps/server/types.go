@@ -42,9 +42,27 @@ type ShowResponseBody struct {
 	ObjectKey *string `form:"object_key,omitempty" json:"object_key,omitempty" xml:"object_key,omitempty"`
 }
 
-// LivezInternalServerErrorResponseBody is the type of the "DIPs" service
-// "livez" endpoint HTTP response body for the "internal_server_error" error.
-type LivezInternalServerErrorResponseBody struct {
+// LivezInternalErrorResponseBody is the type of the "DIPs" service "livez"
+// endpoint HTTP response body for the "internal_error" error.
+type LivezInternalErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// LivezNotImplementedResponseBody is the type of the "DIPs" service "livez"
+// endpoint HTTP response body for the "not_implemented" error.
+type LivezNotImplementedResponseBody struct {
 	// Name is the name of this class of errors.
 	Name string `form:"name" json:"name" xml:"name"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -96,9 +114,27 @@ type CreateUnauthorizedResponseBody struct {
 	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
-// CreateInternalServerErrorResponseBody is the type of the "DIPs" service
-// "create" endpoint HTTP response body for the "internal_server_error" error.
-type CreateInternalServerErrorResponseBody struct {
+// CreateInternalErrorResponseBody is the type of the "DIPs" service "create"
+// endpoint HTTP response body for the "internal_error" error.
+type CreateInternalErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// CreateNotImplementedResponseBody is the type of the "DIPs" service "create"
+// endpoint HTTP response body for the "not_implemented" error.
+type CreateNotImplementedResponseBody struct {
 	// Name is the name of this class of errors.
 	Name string `form:"name" json:"name" xml:"name"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -168,9 +204,27 @@ type ShowUnauthorizedResponseBody struct {
 	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
-// ShowInternalServerErrorResponseBody is the type of the "DIPs" service "show"
-// endpoint HTTP response body for the "internal_server_error" error.
-type ShowInternalServerErrorResponseBody struct {
+// ShowInternalErrorResponseBody is the type of the "DIPs" service "show"
+// endpoint HTTP response body for the "internal_error" error.
+type ShowInternalErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// ShowNotImplementedResponseBody is the type of the "DIPs" service "show"
+// endpoint HTTP response body for the "not_implemented" error.
+type ShowNotImplementedResponseBody struct {
 	// Name is the name of this class of errors.
 	Name string `form:"name" json:"name" xml:"name"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -220,10 +274,24 @@ func NewShowResponseBody(res *dips.ShowResult) *ShowResponseBody {
 	return body
 }
 
-// NewLivezInternalServerErrorResponseBody builds the HTTP response body from
-// the result of the "livez" endpoint of the "DIPs" service.
-func NewLivezInternalServerErrorResponseBody(res *goa.ServiceError) *LivezInternalServerErrorResponseBody {
-	body := &LivezInternalServerErrorResponseBody{
+// NewLivezInternalErrorResponseBody builds the HTTP response body from the
+// result of the "livez" endpoint of the "DIPs" service.
+func NewLivezInternalErrorResponseBody(res *goa.ServiceError) *LivezInternalErrorResponseBody {
+	body := &LivezInternalErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewLivezNotImplementedResponseBody builds the HTTP response body from the
+// result of the "livez" endpoint of the "DIPs" service.
+func NewLivezNotImplementedResponseBody(res *goa.ServiceError) *LivezNotImplementedResponseBody {
+	body := &LivezNotImplementedResponseBody{
 		Name:      res.Name,
 		ID:        res.ID,
 		Message:   res.Message,
@@ -262,10 +330,24 @@ func NewCreateUnauthorizedResponseBody(res *goa.ServiceError) *CreateUnauthorize
 	return body
 }
 
-// NewCreateInternalServerErrorResponseBody builds the HTTP response body from
-// the result of the "create" endpoint of the "DIPs" service.
-func NewCreateInternalServerErrorResponseBody(res *goa.ServiceError) *CreateInternalServerErrorResponseBody {
-	body := &CreateInternalServerErrorResponseBody{
+// NewCreateInternalErrorResponseBody builds the HTTP response body from the
+// result of the "create" endpoint of the "DIPs" service.
+func NewCreateInternalErrorResponseBody(res *goa.ServiceError) *CreateInternalErrorResponseBody {
+	body := &CreateInternalErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewCreateNotImplementedResponseBody builds the HTTP response body from the
+// result of the "create" endpoint of the "DIPs" service.
+func NewCreateNotImplementedResponseBody(res *goa.ServiceError) *CreateNotImplementedResponseBody {
+	body := &CreateNotImplementedResponseBody{
 		Name:      res.Name,
 		ID:        res.ID,
 		Message:   res.Message,
@@ -318,10 +400,24 @@ func NewShowUnauthorizedResponseBody(res *goa.ServiceError) *ShowUnauthorizedRes
 	return body
 }
 
-// NewShowInternalServerErrorResponseBody builds the HTTP response body from
-// the result of the "show" endpoint of the "DIPs" service.
-func NewShowInternalServerErrorResponseBody(res *goa.ServiceError) *ShowInternalServerErrorResponseBody {
-	body := &ShowInternalServerErrorResponseBody{
+// NewShowInternalErrorResponseBody builds the HTTP response body from the
+// result of the "show" endpoint of the "DIPs" service.
+func NewShowInternalErrorResponseBody(res *goa.ServiceError) *ShowInternalErrorResponseBody {
+	body := &ShowInternalErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewShowNotImplementedResponseBody builds the HTTP response body from the
+// result of the "show" endpoint of the "DIPs" service.
+func NewShowNotImplementedResponseBody(res *goa.ServiceError) *ShowNotImplementedResponseBody {
+	body := &ShowNotImplementedResponseBody{
 		Name:      res.Name,
 		ID:        res.ID,
 		Message:   res.Message,

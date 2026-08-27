@@ -1,6 +1,17 @@
+/*
+Package design is the single source of truth of the DIPs API. It uses the Goa
+design language (https://goa.design) which is a Go DSL.
+
+We describe the service which maps to resources in REST. The service defines
+its own methods, errors, etc...
+*/
 package design
 
-import . "goa.design/goa/v3/dsl" //nolint:staticcheck
+import (
+	. "goa.design/goa/v3/dsl" //nolint:staticcheck
+	"goa.design/goa/v3/expr"
+	cors "goa.design/plugins/v3/cors/dsl"
+)
 
 var BearerAuth = BearerSecurity("bearer", func() {
 	Description(
@@ -9,10 +20,32 @@ var BearerAuth = BearerSecurity("bearer", func() {
 	)
 })
 
+var (
+	OperationTimeout   = Interceptor("OperationTimeout")
+	ServerErrorHandler = Interceptor("ServerErrorHandler")
+)
+
 var _ = API("DIPs", func() {
 	Title("DIPs API")
 	Description("The DIPs API is used to request DIP creation and retrieve DIP details.")
 	Version("0.2.0")
+	Meta("openapi:versions", "2.0", "3.0", "3.2")
+	ServerInterceptor(OperationTimeout)
+	ServerInterceptor(ServerErrorHandler)
+	Randomizer(expr.NewDeterministicRandomizer())
+	Server("sfa-dips", func() {
+		Services("DIPs")
+		Host("localhost", func() {
+			URI("http://localhost:8080")
+		})
+	})
+	HTTP(func() {
+		Consumes("application/json")
+	})
+	cors.Origin("$SFA_DIPS_API_CORS_ORIGIN", func() {
+		cors.Methods("GET", "HEAD", "POST", "OPTIONS")
+		cors.Headers("Authorization", "Content-Type")
+	})
 })
 
 var DIPID = Type("DIPID", String, func() {
@@ -52,12 +85,14 @@ var _ = Service("DIPs", func() {
 	Error("bad_request")
 	Error("unauthorized")
 	Error("not_found")
-	Error("internal_server_error", func() {
+	Error("internal_error", ErrorResult, func() {
 		Fault()
 	})
+	Error("not_implemented")
 
 	HTTP(func() {
-		Response("internal_server_error", StatusInternalServerError, goaErrorResponse())
+		Response("internal_error", StatusInternalServerError, goaErrorResponse())
+		Response("not_implemented", StatusNotImplemented, goaErrorResponse())
 	})
 
 	Method("livez", func() {
