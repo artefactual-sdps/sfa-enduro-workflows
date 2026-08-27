@@ -78,12 +78,6 @@ gen-mock: tool-mockgen
 	mockgen -typed -destination=./internal/fformat/fake/mock_identifier.go -package=fake github.com/artefactual-sdps/sfa-enduro-workflows/internal/fformat Identifier
 	mockgen -typed -destination=./internal/fvalidate/fake/mock_validator.go -package=fake github.com/artefactual-sdps/sfa-enduro-workflows/internal/fvalidate Validator
 
-gosec: # @HELP Run gosec security scanner.
-gosec: GOSEC_VERBOSITY ?= "-terse"
-gosec: tool-gosec
-	go tool bine upgrade gosec
-	gosec $(GOSEC_VERBOSITY) -exclude-dir=hack ./...
-
 govulncheck: # @HELP Run govulncheck security scanner.
 govulncheck: tool-govulncheck
 	go tool bine upgrade govulncheck
@@ -112,7 +106,6 @@ pre-commit:
 	$(MAKE) -j \
 		fmt \
 		gen-enums \
-		gosec GOSEC_VERBOSITY="-quiet" \
 		lint \
 		shfmt \
 		test-race

@@ -26,11 +26,6 @@
       "asset_pattern": "{name}-{version}-{goos}-{goarch}.tar.gz"
     },
     {
-      "name": "gosec",
-      "go_package": "github.com/securego/gosec/v2/cmd/gosec",
-      "version": "latest"
-    },
-    {
       "name": "gotestsum",
       "url": "https://github.com/gotestyourself/gotestsum",
       "version": "1.13.0",
