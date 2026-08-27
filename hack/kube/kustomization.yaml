@@ -5,4 +5,6 @@ resources:
   - apis-mock.yaml
   - pvc.yaml
   - secret.yaml
+  - sfa-dips-secret.yaml
+  - sfa-dips.yaml
   - worker.yaml

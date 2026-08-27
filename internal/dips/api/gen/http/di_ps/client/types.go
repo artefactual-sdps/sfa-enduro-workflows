@@ -44,9 +44,27 @@ type ShowResponseBody struct {
 	ObjectKey *string `form:"object_key,omitempty" json:"object_key,omitempty" xml:"object_key,omitempty"`
 }
 
-// LivezInternalServerErrorResponseBody is the type of the "DIPs" service
-// "livez" endpoint HTTP response body for the "internal_server_error" error.
-type LivezInternalServerErrorResponseBody struct {
+// LivezInternalErrorResponseBody is the type of the "DIPs" service "livez"
+// endpoint HTTP response body for the "internal_error" error.
+type LivezInternalErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// LivezNotImplementedResponseBody is the type of the "DIPs" service "livez"
+// endpoint HTTP response body for the "not_implemented" error.
+type LivezNotImplementedResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -98,9 +116,27 @@ type CreateUnauthorizedResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// CreateInternalServerErrorResponseBody is the type of the "DIPs" service
-// "create" endpoint HTTP response body for the "internal_server_error" error.
-type CreateInternalServerErrorResponseBody struct {
+// CreateInternalErrorResponseBody is the type of the "DIPs" service "create"
+// endpoint HTTP response body for the "internal_error" error.
+type CreateInternalErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// CreateNotImplementedResponseBody is the type of the "DIPs" service "create"
+// endpoint HTTP response body for the "not_implemented" error.
+type CreateNotImplementedResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -170,9 +206,9 @@ type ShowUnauthorizedResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// ShowInternalServerErrorResponseBody is the type of the "DIPs" service "show"
-// endpoint HTTP response body for the "internal_server_error" error.
-type ShowInternalServerErrorResponseBody struct {
+// ShowInternalErrorResponseBody is the type of the "DIPs" service "show"
+// endpoint HTTP response body for the "internal_error" error.
+type ShowInternalErrorResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -188,9 +224,42 @@ type ShowInternalServerErrorResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// NewLivezInternalServerError builds a DIPs service livez endpoint
-// internal_server_error error.
-func NewLivezInternalServerError(body *LivezInternalServerErrorResponseBody) *goa.ServiceError {
+// ShowNotImplementedResponseBody is the type of the "DIPs" service "show"
+// endpoint HTTP response body for the "not_implemented" error.
+type ShowNotImplementedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// NewLivezInternalError builds a DIPs service livez endpoint internal_error
+// error.
+func NewLivezInternalError(body *LivezInternalErrorResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewLivezNotImplemented builds a DIPs service livez endpoint not_implemented
+// error.
+func NewLivezNotImplemented(body *LivezNotImplementedResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -242,9 +311,24 @@ func NewCreateUnauthorized(body *CreateUnauthorizedResponseBody) *goa.ServiceErr
 	return v
 }
 
-// NewCreateInternalServerError builds a DIPs service create endpoint
-// internal_server_error error.
-func NewCreateInternalServerError(body *CreateInternalServerErrorResponseBody) *goa.ServiceError {
+// NewCreateInternalError builds a DIPs service create endpoint internal_error
+// error.
+func NewCreateInternalError(body *CreateInternalErrorResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewCreateNotImplemented builds a DIPs service create endpoint
+// not_implemented error.
+func NewCreateNotImplemented(body *CreateNotImplementedResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -325,9 +409,24 @@ func NewShowUnauthorized(body *ShowUnauthorizedResponseBody) *goa.ServiceError {
 	return v
 }
 
-// NewShowInternalServerError builds a DIPs service show endpoint
-// internal_server_error error.
-func NewShowInternalServerError(body *ShowInternalServerErrorResponseBody) *goa.ServiceError {
+// NewShowInternalError builds a DIPs service show endpoint internal_error
+// error.
+func NewShowInternalError(body *ShowInternalErrorResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewShowNotImplemented builds a DIPs service show endpoint not_implemented
+// error.
+func NewShowNotImplemented(body *ShowNotImplementedResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -395,9 +494,33 @@ func ValidateShowResponseBody(body *ShowResponseBody) (err error) {
 	return
 }
 
-// ValidateLivezInternalServerErrorResponseBody runs the validations defined on
-// livez_internal_server_error_response_body
-func ValidateLivezInternalServerErrorResponseBody(body *LivezInternalServerErrorResponseBody) (err error) {
+// ValidateLivezInternalErrorResponseBody runs the validations defined on
+// livez_internal_error_response_body
+func ValidateLivezInternalErrorResponseBody(body *LivezInternalErrorResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateLivezNotImplementedResponseBody runs the validations defined on
+// livez_not_implemented_response_body
+func ValidateLivezNotImplementedResponseBody(body *LivezNotImplementedResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -467,9 +590,33 @@ func ValidateCreateUnauthorizedResponseBody(body *CreateUnauthorizedResponseBody
 	return
 }
 
-// ValidateCreateInternalServerErrorResponseBody runs the validations defined
-// on create_internal_server_error_response_body
-func ValidateCreateInternalServerErrorResponseBody(body *CreateInternalServerErrorResponseBody) (err error) {
+// ValidateCreateInternalErrorResponseBody runs the validations defined on
+// create_internal_error_response_body
+func ValidateCreateInternalErrorResponseBody(body *CreateInternalErrorResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateCreateNotImplementedResponseBody runs the validations defined on
+// create_not_implemented_response_body
+func ValidateCreateNotImplementedResponseBody(body *CreateNotImplementedResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -563,9 +710,33 @@ func ValidateShowUnauthorizedResponseBody(body *ShowUnauthorizedResponseBody) (e
 	return
 }
 
-// ValidateShowInternalServerErrorResponseBody runs the validations defined on
-// show_internal_server_error_response_body
-func ValidateShowInternalServerErrorResponseBody(body *ShowInternalServerErrorResponseBody) (err error) {
+// ValidateShowInternalErrorResponseBody runs the validations defined on
+// show_internal_error_response_body
+func ValidateShowInternalErrorResponseBody(body *ShowInternalErrorResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateShowNotImplementedResponseBody runs the validations defined on
+// show_not_implemented_response_body
+func ValidateShowNotImplementedResponseBody(body *ShowNotImplementedResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
