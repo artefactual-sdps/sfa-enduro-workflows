@@ -11,6 +11,8 @@ import (
 	. "goa.design/goa/v3/dsl" //nolint:staticcheck
 	"goa.design/goa/v3/expr"
 	cors "goa.design/plugins/v3/cors/dsl"
+
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/enums"
 )
 
 var BearerAuth = BearerSecurity("bearer", func() {
@@ -62,8 +64,8 @@ var DocKey = Type("DocKey", String, func() {
 
 var DIPStatus = Type("DIPStatus", String, func() {
 	Description("DIPStatus represents the current status of a DIP.")
-	Enum("queued", "in progress", "done", "failed")
-	Example("done")
+	Enum(enums.DIPStatusInterfaces()...)
+	Example(enums.DIPStatusDone.String())
 })
 
 var DateTime = Type("DateTime", String, func() {

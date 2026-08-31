@@ -50,10 +50,18 @@ k8s_resource(
   port_forwards="8082:8080",
   labels=["SFA"],
   trigger_mode=trigger_mode,
+  resource_deps=["mysql-create-sfa-dips-db"],
 )
 k8s_resource(
   "apis-mock",
   port_forwards="8081:8080",
   labels=["SFA"],
   trigger_mode=trigger_mode,
+)
+k8s_resource("mysql-create-sfa-dips-db", labels=["SFA"])
+k8s_resource(
+  "mysql-recreate-sfa-dips-db",
+  labels=["SFA"],
+  auto_init=False,
+  trigger_mode=TRIGGER_MODE_MANUAL,
 )

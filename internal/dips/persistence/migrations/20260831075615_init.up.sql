@@ -1,0 +1,2 @@
+-- Create "dip" table
+CREATE TABLE `dip` (`id` bigint NOT NULL AUTO_INCREMENT, `uuid` char(36) NOT NULL, `doc_key` varchar(1024) NOT NULL, `status` enum('queued','in progress','done','failed') NOT NULL, `error_message` longtext NULL, `created_at` timestamp NOT NULL, `started_at` timestamp NULL, `completed_at` timestamp NULL, `object_key` varchar(1024) NULL, PRIMARY KEY (`id`), UNIQUE INDEX `uuid` (`uuid`)) CHARSET utf8mb4 COLLATE utf8mb4_bin;
