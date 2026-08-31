@@ -59,6 +59,7 @@ var DIPID = Type("DIPID", String, func() {
 var DocKey = Type("DocKey", String, func() {
 	Description("DocKey is the document key used to create a DIP.")
 	MinLength(1)
+	MaxLength(1024)
 	Example("CH-000001")
 })
 
@@ -90,11 +91,9 @@ var _ = Service("DIPs", func() {
 	Error("internal_error", ErrorResult, func() {
 		Fault()
 	})
-	Error("not_implemented")
 
 	HTTP(func() {
 		Response("internal_error", StatusInternalServerError, goaErrorResponse())
-		Response("not_implemented", StatusNotImplemented, goaErrorResponse())
 	})
 
 	Method("livez", func() {

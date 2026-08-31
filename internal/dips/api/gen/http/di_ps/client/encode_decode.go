@@ -41,7 +41,6 @@ func (c *Client) BuildLivezRequest(ctx context.Context, v any) (*http.Request, e
 // restored after having been read.
 // DecodeLivezResponse may return the following errors:
 //   - "internal_error" (type *goa.ServiceError): http.StatusInternalServerError
-//   - "not_implemented" (type *goa.ServiceError): http.StatusNotImplemented
 //   - error: internal error
 func DecodeLivezResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
@@ -74,20 +73,6 @@ func DecodeLivezResponse(decoder func(*http.Response) goahttp.Decoder, restoreBo
 				return nil, goahttp.ErrValidationError("DIPs", "livez", err)
 			}
 			return nil, NewLivezInternalError(&body)
-		case http.StatusNotImplemented:
-			var (
-				body LivezNotImplementedResponseBody
-				err  error
-			)
-			err = decoder(resp).Decode(&body)
-			if err != nil {
-				return nil, goahttp.ErrDecodingError("DIPs", "livez", err)
-			}
-			err = ValidateLivezNotImplementedResponseBody(&body)
-			if err != nil {
-				return nil, goahttp.ErrValidationError("DIPs", "livez", err)
-			}
-			return nil, NewLivezNotImplemented(&body)
 		default:
 			body, _ := io.ReadAll(resp.Body)
 			return nil, goahttp.ErrInvalidResponse("DIPs", "livez", resp.StatusCode, string(body))
@@ -141,7 +126,6 @@ func EncodeCreateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http
 //   - "bad_request" (type *goa.ServiceError): http.StatusBadRequest
 //   - "unauthorized" (type *goa.ServiceError): http.StatusUnauthorized
 //   - "internal_error" (type *goa.ServiceError): http.StatusInternalServerError
-//   - "not_implemented" (type *goa.ServiceError): http.StatusNotImplemented
 //   - error: internal error
 func DecodeCreateResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
@@ -215,20 +199,6 @@ func DecodeCreateResponse(decoder func(*http.Response) goahttp.Decoder, restoreB
 				return nil, goahttp.ErrValidationError("DIPs", "create", err)
 			}
 			return nil, NewCreateInternalError(&body)
-		case http.StatusNotImplemented:
-			var (
-				body CreateNotImplementedResponseBody
-				err  error
-			)
-			err = decoder(resp).Decode(&body)
-			if err != nil {
-				return nil, goahttp.ErrDecodingError("DIPs", "create", err)
-			}
-			err = ValidateCreateNotImplementedResponseBody(&body)
-			if err != nil {
-				return nil, goahttp.ErrValidationError("DIPs", "create", err)
-			}
-			return nil, NewCreateNotImplemented(&body)
 		default:
 			body, _ := io.ReadAll(resp.Body)
 			return nil, goahttp.ErrInvalidResponse("DIPs", "create", resp.StatusCode, string(body))
@@ -289,7 +259,6 @@ func EncodeShowRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.R
 //   - "not_found" (type *goa.ServiceError): http.StatusNotFound
 //   - "unauthorized" (type *goa.ServiceError): http.StatusUnauthorized
 //   - "internal_error" (type *goa.ServiceError): http.StatusInternalServerError
-//   - "not_implemented" (type *goa.ServiceError): http.StatusNotImplemented
 //   - error: internal error
 func DecodeShowResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
@@ -377,20 +346,6 @@ func DecodeShowResponse(decoder func(*http.Response) goahttp.Decoder, restoreBod
 				return nil, goahttp.ErrValidationError("DIPs", "show", err)
 			}
 			return nil, NewShowInternalError(&body)
-		case http.StatusNotImplemented:
-			var (
-				body ShowNotImplementedResponseBody
-				err  error
-			)
-			err = decoder(resp).Decode(&body)
-			if err != nil {
-				return nil, goahttp.ErrDecodingError("DIPs", "show", err)
-			}
-			err = ValidateShowNotImplementedResponseBody(&body)
-			if err != nil {
-				return nil, goahttp.ErrValidationError("DIPs", "show", err)
-			}
-			return nil, NewShowNotImplemented(&body)
 		default:
 			body, _ := io.ReadAll(resp.Body)
 			return nil, goahttp.ErrInvalidResponse("DIPs", "show", resp.StatusCode, string(body))

@@ -55,20 +55,6 @@ func EncodeLivezError(encoder func(context.Context, http.ResponseWriter) goahttp
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusInternalServerError)
 			return enc.Encode(body)
-		case "not_implemented":
-			var res *goa.ServiceError
-			errors.As(v, &res)
-			ctx = context.WithValue(ctx, goahttp.ContentTypeKey, "application/json")
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewLivezNotImplementedResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusNotImplemented)
-			return enc.Encode(body)
 		default:
 			return encodeError(ctx, w, v)
 		}
@@ -118,6 +104,11 @@ func DecodeCreateRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.
 		if body.DocKey != nil {
 			if utf8.RuneCountInString(*body.DocKey) < 1 {
 				err = goa.MergeErrors(err, goa.InvalidLengthError("body.docKey", *body.DocKey, utf8.RuneCountInString(*body.DocKey), 1, true))
+			}
+		}
+		if body.DocKey != nil {
+			if utf8.RuneCountInString(*body.DocKey) > 1024 {
+				err = goa.MergeErrors(err, goa.InvalidLengthError("body.docKey", *body.DocKey, utf8.RuneCountInString(*body.DocKey), 1024, false))
 			}
 		}
 		if err != nil {
@@ -196,20 +187,6 @@ func EncodeCreateError(encoder func(context.Context, http.ResponseWriter) goahtt
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusInternalServerError)
-			return enc.Encode(body)
-		case "not_implemented":
-			var res *goa.ServiceError
-			errors.As(v, &res)
-			ctx = context.WithValue(ctx, goahttp.ContentTypeKey, "application/json")
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewCreateNotImplementedResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusNotImplemented)
 			return enc.Encode(body)
 		default:
 			return encodeError(ctx, w, v)
@@ -326,20 +303,6 @@ func EncodeShowError(encoder func(context.Context, http.ResponseWriter) goahttp.
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusInternalServerError)
-			return enc.Encode(body)
-		case "not_implemented":
-			var res *goa.ServiceError
-			errors.As(v, &res)
-			ctx = context.WithValue(ctx, goahttp.ContentTypeKey, "application/json")
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewShowNotImplementedResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusNotImplemented)
 			return enc.Encode(body)
 		default:
 			return encodeError(ctx, w, v)

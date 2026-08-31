@@ -93,16 +93,6 @@
                 }
               }
             }
-          },
-          "501": {
-            "description": "not_implemented: Not Implemented response.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
           }
         },
         "security": [
@@ -195,16 +185,6 @@
                 }
               }
             }
-          },
-          "501": {
-            "description": "not_implemented: Not Implemented response.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
           }
         },
         "security": [
@@ -228,16 +208,6 @@
           },
           "500": {
             "description": "internal_error: Internal Server Error response.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "not_implemented: Not Implemented response.",
             "content": {
               "application/json": {
                 "schema": {
@@ -294,7 +264,8 @@
         "type": "string",
         "description": "DocKey is the document key used to create a DIP.",
         "example": "CH-000001",
-        "minLength": 1
+        "minLength": 1,
+        "maxLength": 1024
       },
       "Error": {
         "type": "object",
