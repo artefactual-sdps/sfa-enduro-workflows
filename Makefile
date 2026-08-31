@@ -25,6 +25,10 @@ IGNORED_PACKAGES := \
 	github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis/gen \
 	github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/design \
 	github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/gen/% \
+	github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/enums \
+	github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence/ent/db \
+	github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence/ent/db/% \
+	github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence/ent/schema \
 	github.com/artefactual-sdps/sfa-enduro-workflows/internal/enums
 
 PACKAGES := $(shell go list ./...)
@@ -33,6 +37,11 @@ TEST_IGNORED_PACKAGES := $(filter $(IGNORED_PACKAGES),$(PACKAGES))
 
 # Configure bine.
 export PATH := $(shell go tool bine path):$(PATH)
+
+atlas-hash: tool-atlas # @HELP Recalculate the migration hashes.
+	atlas migrate hash \
+		--dir="file://internal/dips/persistence/migrations" \
+		--dir-format="atlas"
 
 deps: # @HELP List available module dependency updates.
 deps: tool-go-mod-outdated
@@ -62,7 +71,14 @@ gen-enums: ENUM_FLAGS = --names --template=$(CURDIR)/hack/make/enums.tmpl
 gen-enums: tool-go-enum
 	go-enum $(ENUM_FLAGS) \
 		--nocomments \
+		-f internal/dips/enums/dip_status.go \
 		-f internal/enums/sip_type.go
+
+gen-ent: # @HELP Generate Ent assets.
+gen-ent: tool-ent
+	ent generate ./internal/dips/persistence/ent/schema \
+		--feature sql/versioned-migration \
+		--target=./internal/dips/persistence/ent/db
 
 gen-goa: # @HELP Generate Goa assets for the DIP API design.
 gen-goa: tool-goa tool-jq
@@ -75,6 +91,7 @@ gen-goa: tool-goa tool-jq
 gen-mock: # @HELP Generate mocks.
 gen-mock: tool-mockgen
 	mockgen -typed -destination=./internal/apis/fake/mock_client.go -package=fake github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis Client
+	mockgen -typed -destination=./internal/dips/persistence/fake/mock_service.go -package=fake github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence Service
 	mockgen -typed -destination=./internal/fformat/fake/mock_identifier.go -package=fake github.com/artefactual-sdps/sfa-enduro-workflows/internal/fformat Identifier
 	mockgen -typed -destination=./internal/fvalidate/fake/mock_validator.go -package=fake github.com/artefactual-sdps/sfa-enduro-workflows/internal/fvalidate Validator
 

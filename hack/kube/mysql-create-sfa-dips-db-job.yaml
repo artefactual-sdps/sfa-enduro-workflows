@@ -1,0 +1,32 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mysql-create-sfa-dips-db
+spec:
+  backoffLimit: 100
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: create-database
+          image: mysql:8.4.8
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: root-password
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: user
+          command: [
+              "sh",
+              "-c",
+              'mysql -h mysql.enduro-sdps -u root -p$MYSQL_ROOT_PASSWORD --execute "
+              CREATE DATABASE IF NOT EXISTS sfa_dips;
+              GRANT ALL PRIVILEGES ON sfa_dips.* TO ''$MYSQL_USER''@''%'';
+              "',
+            ]

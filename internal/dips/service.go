@@ -7,18 +7,21 @@ import (
 	"goa.design/goa/v3/security"
 
 	goadips "github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/gen/di_ps"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence"
 )
 
 type Service interface {
 	goadips.Service
 }
 
-type svcImpl struct{}
+type svcImpl struct {
+	psvc persistence.Service
+}
 
 var _ Service = (*svcImpl)(nil)
 
-func NewService() *svcImpl {
-	return &svcImpl{}
+func NewService(psvc persistence.Service) *svcImpl {
+	return &svcImpl{psvc: psvc}
 }
 
 func (svc *svcImpl) BearerAuth(

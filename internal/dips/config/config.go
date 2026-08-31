@@ -14,6 +14,7 @@ import (
 	"go.artefactual.dev/tools/log"
 
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence"
 )
 
 var logLevels = []string{
@@ -64,12 +65,15 @@ type Config struct {
 	Verbosity int
 
 	API api.Config
+
+	Persistence persistence.Config
 }
 
 func (c *Config) Validate() error {
 	return errors.Join(
 		c.LogFormat.Validate(),
 		c.API.Validate(),
+		c.Persistence.Validate(),
 	)
 }
 
@@ -82,6 +86,10 @@ func Read(config *Config, configFile string) (found bool, configFileUsed string,
 	v.SetConfigName("sfa-dips")
 	v.SetDefault("api.listen", "127.0.0.1:8080")
 	v.SetDefault("logFormat", LogFormatJSON)
+	// Register the persistence keys so AutomaticEnv can override them during unmarshalling.
+	v.SetDefault("persistence.driver", "")
+	v.SetDefault("persistence.dsn", "")
+	v.SetDefault("persistence.migrate", false)
 	v.SetEnvPrefix("SFA_DIPS")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()

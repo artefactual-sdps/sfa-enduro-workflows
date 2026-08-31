@@ -17,6 +17,19 @@ spec:
       containers:
         - name: sfa-dips
           image: sfa-dips:dev
+          env:
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: user
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: password
+            - name: SFA_DIPS_PERSISTENCE_DSN
+              value: $(MYSQL_USER):$(MYSQL_PASSWORD)@tcp(mysql.enduro-sdps:3306)/sfa_dips
           ports:
             - containerPort: 8080
           volumeMounts:
