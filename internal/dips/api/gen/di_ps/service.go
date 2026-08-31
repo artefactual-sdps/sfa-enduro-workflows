@@ -132,8 +132,3 @@ func MakeNotFound(err error) *goa.ServiceError {
 func MakeInternalError(err error) *goa.ServiceError {
 	return goa.NewServiceError(err, "internal_error", false, false, true)
 }
-
-// MakeNotImplemented builds a goa.ServiceError from an error.
-func MakeNotImplemented(err error) *goa.ServiceError {
-	return goa.NewServiceError(err, "not_implemented", false, false, false)
-}
