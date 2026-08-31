@@ -14,6 +14,7 @@ type client struct {
 
 var _ persistence.Service = (*client)(nil)
 
+// New returns a new Ent client that implements the persistence service.
 func New(logger logr.Logger, ent *db.Client) persistence.Service {
 	return &client{logger: logger, ent: ent}
 }
