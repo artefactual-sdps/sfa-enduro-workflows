@@ -3,17 +3,23 @@ package dips_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
+	"github.com/go-logr/logr/funcr"
 	"github.com/google/uuid"
 	"go.artefactual.dev/tools/mockutil"
 	"go.uber.org/mock/gomock"
 	goa "goa.design/goa/v3/pkg"
+	"goa.design/goa/v3/security"
 	"gotest.tools/v3/assert"
 
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/auth"
+	authfake "github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/auth/fake"
 	goadips "github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/gen/di_ps"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/datatypes"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/enums"
@@ -21,10 +27,78 @@ import (
 	persistencefake "github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence/fake"
 )
 
+func TestBearerAuth(t *testing.T) {
+	t.Parallel()
+
+	type test struct {
+		name    string
+		mock    func(tv *authfake.MockTokenVerifier, claims *auth.Claims)
+		claims  *auth.Claims
+		logged  string
+		wantErr string
+	}
+	for _, tt := range []test{
+		{
+			name: "Verifies and adds claims to context",
+			mock: func(tv *authfake.MockTokenVerifier, claims *auth.Claims) {
+				tv.EXPECT().
+					Verify(context.Background(), "abc").
+					Return(claims, nil)
+			},
+			claims: &auth.Claims{
+				Email:         "info@artefactual.com",
+				EmailVerified: true,
+			},
+		},
+		{
+			name: "Fails with unauthorized error",
+			mock: func(tv *authfake.MockTokenVerifier, claims *auth.Claims) {
+				tv.EXPECT().
+					Verify(context.Background(), "abc").
+					Return(nil, auth.ErrUnauthorized)
+			},
+			wantErr: "unauthorized",
+		},
+		{
+			name: "Fails with unauthorized error (logging)",
+			mock: func(tv *authfake.MockTokenVerifier, claims *auth.Claims) {
+				tv.EXPECT().
+					Verify(context.Background(), "abc").
+					Return(nil, fmt.Errorf("fail"))
+			},
+			logged:  `"level"=1 "msg"="failed to verify token" "err"="fail"`,
+			wantErr: "unauthorized",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var logged string
+			logger := funcr.New(
+				func(prefix, args string) { logged = args },
+				funcr.Options{Verbosity: 1},
+			)
+
+			tvMock := authfake.NewMockTokenVerifier(gomock.NewController(t))
+			tt.mock(tvMock, tt.claims)
+			svc := dips.NewService(logger, nil, tvMock)
+
+			ctx, err := svc.BearerAuth(context.Background(), "abc", &security.BearerScheme{})
+			assert.Equal(t, logged, tt.logged)
+			if tt.wantErr != "" {
+				assert.ErrorContains(t, err, tt.wantErr)
+				return
+			}
+			assert.NilError(t, err)
+			assert.DeepEqual(t, auth.UserClaimsFromContext(ctx), tt.claims)
+		})
+	}
+}
+
 func TestLivez(t *testing.T) {
 	t.Parallel()
 
-	svc := dips.NewService(nil)
+	svc := dips.NewService(logr.Discard(), nil, nil)
 
 	assert.NilError(t, svc.Livez(t.Context()))
 }
@@ -94,7 +168,7 @@ func TestCreate(t *testing.T) {
 			psvc := persistencefake.NewMockService(gomock.NewController(t))
 			var createdID uuid.UUID
 			tt.mock(t, psvc, &createdID)
-			svc := dips.NewService(psvc)
+			svc := dips.NewService(logr.Discard(), psvc, nil)
 
 			got, err := svc.Create(t.Context(), &goadips.CreatePayload{DocKey: tt.docKey})
 			if tt.wantErrName != "" {
@@ -170,7 +244,7 @@ func TestShow(t *testing.T) {
 
 			psvc := persistencefake.NewMockService(gomock.NewController(t))
 			tt.mock(psvc)
-			svc := dips.NewService(psvc)
+			svc := dips.NewService(logr.Discard(), psvc, nil)
 
 			got, err := svc.Show(t.Context(), &goadips.ShowPayload{ID: tt.id})
 			if tt.wantErr != "" {

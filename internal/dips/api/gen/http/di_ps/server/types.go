@@ -341,7 +341,7 @@ func NewCreatePayload(body struct {
 	// the given docKey even if a cached DIP exists. When ignoreCache is false or
 	// omitted, the ID of a cached DIP may be returned.
 	IgnoreCache *bool `form:"ignoreCache" json:"ignoreCache" xml:"ignoreCache"`
-}, token string) *dips.CreatePayload {
+}, token *string) *dips.CreatePayload {
 	v := &dips.CreatePayload{}
 	if body.DocKey != nil {
 		v.DocKey = dips.DocKey(*body.DocKey)
@@ -358,7 +358,7 @@ func NewCreatePayload(body struct {
 }
 
 // NewShowPayload builds a DIPs service show endpoint payload.
-func NewShowPayload(id string, token string) *dips.ShowPayload {
+func NewShowPayload(id string, token *string) *dips.ShowPayload {
 	v := &dips.ShowPayload{}
 	v.ID = dips.DIPID(id)
 	v.Token = token

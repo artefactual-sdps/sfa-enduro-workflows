@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/auth"
 )
 
 type LogFormat string
@@ -28,6 +30,9 @@ type Config struct {
 
 	// Log defines the logging configuration for the API server.
 	Log LogConfig
+
+	// Auth defines the authentication configuration for the API server.
+	Auth auth.Config
 }
 
 func (c *Config) Validate() error {
@@ -35,6 +40,7 @@ func (c *Config) Validate() error {
 
 	return errors.Join(
 		c.Log.Validate(),
+		c.Auth.Validate(),
 	)
 }
 

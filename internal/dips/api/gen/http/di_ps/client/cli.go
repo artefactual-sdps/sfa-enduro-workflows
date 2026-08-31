@@ -36,9 +36,11 @@ func BuildCreatePayload(dIPsCreateBody string, dIPsCreateToken string) (*dips.Cr
 			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"docKey\": \"CH-000001\",\n      \"ignoreCache\": true\n   }'")
 		}
 	}
-	var token string
+	var token *string
 	{
-		token = dIPsCreateToken
+		if dIPsCreateToken != "" {
+			token = &dIPsCreateToken
+		}
 	}
 	v := &dips.CreatePayload{
 		IgnoreCache: body.IgnoreCache,
@@ -69,9 +71,11 @@ func BuildShowPayload(dIPsShowID string, dIPsShowToken string) (*dips.ShowPayloa
 			return nil, err
 		}
 	}
-	var token string
+	var token *string
 	{
-		token = dIPsShowToken
+		if dIPsShowToken != "" {
+			token = &dIPsShowToken
+		}
 	}
 	v := &dips.ShowPayload{}
 	v.ID = dips.DIPID(id)

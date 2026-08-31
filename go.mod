@@ -5,16 +5,19 @@ go 1.26.5
 require (
 	ariga.io/atlas v1.3.0
 	ariga.io/sqlcomment v0.1.0
+	chainguard.dev/go-oidctest v0.4.0
 	entgo.io/ent v0.14.6
 	github.com/antchfx/xmlquery v1.5.0
 	github.com/artefactual-labs/bagit-gython v0.6.1
 	github.com/artefactual-sdps/enduro v0.31.0
 	github.com/artefactual-sdps/temporal-activities v0.0.0-20260824175558-e5c91dc26e57
 	github.com/beevik/etree v1.6.0
+	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/deckarep/golang-set/v2 v2.8.0
 	github.com/go-chi/httplog/v3 v3.4.0
 	github.com/go-faster/errors v0.7.1
 	github.com/go-faster/jx v1.2.0
+	github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/go-logr/logr v1.4.4
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/go-viper/mapstructure/v2 v2.4.0
@@ -87,7 +90,6 @@ require (
 	github.com/bodgit/sevenzip v1.6.1 // indirect
 	github.com/bodgit/windows v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/coreos/go-oidc/v3 v3.17.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dimfeld/httppath v0.0.0-20170720192232-ee938bf73598 // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
@@ -98,7 +100,6 @@ require (
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-chi/chi/v5 v5.3.1 // indirect
 	github.com/go-faster/yaml v0.4.6 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go-openapi/inflect v0.19.0 // indirect

@@ -64,7 +64,11 @@ func NewCreateEndpoint(s Service, authBearerFn security.AuthBearerFunc) goa.Endp
 			Scopes:         []string{},
 			RequiredScopes: []string{},
 		}
-		ctx, err = authBearerFn(ctx, p.Token, &sc)
+		var token string
+		if p.Token != nil {
+			token = *p.Token
+		}
+		ctx, err = authBearerFn(ctx, token, &sc)
 		if err != nil {
 			return nil, err
 		}
@@ -83,7 +87,11 @@ func NewShowEndpoint(s Service, authBearerFn security.AuthBearerFunc) goa.Endpoi
 			Scopes:         []string{},
 			RequiredScopes: []string{},
 		}
-		ctx, err = authBearerFn(ctx, p.Token, &sc)
+		var token string
+		if p.Token != nil {
+			token = *p.Token
+		}
+		ctx, err = authBearerFn(ctx, token, &sc)
 		if err != nil {
 			return nil, err
 		}

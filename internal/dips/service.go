@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"unicode/utf8"
 
+	"github.com/go-logr/logr"
 	"github.com/google/uuid"
 	"goa.design/goa/v3/security"
 
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/auth"
 	goadips "github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/gen/di_ps"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/datatypes"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/enums"
@@ -22,13 +24,19 @@ type Service interface {
 }
 
 type svcImpl struct {
-	psvc persistence.Service
+	logger        logr.Logger
+	tokenVerifier auth.TokenVerifier
+	psvc          persistence.Service
 }
 
 var _ Service = (*svcImpl)(nil)
 
-func NewService(psvc persistence.Service) *svcImpl {
-	return &svcImpl{psvc: psvc}
+func NewService(logger logr.Logger, psvc persistence.Service, tokenVerifier auth.TokenVerifier) *svcImpl {
+	return &svcImpl{
+		logger:        logger,
+		tokenVerifier: tokenVerifier,
+		psvc:          psvc,
+	}
 }
 
 func (svc *svcImpl) BearerAuth(
@@ -36,6 +44,16 @@ func (svc *svcImpl) BearerAuth(
 	token string,
 	schema *security.BearerScheme,
 ) (context.Context, error) {
+	claims, err := svc.tokenVerifier.Verify(ctx, token)
+	if err != nil {
+		if !errors.Is(err, auth.ErrUnauthorized) {
+			svc.logger.V(1).Info("failed to verify token", "err", err)
+		}
+		return ctx, goadips.MakeUnauthorized(errors.New("unauthorized"))
+	}
+
+	ctx = auth.WithUserClaims(ctx, claims)
+
 	return ctx, nil
 }
 
