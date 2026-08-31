@@ -19,6 +19,7 @@ import (
 
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/auth"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/config"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence"
 	entclient "github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence/ent/client"
@@ -122,6 +123,20 @@ func main() {
 		perSvc = entclient.New(logger.WithName("persistence"), entDBClient)
 	}
 
+	// Set up the OIDC token verifier.
+	var tokenVerifier auth.TokenVerifier
+	{
+		if cfg.API.Auth.Enabled {
+			tokenVerifier, err = auth.NewOIDCTokenVerifiers(ctx, cfg.API.Auth.OIDC)
+			if err != nil {
+				logger.Error(err, "Error connecting to OIDC provider.")
+				os.Exit(1)
+			}
+		} else {
+			tokenVerifier = &auth.NoopTokenVerifier{}
+		}
+	}
+
 	var g run.Group
 
 	// API server.
@@ -130,7 +145,13 @@ func main() {
 
 		g.Add(
 			func() error {
-				srv = api.HTTPServer(logger, apiLog.Logger, &cfg.API, dips.NewService(perSvc))
+				logger := logger.WithName("api")
+				srv = api.HTTPServer(
+					logger,
+					apiLog.Logger,
+					&cfg.API,
+					dips.NewService(logger, perSvc, tokenVerifier),
+				)
 				logger.Info("DIPs API HTTP server listening.", "addr", srv.Addr)
 				return srv.ListenAndServe()
 			},

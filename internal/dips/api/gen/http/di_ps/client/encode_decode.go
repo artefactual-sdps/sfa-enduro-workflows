@@ -103,8 +103,8 @@ func EncodeCreateRequest(encoder func(*http.Request) goahttp.Encoder) func(*http
 		if !ok {
 			return goahttp.ErrInvalidType("DIPs", "create", "*dips.CreatePayload", v)
 		}
-		{
-			head := p.Token
+		if p.Token != nil {
+			head := *p.Token
 			if !strings.Contains(head, " ") {
 				req.Header.Set("Authorization", "Bearer "+head)
 			} else {
@@ -239,8 +239,8 @@ func EncodeShowRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.R
 		if !ok {
 			return goahttp.ErrInvalidType("DIPs", "show", "*dips.ShowPayload", v)
 		}
-		{
-			head := p.Token
+		if p.Token != nil {
+			head := *p.Token
 			if !strings.Contains(head, " ") {
 				req.Header.Set("Authorization", "Bearer "+head)
 			} else {

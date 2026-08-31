@@ -54,7 +54,7 @@ var MethodNames = [3]string{"livez", "create", "show"}
 // CreatePayload is the payload type of the DIPs service create method.
 type CreatePayload struct {
 	// The token field contains the OIDC bearer token.
-	Token string
+	Token *string
 	// The docKey field contains the document key used to create the DIP.
 	DocKey DocKey
 	// The ignoreCache field indicates whether to ignore a cached DIP previously
@@ -88,7 +88,7 @@ type ObjectKey string
 // ShowPayload is the payload type of the DIPs service show method.
 type ShowPayload struct {
 	// The token field contains the OIDC bearer token.
-	Token string
+	Token *string
 	// The id field contains the DIP identifier.
 	ID DIPID
 }

@@ -119,7 +119,7 @@ var _ = Service("DIPs", func() {
 				Default(false)
 				Example(true)
 			})
-			Required("token", "docKey")
+			Required("docKey")
 		})
 		Result(func() {
 			Attribute("id", DIPID, "The id field contains the identifier assigned to the DIP.")
@@ -144,7 +144,7 @@ var _ = Service("DIPs", func() {
 		Payload(func() {
 			BearerToken("token", String, "The token field contains the OIDC bearer token.")
 			Attribute("id", DIPID, "The id field contains the DIP identifier.")
-			Required("token", "id")
+			Required("id")
 		})
 		Result(func() {
 			Attribute("id", DIPID, "The id field uniquely identifies the DIP.")

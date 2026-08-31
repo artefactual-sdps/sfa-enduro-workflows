@@ -91,6 +91,7 @@ gen-goa: tool-goa tool-jq
 gen-mock: # @HELP Generate mocks.
 gen-mock: tool-mockgen
 	mockgen -typed -destination=./internal/apis/fake/mock_client.go -package=fake github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis Client
+	mockgen -typed -destination=./internal/dips/api/auth/fake/mock_token_verifier.go -package=fake github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/auth TokenVerifier
 	mockgen -typed -destination=./internal/dips/persistence/fake/mock_service.go -package=fake github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence Service
 	mockgen -typed -destination=./internal/fformat/fake/mock_identifier.go -package=fake github.com/artefactual-sdps/sfa-enduro-workflows/internal/fformat Identifier
 	mockgen -typed -destination=./internal/fvalidate/fake/mock_validator.go -package=fake github.com/artefactual-sdps/sfa-enduro-workflows/internal/fvalidate Validator

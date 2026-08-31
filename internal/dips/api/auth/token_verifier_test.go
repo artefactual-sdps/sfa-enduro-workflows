@@ -1,0 +1,322 @@
+package auth_test
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"chainguard.dev/go-oidctest/pkg/oidctest"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
+
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/auth"
+)
+
+const (
+	audience = "test-audience"
+	subject  = "test-subject"
+)
+
+func token(t *testing.T, signer jose.Signer, iss string, claims any) (token string) {
+	t.Helper()
+
+	// Use signed builder to generate token with given claims.
+	builder := jwt.Signed(signer).
+		Claims(jwt.Claims{
+			Issuer:   iss,
+			IssuedAt: jwt.NewNumericDate(time.Now()),
+			Expiry:   jwt.NewNumericDate(time.Now().Add(30 * time.Minute)),
+			Subject:  subject,
+			Audience: jwt.Audience{audience},
+		})
+
+	// Include extra claims.
+	if claims != nil {
+		builder = builder.Claims(claims)
+	}
+
+	// Serialize token.
+	token, err := builder.Serialize()
+	assert.NilError(t, err)
+
+	return token
+}
+
+func TestOIDCTokenVerifier(t *testing.T) {
+	t.Parallel()
+
+	type verification struct {
+		token           string
+		wantClaims      *auth.Claims
+		wantErrContains []string
+		wantErrIs       error
+	}
+	type test struct {
+		name  string
+		setup func(t *testing.T) (auth.OIDCConfigs, []verification)
+	}
+	for _, tt := range []test{
+		{
+			name: "Verifies tokens with email verified",
+			setup: func(t *testing.T) (auth.OIDCConfigs, []verification) {
+				signer, iss := oidctest.NewIssuer(t)
+				token := token(t, signer, iss, auth.Claims{
+					Email:         "info@artefactual.com",
+					EmailVerified: true,
+				})
+
+				return auth.OIDCConfigs{
+						{ProviderURL: iss, ClientID: audience},
+					}, []verification{
+						{
+							token: token,
+							wantClaims: &auth.Claims{
+								Email:         "info@artefactual.com",
+								EmailVerified: true,
+								Iss:           iss,
+								Sub:           subject,
+							},
+						},
+					}
+			},
+		},
+		{
+			name: "Verifies tokens without email verified (skipEmailVerifiedCheck)",
+			setup: func(t *testing.T) (auth.OIDCConfigs, []verification) {
+				signer, iss := oidctest.NewIssuer(t)
+				token := token(t, signer, iss, auth.Claims{
+					Email: "info@artefactual.com",
+				})
+
+				return auth.OIDCConfigs{
+						{
+							ProviderURL:            iss,
+							ClientID:               audience,
+							SkipEmailVerifiedCheck: true,
+						},
+					}, []verification{
+						{
+							token: token,
+							wantClaims: &auth.Claims{
+								Email: "info@artefactual.com",
+								Iss:   iss,
+								Sub:   subject,
+							},
+						},
+					}
+			},
+		},
+		{
+			name: "Rejects tokens without email verified",
+			setup: func(t *testing.T) (auth.OIDCConfigs, []verification) {
+				signer, iss := oidctest.NewIssuer(t)
+				token := token(t, signer, iss, auth.Claims{
+					Email: "info@artefactual.com",
+				})
+
+				return auth.OIDCConfigs{
+						{ProviderURL: iss, ClientID: audience},
+					}, []verification{
+						{
+							token:     token,
+							wantErrIs: auth.ErrUnauthorized,
+						},
+					}
+			},
+		},
+		{
+			name: "Rejects tokens under other errorful conditions",
+			setup: func(t *testing.T) (auth.OIDCConfigs, []verification) {
+				signer, iss := oidctest.NewIssuer(t)
+				token := token(t, signer, iss, auth.Claims{
+					Email:         "info@artefactual.com",
+					EmailVerified: false,
+				})
+
+				return auth.OIDCConfigs{
+						{ProviderURL: iss, ClientID: "--- wrong-audience ---"},
+					}, []verification{
+						{
+							token: token,
+							wantErrContains: []string{
+								`oidc: expected audience "--- wrong-audience ---" got ["test-audience"]`,
+							},
+						},
+					}
+			},
+		},
+		{
+			name: "Verifies token when multiple providers are configured",
+			setup: func(t *testing.T) (auth.OIDCConfigs, []verification) {
+				signerA, issA := oidctest.NewIssuer(t)
+				tokenA := token(t, signerA, issA, auth.Claims{
+					Email:         "example@artefactual.com",
+					EmailVerified: true,
+				})
+				signerB, issB := oidctest.NewIssuer(t)
+				tokenB := token(t, signerB, issB, auth.Claims{
+					Email:         "example@artefactual.com",
+					EmailVerified: true,
+				})
+
+				return auth.OIDCConfigs{
+						{ProviderURL: issA, ClientID: audience},
+						{ProviderURL: issB, ClientID: audience},
+					}, []verification{
+						{
+							token: tokenA,
+							wantClaims: &auth.Claims{
+								Email:         "example@artefactual.com",
+								EmailVerified: true,
+								Iss:           issA,
+								Sub:           subject,
+							},
+						},
+						{
+							token: tokenB,
+							wantClaims: &auth.Claims{
+								Email:         "example@artefactual.com",
+								EmailVerified: true,
+								Iss:           issB,
+								Sub:           subject,
+							},
+						},
+					}
+			},
+		},
+		{
+			name: "Verifies token using per-verifier skipEmailVerifiedCheck",
+			setup: func(t *testing.T) (auth.OIDCConfigs, []verification) {
+				signer, iss := oidctest.NewIssuer(t)
+				token := token(t, signer, iss, auth.Claims{
+					Email: "example@artefactual.com",
+				})
+
+				return auth.OIDCConfigs{
+						{
+							ProviderURL:            iss,
+							ClientID:               audience,
+							SkipEmailVerifiedCheck: false,
+						},
+						{
+							ProviderURL:            iss,
+							ClientID:               audience,
+							SkipEmailVerifiedCheck: true,
+						},
+					}, []verification{
+						{
+							token: token,
+							wantClaims: &auth.Claims{
+								Email: "example@artefactual.com",
+								Iss:   iss,
+								Sub:   subject,
+							},
+						},
+					}
+			},
+		},
+		{
+			name: "Returns joined errors when all verifiers fail with non authorization errors",
+			setup: func(t *testing.T) (auth.OIDCConfigs, []verification) {
+				signer, iss := oidctest.NewIssuer(t)
+				token := token(t, signer, iss, auth.Claims{
+					Email:         "example@artefactual.com",
+					EmailVerified: true,
+				})
+
+				return auth.OIDCConfigs{
+						{ProviderURL: iss, ClientID: "wrong-audience-a"},
+						{ProviderURL: iss, ClientID: "wrong-audience-b"},
+					}, []verification{
+						{
+							token: token,
+							wantErrContains: []string{
+								`oidc: expected audience "wrong-audience-a" got ["test-audience"]`,
+								`oidc: expected audience "wrong-audience-b" got ["test-audience"]`,
+							},
+						},
+					}
+			},
+		},
+		{
+			name: "Returns unauthorized when all verifiers fail with unauthorized",
+			setup: func(t *testing.T) (auth.OIDCConfigs, []verification) {
+				signer, iss := oidctest.NewIssuer(t)
+				token := token(t, signer, iss, auth.Claims{
+					Email: "example@artefactual.com",
+				})
+
+				return auth.OIDCConfigs{
+						{ProviderURL: iss, ClientID: audience},
+						{ProviderURL: iss, ClientID: audience},
+					}, []verification{
+						{
+							token:     token,
+							wantErrIs: auth.ErrUnauthorized,
+						},
+					}
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfgs, verifications := tt.setup(t)
+			ctx := context.Background()
+			v, err := auth.NewOIDCTokenVerifiers(ctx, cfgs)
+			assert.NilError(t, err)
+
+			for _, verify := range verifications {
+				claims, err := v.Verify(ctx, verify.token)
+				if len(verify.wantErrContains) > 0 {
+					assert.Assert(t, cmp.Nil(claims))
+					for _, wantErr := range verify.wantErrContains {
+						assert.ErrorContains(t, err, wantErr)
+					}
+					continue
+				}
+				if verify.wantErrIs != nil {
+					assert.Assert(t, cmp.Nil(claims))
+					assert.ErrorIs(t, err, verify.wantErrIs)
+					continue
+				}
+
+				assert.NilError(t, err)
+				assert.DeepEqual(t, claims, verify.wantClaims)
+			}
+		})
+	}
+
+	t.Run("Fails when no OIDC configs are provided", func(t *testing.T) {
+		t.Parallel()
+
+		ctx := context.Background()
+		_, err := auth.NewOIDCTokenVerifiers(ctx, nil)
+		assert.Error(t, err, "missing OIDC token verifier configuration")
+	})
+
+	t.Run("Constructor fails when context is canceled", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		_, err := auth.NewOIDCTokenVerifiers(ctx, auth.OIDCConfigs{{
+			ProviderURL: "http://test",
+		}})
+		assert.Error(t, err, "Get \"http://test/.well-known/openid-configuration\": context canceled")
+	})
+}
+
+func TestNoopTokenVerifier(t *testing.T) {
+	t.Run("Verifies tokens", func(t *testing.T) {
+		ctx := context.Background()
+		v := &auth.NoopTokenVerifier{}
+
+		claims, err := v.Verify(ctx, "")
+		assert.NilError(t, err)
+		assert.Assert(t, cmp.Nil(claims))
+	})
+}

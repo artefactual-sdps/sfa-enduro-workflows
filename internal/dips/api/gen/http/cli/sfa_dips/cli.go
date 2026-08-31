@@ -51,11 +51,11 @@ func ParseEndpoint(
 
 		dIPsCreateFlags     = flag.NewFlagSet("create", flag.ExitOnError)
 		dIPsCreateBodyFlag  = dIPsCreateFlags.String("body", "REQUIRED", "")
-		dIPsCreateTokenFlag = dIPsCreateFlags.String("token", "REQUIRED", "")
+		dIPsCreateTokenFlag = dIPsCreateFlags.String("token", "", "")
 
 		dIPsShowFlags     = flag.NewFlagSet("show", flag.ExitOnError)
 		dIPsShowIDFlag    = dIPsShowFlags.String("id", "REQUIRED", "The id field contains the DIP identifier.")
-		dIPsShowTokenFlag = dIPsShowFlags.String("token", "REQUIRED", "")
+		dIPsShowTokenFlag = dIPsShowFlags.String("token", "", "")
 	)
 	dIPsFlags.Usage = dIPsUsage
 	dIPsLivezFlags.Usage = dIPsLivezUsage
