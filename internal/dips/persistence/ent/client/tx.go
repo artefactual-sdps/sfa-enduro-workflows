@@ -1,6 +1,7 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence"
@@ -13,5 +14,8 @@ func rollback(tx *db.Tx, err error) error {
 		return err
 	}
 
-	return fmt.Errorf("%w: failed transaction rollback: %v", persistence.ErrInternal, err)
+	return errors.Join(
+		err,
+		fmt.Errorf("%w: failed transaction rollback: %v", persistence.ErrInternal, rerr),
+	)
 }
