@@ -52,6 +52,32 @@ func (f LogFormat) LoggerFormat() log.Format {
 	}
 }
 
+type TemporalConfig struct {
+	Address               string
+	Namespace             string
+	TaskQueue             string
+	MaxConcurrentSessions int
+}
+
+func (c TemporalConfig) Validate() error {
+	var errs error
+
+	if c.Address == "" {
+		errs = errors.Join(errs, fmt.Errorf("Temporal.Address: missing required value"))
+	}
+	if c.Namespace == "" {
+		errs = errors.Join(errs, fmt.Errorf("Temporal.Namespace: missing required value"))
+	}
+	if c.TaskQueue == "" {
+		errs = errors.Join(errs, fmt.Errorf("Temporal.TaskQueue: missing required value"))
+	}
+	if c.MaxConcurrentSessions <= 0 {
+		errs = errors.Join(errs, fmt.Errorf("Temporal.MaxConcurrentSessions: must be greater than 0"))
+	}
+
+	return errs
+}
+
 type Config struct {
 	// LogFormat controls the encoding of application log messages. Supported
 	// values are "json" for structured output and "text" for human-readable,
@@ -64,9 +90,9 @@ type Config struct {
 	// documentation for more information on logging levels.
 	Verbosity int
 
-	API api.Config
-
+	API         api.Config
 	Persistence persistence.Config
+	Temporal    TemporalConfig
 }
 
 func (c *Config) Validate() error {
@@ -74,6 +100,7 @@ func (c *Config) Validate() error {
 		c.LogFormat.Validate(),
 		c.API.Validate(),
 		c.Persistence.Validate(),
+		c.Temporal.Validate(),
 	)
 }
 
@@ -84,12 +111,22 @@ func Read(config *Config, configFile string) (found bool, configFileUsed string,
 	v.AddConfigPath("$HOME/.config/")
 	v.AddConfigPath("/etc")
 	v.SetConfigName("sfa-dips")
-	v.SetDefault("api.listen", "127.0.0.1:8080")
+	// Register keys so AutomaticEnv can override them during unmarshalling.
 	v.SetDefault("logFormat", LogFormatJSON)
-	// Register the persistence keys so AutomaticEnv can override them during unmarshalling.
+	v.SetDefault("verbosity", 0)
+	v.SetDefault("api.listen", "127.0.0.1:8080")
+	v.SetDefault("api.corsOrigin", "")
+	v.SetDefault("api.log.path", "")
+	v.SetDefault("api.log.level", slog.LevelInfo)
+	v.SetDefault("api.log.format", api.LogFormatJSON)
+	v.SetDefault("api.auth.enabled", false)
 	v.SetDefault("persistence.driver", "")
 	v.SetDefault("persistence.dsn", "")
 	v.SetDefault("persistence.migrate", false)
+	v.SetDefault("temporal.address", "")
+	v.SetDefault("temporal.namespace", "")
+	v.SetDefault("temporal.taskQueue", "")
+	v.SetDefault("temporal.maxConcurrentSessions", 0)
 	v.SetEnvPrefix("SFA_DIPS")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()

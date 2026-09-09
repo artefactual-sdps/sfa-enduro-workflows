@@ -16,14 +16,22 @@ import (
 	"github.com/oklog/run"
 	"github.com/spf13/pflag"
 	"go.artefactual.dev/tools/log"
+	temporal_tools "go.artefactual.dev/tools/temporal"
+	temporalsdk_activity "go.temporal.io/sdk/activity"
+	temporalsdk_client "go.temporal.io/sdk/client"
+	temporalsdk_interceptor "go.temporal.io/sdk/interceptor"
+	temporalsdk_worker "go.temporal.io/sdk/worker"
+	temporalsdk_workflow "go.temporal.io/sdk/workflow"
 
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/activities"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/auth"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/config"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence"
 	entclient "github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence/ent/client"
 	entdb "github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence/ent/db"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/workflows"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/version"
 )
 
@@ -137,6 +145,38 @@ func main() {
 		}
 	}
 
+	// Set up the Temporal client.
+	temporalClient, err := temporalsdk_client.Dial(temporalsdk_client.Options{
+		Namespace: cfg.Temporal.Namespace,
+		HostPort:  cfg.Temporal.Address,
+		Logger:    temporal_tools.Logger(logger.WithName("temporal-client")),
+	})
+	if err != nil {
+		logger.Error(err, "Error creating Temporal client.")
+		os.Exit(1)
+	}
+
+	// Set up the Temporal worker.
+	workerOpts := temporalsdk_worker.Options{
+		EnableSessionWorker:                true,
+		MaxConcurrentSessionExecutionSize:  cfg.Temporal.MaxConcurrentSessions,
+		MaxConcurrentActivityExecutionSize: cfg.Temporal.MaxConcurrentSessions,
+		Interceptors: []temporalsdk_interceptor.WorkerInterceptor{
+			temporal_tools.NewLoggerInterceptor(logger.WithName("worker")),
+		},
+	}
+	temporalWorker := temporalsdk_worker.New(temporalClient, cfg.Temporal.TaskQueue, workerOpts)
+
+	// Register workflows and activities.
+	temporalWorker.RegisterWorkflowWithOptions(
+		workflows.NewCreateDIP().Execute,
+		temporalsdk_workflow.RegisterOptions{Name: workflows.CreateDIPName},
+	)
+	temporalWorker.RegisterActivityWithOptions(
+		activities.NewUpdateDIP(perSvc).Execute,
+		temporalsdk_activity.RegisterOptions{Name: activities.UpdateDIPName},
+	)
+
 	var g run.Group
 
 	// API server.
@@ -163,7 +203,18 @@ func main() {
 		)
 	}
 
-	// TODO: Add a Temporal worker to the run group when it is implemented.
+	// Temporal worker.
+	{
+		interrupt := make(chan any)
+		g.Add(
+			func() error {
+				return temporalWorker.Run(interrupt)
+			},
+			func(err error) {
+				close(interrupt)
+			},
+		)
+	}
 
 	// Signal handler.
 	{
