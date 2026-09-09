@@ -137,7 +137,7 @@ func Read(config *Config, configFile string) (found bool, configFileUsed string,
 // setCORSOriginEnv sets the CORS Origin environment variable needed by
 // Goa-generated code for the API.
 func setCORSOriginEnv(cfg *Config) error {
-	if err := os.Setenv("SFA_DIPS_API_CORS_ORIGIN", cfg.API.CORSOrigin); err != nil {
+	if err := os.Setenv("SFA_DIPS_API_CORSORIGIN", cfg.API.CORSOrigin); err != nil {
 		return err
 	}
 

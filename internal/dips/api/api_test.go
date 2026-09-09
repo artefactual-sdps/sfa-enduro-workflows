@@ -48,7 +48,7 @@ type testAPI struct {
 
 func newTestAPI(t *testing.T) *testAPI {
 	t.Helper()
-	t.Setenv("SFA_DIPS_API_CORS_ORIGIN", "http://example.com")
+	t.Setenv("SFA_DIPS_API_CORSORIGIN", "http://example.com")
 
 	dipsSvc := &testDIPsService{}
 
@@ -78,9 +78,11 @@ func TestHTTPServer(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/dips/"+dipID, nil)
 	req.Header.Set("Authorization", "Bearer token")
+	req.Header.Set("Origin", "http://example.com")
 	rec := httptest.NewRecorder()
 	api.handler.ServeHTTP(rec, req)
 	assert.Equal(t, rec.Code, http.StatusOK)
+	assert.Equal(t, rec.Header().Get("Access-Control-Allow-Origin"), "http://example.com")
 
 	var body map[string]any
 	assert.NilError(t, json.NewDecoder(rec.Body).Decode(&body))

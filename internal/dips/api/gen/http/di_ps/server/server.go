@@ -268,9 +268,9 @@ func NewCORSHandler() http.Handler {
 // HandleDIPsOrigin applies the CORS response headers corresponding to the
 // origin for the service DIPs.
 func HandleDIPsOrigin(h http.Handler) http.Handler {
-	originStr0, present := os.LookupEnv("SFA_DIPS_API_CORS_ORIGIN")
+	originStr0, present := os.LookupEnv("SFA_DIPS_API_CORSORIGIN")
 	if !present {
-		panic("CORS origin environment variable \"SFA_DIPS_API_CORS_ORIGIN\" not set!")
+		panic("CORS origin environment variable \"SFA_DIPS_API_CORSORIGIN\" not set!")
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")

@@ -93,7 +93,7 @@ func TestReadSetsDefaults(t *testing.T) {
 }
 
 func TestReadSetsCORSOriginEnvironment(t *testing.T) {
-	t.Setenv("SFA_DIPS_API_CORS_ORIGIN", "")
+	t.Setenv("SFA_DIPS_API_CORSORIGIN", "")
 	tmpDir := fs.NewDir(t, "", fs.WithFile("sfa-dips.toml", `
 [api]
 listen = "127.0.0.1:8080"
@@ -108,7 +108,7 @@ dsn = "root:root123@tcp(localhost:3306)/sfa_dips"
 	_, _, err := config.Read(&cfg, tmpDir.Join("sfa-dips.toml"))
 
 	assert.NilError(t, err)
-	assert.Equal(t, os.Getenv("SFA_DIPS_API_CORS_ORIGIN"), "https://example.test")
+	assert.Equal(t, os.Getenv("SFA_DIPS_API_CORSORIGIN"), "https://example.test")
 }
 
 func TestReadRejectsInvalidApplicationLogFormat(t *testing.T) {

@@ -44,7 +44,7 @@ var _ = API("DIPs", func() {
 	HTTP(func() {
 		Consumes("application/json")
 	})
-	cors.Origin("$SFA_DIPS_API_CORS_ORIGIN", func() {
+	cors.Origin("$SFA_DIPS_API_CORSORIGIN", func() {
 		cors.Methods("GET", "HEAD", "POST", "OPTIONS")
 		cors.Headers("Authorization", "Content-Type")
 	})
