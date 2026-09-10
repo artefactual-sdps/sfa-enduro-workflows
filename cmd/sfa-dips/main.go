@@ -190,7 +190,7 @@ func main() {
 					logger,
 					apiLog.Logger,
 					&cfg.API,
-					dips.NewService(logger, perSvc, tokenVerifier),
+					dips.NewService(logger, perSvc, tokenVerifier, temporalClient, cfg.Temporal.TaskQueue),
 				)
 				logger.Info("DIPs API HTTP server listening.", "addr", srv.Addr)
 				return srv.ListenAndServe()

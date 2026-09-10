@@ -11,7 +11,11 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/go-logr/logr/funcr"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/mock"
 	"go.artefactual.dev/tools/mockutil"
+	temporalapi_enums "go.temporal.io/api/enums/v1"
+	temporalsdk_client "go.temporal.io/sdk/client"
+	temporalsdk_mocks "go.temporal.io/sdk/mocks"
 	"go.uber.org/mock/gomock"
 	goa "goa.design/goa/v3/pkg"
 	"goa.design/goa/v3/security"
@@ -25,6 +29,7 @@ import (
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/enums"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence"
 	persistencefake "github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence/fake"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/workflows"
 )
 
 func TestBearerAuth(t *testing.T) {
@@ -81,7 +86,7 @@ func TestBearerAuth(t *testing.T) {
 
 			tvMock := authfake.NewMockTokenVerifier(gomock.NewController(t))
 			tt.mock(tvMock, tt.claims)
-			svc := dips.NewService(logger, nil, tvMock)
+			svc := dips.NewService(logger, nil, tvMock, nil, "")
 
 			ctx, err := svc.BearerAuth(context.Background(), "abc", &security.BearerScheme{})
 			assert.Equal(t, logged, tt.logged)
@@ -98,7 +103,7 @@ func TestBearerAuth(t *testing.T) {
 func TestLivez(t *testing.T) {
 	t.Parallel()
 
-	svc := dips.NewService(logr.Discard(), nil, nil)
+	svc := dips.NewService(logr.Discard(), nil, nil, nil, "")
 
 	assert.NilError(t, svc.Livez(t.Context()))
 }
@@ -107,57 +112,57 @@ func TestCreate(t *testing.T) {
 	t.Parallel()
 
 	for _, tt := range []struct {
-		name        string
-		docKey      goadips.DocKey
-		mock        func(*testing.T, *persistencefake.MockService, *uuid.UUID)
-		wantErr     string
-		wantErrName string
+		name           string
+		docKey         goadips.DocKey
+		persistenceErr error
+		startErr       error
+		cleanupErr     error
+		cancelRequest  bool
+		wantErr        string
+		wantErrName    string
 	}{
 		{
-			name:   "Creates a DIP",
+			name:   "Creates a DIP and starts its workflow",
 			docKey: "CH-000001",
-			mock: func(t *testing.T, psvc *persistencefake.MockService, createdID *uuid.UUID) {
-				t.Helper()
-
-				psvc.EXPECT().
-					CreateDIP(mockutil.Context(), gomock.Any()).
-					DoAndReturn(func(_ context.Context, d *datatypes.DIP) error {
-						assert.Assert(t, d.UUID != uuid.Nil)
-						assert.Equal(t, d.DocKey, "CH-000001")
-						assert.Equal(t, d.Status, enums.DIPStatusQueued)
-						*createdID = d.UUID
-						return nil
-					})
-			},
 		},
 		{
-			name:   "Returns an internal error when persistence fails",
-			docKey: "CH-000001",
-			mock: func(t *testing.T, psvc *persistencefake.MockService, _ *uuid.UUID) {
-				t.Helper()
-
-				psvc.EXPECT().
-					CreateDIP(mockutil.Context(), gomock.Any()).
-					DoAndReturn(func(_ context.Context, d *datatypes.DIP) error {
-						assert.Assert(t, d.UUID != uuid.Nil)
-						assert.Equal(t, d.DocKey, "CH-000001")
-						assert.Equal(t, d.Status, enums.DIPStatusQueued)
-						return errors.New("persistence error")
-					})
-			},
-			wantErr:     "create DIP: persistence error",
+			name:           "Does not start a workflow when persistence fails",
+			docKey:         "CH-000001",
+			persistenceErr: errors.New("persistence error"),
+			wantErr:        "create DIP: persistence error",
+			wantErrName:    "internal_error",
+		},
+		{
+			name:        "Deletes the DIP when workflow startup fails",
+			docKey:      "CH-000001",
+			startErr:    errors.New("temporal error"),
+			wantErr:     "create DIP: start DIP creation workflow: temporal error",
 			wantErrName: "internal_error",
 		},
 		{
+			name:        "Reports both workflow startup and cleanup failures",
+			docKey:      "CH-000001",
+			startErr:    errors.New("temporal error"),
+			cleanupErr:  errors.New("delete DIP error"),
+			wantErr:     "create DIP: start DIP creation workflow: temporal error\ndelete DIP error",
+			wantErrName: "internal_error",
+		},
+		{
+			name:          "Cleans up after request cancellation",
+			docKey:        "CH-000001",
+			startErr:      context.Canceled,
+			cancelRequest: true,
+			wantErr:       "create DIP: start DIP creation workflow: context canceled",
+			wantErrName:   "internal_error",
+		},
+		{
 			name:        "Returns a bad request for an empty document key",
-			mock:        func(*testing.T, *persistencefake.MockService, *uuid.UUID) {},
 			wantErr:     "empty docKey",
 			wantErrName: "bad_request",
 		},
 		{
 			name:        "Returns a bad request for a document key longer than 1024 characters",
 			docKey:      goadips.DocKey(strings.Repeat("a", 1025)),
-			mock:        func(*testing.T, *persistencefake.MockService, *uuid.UUID) {},
 			wantErr:     "docKey exceeds 1024 characters",
 			wantErrName: "bad_request",
 		},
@@ -166,19 +171,77 @@ func TestCreate(t *testing.T) {
 			t.Parallel()
 
 			psvc := persistencefake.NewMockService(gomock.NewController(t))
-			var createdID uuid.UUID
-			tt.mock(t, psvc, &createdID)
-			svc := dips.NewService(logr.Discard(), psvc, nil)
+			tc := temporalsdk_mocks.NewClient(t)
+			svc := dips.NewService(logr.Discard(), psvc, nil, tc, "test-dips")
+			claims := &auth.Claims{Email: "info@artefactual.com"}
+			ctx, cancel := context.WithCancel(auth.WithUserClaims(t.Context(), claims))
+			defer cancel()
+			var savedDIP datatypes.DIP
 
-			got, err := svc.Create(t.Context(), &goadips.CreatePayload{DocKey: tt.docKey})
+			if tt.wantErrName == "bad_request" {
+				got, err := svc.Create(ctx, &goadips.CreatePayload{DocKey: tt.docKey})
+				assert.Assert(t, got == nil)
+				assert.ErrorContains(t, err, tt.wantErr)
+				assertServiceErrorName(t, err, tt.wantErrName)
+				return
+			}
+
+			psvc.EXPECT().CreateDIP(ctx, gomock.Any()).
+				DoAndReturn(func(_ context.Context, d *datatypes.DIP) error {
+					assert.Assert(t, d.UUID != uuid.Nil)
+					assert.Equal(t, d.DocKey, "CH-000001")
+					assert.Equal(t, d.Status, enums.DIPStatusQueued)
+					d.DBID = 42
+					d.CreatedAt = time.Date(2026, time.September, 10, 8, 0, 0, 0, time.UTC)
+					savedDIP = *d
+					return tt.persistenceErr
+				})
+			if tt.persistenceErr == nil {
+				tc.On("ExecuteWorkflow", mock.Anything, mock.Anything, "create-dip", mock.Anything).
+					Run(func(args mock.Arguments) {
+						assert.Assert(t, savedDIP.UUID != uuid.Nil)
+						opts := args.Get(1).(temporalsdk_client.StartWorkflowOptions)
+						assert.Equal(t, opts.ID, "create-dip-"+savedDIP.UUID.String())
+						assert.Equal(t, opts.TaskQueue, "test-dips")
+						assert.Equal(
+							t,
+							opts.WorkflowIDReusePolicy,
+							temporalapi_enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+						)
+						assert.DeepEqual(t, args.Get(3), &workflows.CreateDIPParams{DIP: savedDIP})
+						startCtx := args.Get(0).(context.Context)
+						deadline, ok := startCtx.Deadline()
+						assert.Assert(t, ok)
+						assert.Assert(t, time.Until(deadline) > 0 && time.Until(deadline) <= 5*time.Second)
+						if tt.cancelRequest {
+							cancel()
+							assert.ErrorIs(t, startCtx.Err(), context.Canceled)
+						}
+					}).Return(nil, tt.startErr).Once()
+			}
+			if tt.startErr != nil {
+				psvc.EXPECT().DeleteDIP(mockutil.Context(), gomock.Any()).
+					DoAndReturn(func(cleanupCtx context.Context, id uuid.UUID) error {
+						assert.Equal(t, id, savedDIP.UUID)
+						assert.NilError(t, cleanupCtx.Err())
+						assert.DeepEqual(t, auth.UserClaimsFromContext(cleanupCtx), claims)
+						deadline, ok := cleanupCtx.Deadline()
+						assert.Assert(t, ok)
+						assert.Assert(t, time.Until(deadline) > 0 && time.Until(deadline) <= 5*time.Second)
+						return tt.cleanupErr
+					})
+			}
+
+			got, err := svc.Create(ctx, &goadips.CreatePayload{DocKey: tt.docKey})
 			if tt.wantErrName != "" {
+				assert.Assert(t, got == nil)
 				assert.ErrorContains(t, err, tt.wantErr)
 				assertServiceErrorName(t, err, tt.wantErrName)
 				return
 			}
 
 			assert.NilError(t, err)
-			assert.DeepEqual(t, got, &goadips.CreateResult{ID: goadips.DIPID(createdID.String())})
+			assert.DeepEqual(t, got, &goadips.CreateResult{ID: goadips.DIPID(savedDIP.UUID.String())})
 		})
 	}
 }
@@ -244,7 +307,7 @@ func TestShow(t *testing.T) {
 
 			psvc := persistencefake.NewMockService(gomock.NewController(t))
 			tt.mock(psvc)
-			svc := dips.NewService(logr.Discard(), psvc, nil)
+			svc := dips.NewService(logr.Discard(), psvc, nil, nil, "")
 
 			got, err := svc.Show(t.Context(), &goadips.ShowPayload{ID: tt.id})
 			if tt.wantErr != "" {

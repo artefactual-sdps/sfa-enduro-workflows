@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 	"unicode/utf8"
 
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
+	temporalapi_enums "go.temporal.io/api/enums/v1"
+	temporalsdk_client "go.temporal.io/sdk/client"
 	"goa.design/goa/v3/security"
 
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/auth"
@@ -15,6 +18,7 @@ import (
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/datatypes"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/enums"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/workflows"
 )
 
 const maxDocKeyLength = 1024
@@ -27,15 +31,25 @@ type svcImpl struct {
 	logger        logr.Logger
 	tokenVerifier auth.TokenVerifier
 	psvc          persistence.Service
+	tc            temporalsdk_client.Client
+	taskQueue     string
 }
 
 var _ Service = (*svcImpl)(nil)
 
-func NewService(logger logr.Logger, psvc persistence.Service, tokenVerifier auth.TokenVerifier) *svcImpl {
+func NewService(
+	logger logr.Logger,
+	psvc persistence.Service,
+	tokenVerifier auth.TokenVerifier,
+	tc temporalsdk_client.Client,
+	taskQueue string,
+) *svcImpl {
 	return &svcImpl{
 		logger:        logger,
 		tokenVerifier: tokenVerifier,
 		psvc:          psvc,
+		tc:            tc,
+		taskQueue:     taskQueue,
 	}
 }
 
@@ -81,14 +95,34 @@ func (svc *svcImpl) Create(ctx context.Context, p *goadips.CreatePayload) (*goad
 		return nil, goadips.MakeInternalError(fmt.Errorf("create DIP: %v", err))
 	}
 
-	// TODO: Trigger the DIP creation workflow.
-	// if err := svc.startDIPCreationWorkflow(ctx, d); err != nil {
-	// 	cleanupErr := svc.psvc.DeleteDIP(ctx, d.UUID)
-	// 	err = errors.Join(fmt.Errorf("start DIP creation workflow: %v", err), cleanupErr)
-	// 	return nil, goadips.MakeInternalError(fmt.Errorf("create DIP: %v", err))
-	// }
+	if err := svc.startDIPCreationWorkflow(ctx, d); err != nil {
+		// Give cleanup a fresh deadline even if the request was canceled.
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+
+		err = errors.Join(
+			fmt.Errorf("start DIP creation workflow: %v", err),
+			svc.psvc.DeleteDIP(cleanupCtx, d.UUID),
+		)
+
+		return nil, goadips.MakeInternalError(fmt.Errorf("create DIP: %v", err))
+	}
 
 	return &goadips.CreateResult{ID: goadips.DIPID(d.UUID.String())}, nil
+}
+
+func (svc *svcImpl) startDIPCreationWorkflow(ctx context.Context, d *datatypes.DIP) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	opts := temporalsdk_client.StartWorkflowOptions{
+		ID:                    fmt.Sprintf("%s-%s", workflows.CreateDIPName, d.UUID.String()),
+		TaskQueue:             svc.taskQueue,
+		WorkflowIDReusePolicy: temporalapi_enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+	}
+	_, err := svc.tc.ExecuteWorkflow(ctx, opts, workflows.CreateDIPName, &workflows.CreateDIPParams{DIP: *d})
+
+	return err
 }
 
 func (svc *svcImpl) Show(ctx context.Context, p *goadips.ShowPayload) (*goadips.ShowResult, error) {
