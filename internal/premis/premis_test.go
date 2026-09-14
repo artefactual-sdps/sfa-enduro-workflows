@@ -351,13 +351,4 @@ func TestOriginalNameForSubpath(t *testing.T) {
 
 	assert.Equal(t, bornDigitalSIPOriginalName,
 		"data/objects/test_transfer/content/d_0000001/00000001.jp2")
-
-	// Check for special handling of this specific file's path in PREMIS.
-	metadataOriginalName := premis.OriginalNameForSubpath(
-		aipSIP,
-		"content/content/d_0000001/Prozess_Digitalisierung_PREMIS.xml",
-	)
-
-	assert.Equal(t, metadataOriginalName,
-		"data/metadata/Prozess_Digitalisierung_PREMIS.xml")
 }

@@ -397,10 +397,5 @@ func FilesWithinDirectory(contentPath string) ([]string, error) {
 }
 
 func OriginalNameForSubpath(sip sip.SIP, subpath string) string {
-	// Prozess_Digitalisierung_PREMIS.xml is moved to the metadata directory.
-	if filepath.Base(subpath) == "Prozess_Digitalisierung_PREMIS.xml" {
-		return filepath.Join("data", "metadata", "Prozess_Digitalisierung_PREMIS.xml")
-	}
-
 	return filepath.Join("data", "objects", sip.Name(), "content", subpath)
 }
