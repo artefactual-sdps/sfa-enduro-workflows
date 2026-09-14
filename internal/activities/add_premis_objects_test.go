@@ -123,7 +123,7 @@ func TestAddPREMISObjects(t *testing.T) {
         </premis:formatDesignation>
       </premis:format>
     </premis:objectCharacteristics>
-    <premis:originalName>data/metadata/Prozess_Digitalisierung_PREMIS.xml</premis:originalName>
+    <premis:originalName>data/objects/digitized_Vecteur_SIP/content/d_0000001/Prozess_Digitalisierung_PREMIS.xml</premis:originalName>
   </premis:object>
 </premis:premis>
 `,
