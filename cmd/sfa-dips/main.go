@@ -15,6 +15,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/oklog/run"
 	"github.com/spf13/pflag"
+	"go.artefactual.dev/tools/clientauth"
 	"go.artefactual.dev/tools/log"
 	temporal_tools "go.artefactual.dev/tools/temporal"
 	temporalsdk_activity "go.temporal.io/sdk/activity"
@@ -23,6 +24,7 @@ import (
 	temporalsdk_worker "go.temporal.io/sdk/worker"
 	temporalsdk_workflow "go.temporal.io/sdk/workflow"
 
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/actapro"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/activities"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api"
@@ -145,6 +147,26 @@ func main() {
 		}
 	}
 
+	// Set up the ACTApro client.
+	var actaproClient actapro.Client
+	{
+		var tokenProvider clientauth.AccessTokenProvider
+		if cfg.ACTApro.OIDC.Enabled {
+			//nolint:staticcheck // ACTApro requires the legacy password grant.
+			tokenProvider, err = clientauth.NewOIDCPasswordGrantAccessTokenProvider(
+				ctx, cfg.ACTApro.OIDC.OIDCPasswordGrantAccessTokenProviderConfig,
+			)
+			if err != nil {
+				logger.Error(err, "Unable to create OIDC token provider for ACTApro client.")
+				os.Exit(1)
+			}
+		}
+		if actaproClient, err = actapro.NewClient(cfg.ACTApro, nil, tokenProvider); err != nil {
+			logger.Error(err, "Unable to create ACTApro client.")
+			os.Exit(1)
+		}
+	}
+
 	// Set up the Temporal client.
 	temporalClient, err := temporalsdk_client.Dial(temporalsdk_client.Options{
 		Namespace: cfg.Temporal.Namespace,
@@ -175,6 +197,18 @@ func main() {
 	temporalWorker.RegisterActivityWithOptions(
 		activities.NewUpdateDIP(perSvc).Execute,
 		temporalsdk_activity.RegisterOptions{Name: activities.UpdateDIPName},
+	)
+	temporalWorker.RegisterActivityWithOptions(
+		actapro.NewGetDocumentActivity(actaproClient).Execute,
+		temporalsdk_activity.RegisterOptions{Name: actapro.GetDocumentActivityName},
+	)
+	temporalWorker.RegisterActivityWithOptions(
+		actapro.NewCreateExportActivity(actaproClient).Execute,
+		temporalsdk_activity.RegisterOptions{Name: actapro.CreateExportActivityName},
+	)
+	temporalWorker.RegisterActivityWithOptions(
+		actapro.NewPollExportStatusActivity(actaproClient, cfg.ACTApro.PollInterval).Execute,
+		temporalsdk_activity.RegisterOptions{Name: actapro.PollExportStatusActivityName},
 	)
 
 	var g run.Group

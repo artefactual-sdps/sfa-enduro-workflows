@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/viper"
 	"go.artefactual.dev/tools/log"
 
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/actapro"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence"
 )
@@ -93,6 +94,7 @@ type Config struct {
 	API         api.Config
 	Persistence persistence.Config
 	Temporal    TemporalConfig
+	ACTApro     actapro.Config
 }
 
 func (c *Config) Validate() error {
@@ -101,6 +103,7 @@ func (c *Config) Validate() error {
 		c.API.Validate(),
 		c.Persistence.Validate(),
 		c.Temporal.Validate(),
+		c.ACTApro.Validate(),
 	)
 }
 
@@ -127,6 +130,23 @@ func Read(config *Config, configFile string) (found bool, configFileUsed string,
 	v.SetDefault("temporal.namespace", "")
 	v.SetDefault("temporal.taskQueue", "")
 	v.SetDefault("temporal.maxConcurrentSessions", 0)
+	v.SetDefault("actapro.url", "")
+	v.SetDefault("actapro.timeout", actapro.DefaultTimeout)
+	v.SetDefault("actapro.pollInterval", actapro.DefaultPollInterval)
+	v.SetDefault("actapro.token", "")
+	v.SetDefault("actapro.oidc.enabled", false)
+	v.SetDefault("actapro.oidc.providerURL", "")
+	v.SetDefault("actapro.oidc.tokenURL", "")
+	v.SetDefault("actapro.oidc.clientID", "")
+	v.SetDefault("actapro.oidc.clientSecret", "")
+	v.SetDefault("actapro.oidc.username", "")
+	v.SetDefault("actapro.oidc.password", "")
+	v.SetDefault("actapro.oidc.scopes", []string(nil))
+	v.SetDefault("actapro.oidc.tokenExpiryLeeway", 0)
+	v.SetDefault("actapro.oidc.retryMaxAttempts", 0)
+	v.SetDefault("actapro.oidc.retryInitialInterval", 0)
+	v.SetDefault("actapro.oidc.retryMaxInterval", 0)
+	v.SetDefault("actapro.oidc.retryBackoffCoefficient", 0.0)
 	v.SetEnvPrefix("SFA_DIPS")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()

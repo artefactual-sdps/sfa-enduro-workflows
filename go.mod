@@ -35,7 +35,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/tonglil/buflogr v1.1.1
 	go.artefactual.dev/ssclient v0.11.0
-	go.artefactual.dev/tools v0.26.0
+	go.artefactual.dev/tools v0.26.1-0.20260908054352-e357345186f4
 	go.opentelemetry.io/otel v1.45.0
 	go.opentelemetry.io/otel/metric v1.45.0
 	go.opentelemetry.io/otel/trace v1.45.0

@@ -22,6 +22,7 @@ endef
 IGNORED_PACKAGES := \
 	github.com/artefactual-sdps/sfa-enduro-workflows/hack/% \
 	github.com/artefactual-sdps/sfa-enduro-workflows/internal/%/fake \
+	github.com/artefactual-sdps/sfa-enduro-workflows/internal/actapro/gen \
 	github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis/gen \
 	github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/design \
 	github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/gen/% \
@@ -90,6 +91,7 @@ gen-goa: tool-goa tool-jq
 
 gen-mock: # @HELP Generate mocks.
 gen-mock: tool-mockgen
+	mockgen -typed -destination=./internal/actapro/fake/mock_client.go -package=fake github.com/artefactual-sdps/sfa-enduro-workflows/internal/actapro Client
 	mockgen -typed -destination=./internal/apis/fake/mock_client.go -package=fake github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis Client
 	mockgen -typed -destination=./internal/dips/api/auth/fake/mock_token_verifier.go -package=fake github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/auth TokenVerifier
 	mockgen -typed -destination=./internal/dips/persistence/fake/mock_service.go -package=fake github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence Service

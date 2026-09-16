@@ -4,13 +4,17 @@ import (
 	"log/slog"
 	"os"
 	"testing"
+	"time"
 
+	"go.artefactual.dev/tools/clientauth"
 	"go.artefactual.dev/tools/log"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/fs"
 
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/actapro"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/config"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence"
 )
 
 const validPersistenceConfig = `
@@ -26,6 +30,11 @@ address = "localhost:7233"
 namespace = "default"
 taskQueue = "sfa-dips"
 maxConcurrentSessions = 1
+`
+
+const validACTAproConfig = `
+[actapro]
+url = "http://actapro.example.test"
 `
 
 func TestLogFormatLoggerFormat(t *testing.T) {
@@ -47,6 +56,27 @@ corsOrigin = "https://example.test"
 path = "stdout"
 level = "WARN"
 format = "text"
+
+[actapro]
+url = "http://actapro.example.test"
+timeout = "12s"
+pollInterval = "3s"
+token = "test-token"
+
+[actapro.oidc]
+enabled = true
+providerURL = "https://oidc.example.test"
+tokenURL = "https://oidc.example.test/token"
+clientID = "actapro"
+clientSecret = "test-secret"
+username = "test-user"
+password = "test-password"
+scopes = "read,write"
+tokenExpiryLeeway = "45s"
+retryMaxAttempts = 5
+retryInitialInterval = "1s"
+retryMaxInterval = "4s"
+retryBackoffCoefficient = 3.0
 `+validPersistenceConfig+validTemporalConfig))
 
 	var cfg config.Config
@@ -55,25 +85,71 @@ format = "text"
 	assert.NilError(t, err)
 	assert.Equal(t, found, true)
 	assert.Equal(t, used, tmpDir.Join("sfa-dips.toml"))
-	assert.Equal(t, cfg.LogFormat, config.LogFormatText)
-	assert.Equal(t, cfg.Verbosity, 2)
-	assert.Equal(t, cfg.API.Listen, "127.0.0.1:8080")
-	assert.Equal(t, cfg.API.CORSOrigin, "https://example.test")
-	assert.Equal(t, cfg.API.Log.Path, "stdout")
-	assert.Equal(t, cfg.API.Log.Level, slog.LevelWarn)
-	assert.Equal(t, cfg.API.Log.Format, api.LogFormatText)
-	assert.Equal(t, cfg.Persistence.Driver, "mysql")
-	assert.Equal(t, cfg.Persistence.DSN, "root:root123@tcp(localhost:3306)/sfa_dips")
-	assert.Equal(t, cfg.Persistence.Migrate, true)
-	assert.Equal(t, cfg.Temporal.Address, "localhost:7233")
-	assert.Equal(t, cfg.Temporal.Namespace, "default")
-	assert.Equal(t, cfg.Temporal.TaskQueue, "sfa-dips")
-	assert.Equal(t, cfg.Temporal.MaxConcurrentSessions, 1)
+	assert.DeepEqual(t, cfg, config.Config{
+		LogFormat: config.LogFormatText,
+		Verbosity: 2,
+		API: api.Config{
+			Listen:     "127.0.0.1:8080",
+			CORSOrigin: "https://example.test",
+			Log: api.LogConfig{
+				Path:   "stdout",
+				Level:  slog.LevelWarn,
+				Format: api.LogFormatText,
+			},
+		},
+		Persistence: persistence.Config{
+			Driver:  "mysql",
+			DSN:     "root:root123@tcp(localhost:3306)/sfa_dips",
+			Migrate: true,
+		},
+		Temporal: config.TemporalConfig{
+			Address:               "localhost:7233",
+			Namespace:             "default",
+			TaskQueue:             "sfa-dips",
+			MaxConcurrentSessions: 1,
+		},
+		ACTApro: actapro.Config{
+			URL:          "http://actapro.example.test",
+			Timeout:      12 * time.Second,
+			PollInterval: 3 * time.Second,
+			Token:        "test-token",
+			OIDC: actapro.OIDCConfig{
+				Enabled: true,
+				//nolint:staticcheck,gosec // ACTApro uses the legacy password grant; credentials are test fixtures.
+				OIDCPasswordGrantAccessTokenProviderConfig: clientauth.OIDCPasswordGrantAccessTokenProviderConfig{
+					ProviderURL:             "https://oidc.example.test",
+					TokenURL:                "https://oidc.example.test/token",
+					ClientID:                "actapro",
+					ClientSecret:            "test-secret",
+					Username:                "test-user",
+					Password:                "test-password",
+					Scopes:                  []string{"read", "write"},
+					TokenExpiryLeeway:       45 * time.Second,
+					RetryMaxAttempts:        5,
+					RetryInitialInterval:    time.Second,
+					RetryMaxInterval:        4 * time.Second,
+					RetryBackoffCoefficient: 3.0,
+				},
+			},
+		},
+	})
 }
 
 func TestReadRejectsInvalidConfiguration(t *testing.T) {
 	const invalidConfig = `
 logFormat = "invalid"
+
+[actapro]
+timeout = "-1s"
+pollInterval = "0s"
+
+[actapro.oidc]
+enabled = true
+tokenExpiryLeeway = "-1s"
+retryMaxAttempts = -1
+retryInitialInterval = "-1s"
+retryMaxInterval = "-2s"
+retryBackoffCoefficient = 0.5
 
 [api.auth]
 enabled=true
@@ -104,7 +180,18 @@ Persistence.DSN: missing required value
 Temporal.Address: missing required value
 Temporal.Namespace: missing required value
 Temporal.TaskQueue: missing required value
-Temporal.MaxConcurrentSessions: must be greater than 0`,
+Temporal.MaxConcurrentSessions: must be greater than 0
+ACTApro.URL: missing required value
+ACTApro.Timeout: value -1s is less than 0
+ACTApro.PollInterval: value 0s is less than or equal to 0
+ACTApro.OIDC:
+missing OIDC providerURL or tokenURL
+missing OIDC client ID
+missing OIDC resource owner credentials
+invalid OIDC retry max attempts, value must be >= 1
+invalid OIDC duration configuration, values must be > 0
+invalid OIDC retry interval configuration, max interval must be >= initial interval
+invalid OIDC retry backoff coefficient, value must be >= 1`,
 	)
 }
 
@@ -126,6 +213,23 @@ func TestReadLoadsConfigurationFromEnvironment(t *testing.T) {
 	t.Setenv("SFA_DIPS_TEMPORAL_NAMESPACE", "env-namespace")
 	t.Setenv("SFA_DIPS_TEMPORAL_TASKQUEUE", "env-dips")
 	t.Setenv("SFA_DIPS_TEMPORAL_MAXCONCURRENTSESSIONS", "3")
+	t.Setenv("SFA_DIPS_ACTAPRO_URL", "http://actapro-env.example.test")
+	t.Setenv("SFA_DIPS_ACTAPRO_TIMEOUT", "20s")
+	t.Setenv("SFA_DIPS_ACTAPRO_POLLINTERVAL", "5s")
+	t.Setenv("SFA_DIPS_ACTAPRO_TOKEN", "env-token")
+	t.Setenv("SFA_DIPS_ACTAPRO_OIDC_ENABLED", "true")
+	t.Setenv("SFA_DIPS_ACTAPRO_OIDC_PROVIDERURL", "https://oidc-env.example.test")
+	t.Setenv("SFA_DIPS_ACTAPRO_OIDC_TOKENURL", "https://oidc-env.example.test/token")
+	t.Setenv("SFA_DIPS_ACTAPRO_OIDC_CLIENTID", "env-actapro")
+	t.Setenv("SFA_DIPS_ACTAPRO_OIDC_CLIENTSECRET", "env-secret")
+	t.Setenv("SFA_DIPS_ACTAPRO_OIDC_USERNAME", "env-user")
+	t.Setenv("SFA_DIPS_ACTAPRO_OIDC_PASSWORD", "env-password")
+	t.Setenv("SFA_DIPS_ACTAPRO_OIDC_SCOPES", "read,export")
+	t.Setenv("SFA_DIPS_ACTAPRO_OIDC_TOKENEXPIRYLEEWAY", "60s")
+	t.Setenv("SFA_DIPS_ACTAPRO_OIDC_RETRYMAXATTEMPTS", "4")
+	t.Setenv("SFA_DIPS_ACTAPRO_OIDC_RETRYINITIALINTERVAL", "2s")
+	t.Setenv("SFA_DIPS_ACTAPRO_OIDC_RETRYMAXINTERVAL", "8s")
+	t.Setenv("SFA_DIPS_ACTAPRO_OIDC_RETRYBACKOFFCOEFFICIENT", "4.0")
 
 	var cfg config.Config
 	found, used, err := config.Read(&cfg, "")
@@ -133,36 +237,95 @@ func TestReadLoadsConfigurationFromEnvironment(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, found, false)
 	assert.Equal(t, used, "")
-	assert.Equal(t, cfg.LogFormat, config.LogFormatText)
-	assert.Equal(t, cfg.Verbosity, 2)
-	assert.Equal(t, cfg.API.Listen, "127.0.0.1:8090")
-	assert.Equal(t, cfg.API.CORSOrigin, "https://env.example.test")
-	assert.Equal(t, cfg.API.Log.Path, "stderr")
-	assert.Equal(t, cfg.API.Log.Level, slog.LevelWarn)
-	assert.Equal(t, cfg.API.Log.Format, api.LogFormatText)
-	assert.Equal(t, cfg.API.Auth.Enabled, false)
-	assert.Equal(t, cfg.Persistence.Driver, "mysql")
-	assert.Equal(t, cfg.Persistence.DSN, "env:env@tcp(env-mysql:3306)/env-dips")
-	assert.Equal(t, cfg.Persistence.Migrate, true)
-	assert.Equal(t, cfg.Temporal.Address, "temporal:7233")
-	assert.Equal(t, cfg.Temporal.Namespace, "env-namespace")
-	assert.Equal(t, cfg.Temporal.TaskQueue, "env-dips")
-	assert.Equal(t, cfg.Temporal.MaxConcurrentSessions, 3)
+	assert.DeepEqual(t, cfg, config.Config{
+		LogFormat: config.LogFormatText,
+		Verbosity: 2,
+		API: api.Config{
+			Listen:     "127.0.0.1:8090",
+			CORSOrigin: "https://env.example.test",
+			Log: api.LogConfig{
+				Path:   "stderr",
+				Level:  slog.LevelWarn,
+				Format: api.LogFormatText,
+			},
+		},
+		Persistence: persistence.Config{
+			Driver:  "mysql",
+			DSN:     "env:env@tcp(env-mysql:3306)/env-dips",
+			Migrate: true,
+		},
+		Temporal: config.TemporalConfig{
+			Address:               "temporal:7233",
+			Namespace:             "env-namespace",
+			TaskQueue:             "env-dips",
+			MaxConcurrentSessions: 3,
+		},
+		ACTApro: actapro.Config{
+			URL:          "http://actapro-env.example.test",
+			Timeout:      20 * time.Second,
+			PollInterval: 5 * time.Second,
+			Token:        "env-token",
+			OIDC: actapro.OIDCConfig{
+				Enabled: true,
+				//nolint:staticcheck,gosec // ACTApro uses the legacy password grant; credentials are test fixtures.
+				OIDCPasswordGrantAccessTokenProviderConfig: clientauth.OIDCPasswordGrantAccessTokenProviderConfig{
+					ProviderURL:             "https://oidc-env.example.test",
+					TokenURL:                "https://oidc-env.example.test/token",
+					ClientID:                "env-actapro",
+					ClientSecret:            "env-secret",
+					Username:                "env-user",
+					Password:                "env-password",
+					Scopes:                  []string{"read", "export"},
+					TokenExpiryLeeway:       time.Minute,
+					RetryMaxAttempts:        4,
+					RetryInitialInterval:    2 * time.Second,
+					RetryMaxInterval:        8 * time.Second,
+					RetryBackoffCoefficient: 4.0,
+				},
+			},
+		},
+	})
 }
 
 func TestReadSetsDefaults(t *testing.T) {
 	t.Setenv("SFA_DIPS_API_CORSORIGIN", "")
-	tmpDir := fs.NewDir(t, "", fs.WithFile("sfa-dips.toml", validPersistenceConfig+validTemporalConfig))
+	tmpDir := fs.NewDir(
+		t,
+		"",
+		fs.WithFile("sfa-dips.toml", validPersistenceConfig+validTemporalConfig+validACTAproConfig),
+	)
 
 	var cfg config.Config
 	_, _, err := config.Read(&cfg, tmpDir.Join("sfa-dips.toml"))
 
 	assert.NilError(t, err)
-	assert.Equal(t, cfg.LogFormat, config.LogFormatJSON)
-	assert.Equal(t, cfg.API.Listen, "127.0.0.1:8080")
-	assert.Equal(t, cfg.API.CORSOrigin, "127.0.0.1:8080")
-	assert.Equal(t, cfg.API.Log.Level, slog.LevelInfo)
-	assert.Equal(t, cfg.API.Log.Format, api.LogFormatJSON)
+	assert.DeepEqual(t, cfg, config.Config{
+		LogFormat: config.LogFormatJSON,
+		API: api.Config{
+			Listen:     "127.0.0.1:8080",
+			CORSOrigin: "127.0.0.1:8080",
+			Log: api.LogConfig{
+				Level:  slog.LevelInfo,
+				Format: api.LogFormatJSON,
+			},
+		},
+		Persistence: persistence.Config{
+			Driver:  "mysql",
+			DSN:     "root:root123@tcp(localhost:3306)/sfa_dips",
+			Migrate: true,
+		},
+		Temporal: config.TemporalConfig{
+			Address:               "localhost:7233",
+			Namespace:             "default",
+			TaskQueue:             "sfa-dips",
+			MaxConcurrentSessions: 1,
+		},
+		ACTApro: actapro.Config{
+			URL:          "http://actapro.example.test",
+			Timeout:      actapro.DefaultTimeout,
+			PollInterval: actapro.DefaultPollInterval,
+		},
+	})
 }
 
 func TestReadSetsCORSOriginEnvironment(t *testing.T) {
@@ -171,7 +334,7 @@ func TestReadSetsCORSOriginEnvironment(t *testing.T) {
 [api]
 listen = "127.0.0.1:8080"
 corsOrigin = "https://example.test"
-`+validPersistenceConfig+validTemporalConfig))
+`+validPersistenceConfig+validTemporalConfig+validACTAproConfig))
 
 	var cfg config.Config
 	_, _, err := config.Read(&cfg, tmpDir.Join("sfa-dips.toml"))

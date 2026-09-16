@@ -1,0 +1,11 @@
+generator:
+  features:
+    disable:
+      - paths/server
+      - webhooks/server
+      - ogen/unimplemented
+  filters:
+    path_regex: '^(/document/\{key\}|/massoperation/(export(/binary)?|\{id\}/(info|logs)))$'
+    methods:
+      - GET
+      - POST

@@ -532,8 +532,8 @@ github.com/zclconf/go-cty-yaml v1.1.0 h1:nP+jp0qPHv2IhUVqmQSzjvqAWcObN0KBkUl2rWB
 github.com/zclconf/go-cty-yaml v1.1.0/go.mod h1:9YLUH4g7lOhVWqUbctnVlZ5KLpg7JAprQNgxSZ1Gyxs=
 go.artefactual.dev/ssclient v0.11.0 h1:mRjB8J0IQ+gjg6ICtZxJm+whG56tvIyxT+x4bO6CQGc=
 go.artefactual.dev/ssclient v0.11.0/go.mod h1:0tO5nOwQ8naw+GcPBi2A7lXzPt4HUn7MPXqQwi7H3jY=
-go.artefactual.dev/tools v0.26.0 h1:OQR88tp4Sqw2ngID9F2mftRN7mgbIRRd97y2K9O919I=
-go.artefactual.dev/tools v0.26.0/go.mod h1:e6i94cr2i2ZI5fEc82WASYE3TXiJB/kM7Pi2e9vEni8=
+go.artefactual.dev/tools v0.26.1-0.20260908054352-e357345186f4 h1:DErF99JTVEUdVW7Wr6K9uGE+8cDK/NV7UkqJ0LI6mqo=
+go.artefactual.dev/tools v0.26.1-0.20260908054352-e357345186f4/go.mod h1:e6i94cr2i2ZI5fEc82WASYE3TXiJB/kM7Pi2e9vEni8=
 go.opencensus.io v0.21.0/go.mod h1:mSImk1erAIZhrmZN+AvHh14ztQfjbGwt4TtuofqLduU=
 go.opencensus.io v0.22.0/go.mod h1:+kGneAE2xo2IficOXnaByMWTGM9T73dGwxeWcUqIpI8=
 go.opencensus.io v0.22.2/go.mod h1:yxeiOL68Rb0Xd1ddK5vPZ/oVn4vY4Ynel7k9FzqtOIw=

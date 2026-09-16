@@ -8,6 +8,7 @@ import (
 	temporalsdk_temporal "go.temporal.io/sdk/temporal"
 	temporalsdk_workflow "go.temporal.io/sdk/workflow"
 
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/actapro"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/activities"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/datatypes"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/enums"
@@ -52,7 +53,7 @@ func (a *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPP
 		dctx, cancel := temporalsdk_workflow.NewDisconnectedContext(ctx)
 		defer cancel()
 		err := temporalsdk_workflow.ExecuteActivity(
-			withOptsForRequest(dctx),
+			withOptsForPersistenceOperation(dctx),
 			activities.UpdateDIPName,
 			&activities.UpdateDIPParams{DIP: r.DIP},
 		).Get(dctx, nil)
@@ -63,7 +64,7 @@ func (a *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPP
 
 	// Initial DIP update.
 	err := temporalsdk_workflow.ExecuteActivity(
-		withOptsForRequest(ctx),
+		withOptsForPersistenceOperation(ctx),
 		activities.UpdateDIPName,
 		&activities.UpdateDIPParams{DIP: r.DIP},
 	).Get(ctx, nil)
@@ -72,13 +73,73 @@ func (a *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPP
 		return r, err
 	}
 
-	// TODO: Add session handling, ACTAPro activities, DIP generation, bucket upload, etc.
+	// Retrieve the document from ACTApro.
+	var document actapro.GetDocumentResult
+	err = temporalsdk_workflow.ExecuteActivity(
+		withOptsForACTAproRequest(ctx),
+		actapro.GetDocumentActivityName,
+		&actapro.GetDocumentParams{DocKey: r.DIP.DocKey},
+	).Get(ctx, &document)
+	if err != nil {
+		r.DIP.ErrorMessage = fmt.Sprintf("ACTApro document retrieval failed: %s", activityErrorMessage(err))
+		return r, err
+	}
+
+	// Start the document export.
+	var export actapro.CreateExportResult
+	err = temporalsdk_workflow.ExecuteActivity(
+		withOptsForACTAproRequest(ctx),
+		actapro.CreateExportActivityName,
+		&actapro.CreateExportParams{DocKey: r.DIP.DocKey},
+	).Get(ctx, &export)
+	if err != nil {
+		r.DIP.ErrorMessage = fmt.Sprintf("ACTApro export creation failed: %s", activityErrorMessage(err))
+		return r, err
+	}
+
+	// Poll the export status until it is completed, failed, or canceled.
+	var exportStatus actapro.PollExportStatusResult
+	err = temporalsdk_workflow.ExecuteActivity(
+		temporalsdk_workflow.WithActivityOptions(ctx, temporalsdk_workflow.ActivityOptions{
+			StartToCloseTimeout: 24 * time.Hour,
+			HeartbeatTimeout:    time.Minute,
+			RetryPolicy: &temporalsdk_temporal.RetryPolicy{
+				InitialInterval:    5 * time.Second,
+				BackoffCoefficient: 2,
+				MaximumAttempts:    3,
+			},
+		}),
+		actapro.PollExportStatusActivityName,
+		&actapro.PollExportStatusParams{ExportID: export.ExportID},
+	).Get(ctx, &exportStatus)
+	if err != nil {
+		r.DIP.ErrorMessage = fmt.Sprintf("ACTApro export polling failed: %s", activityErrorMessage(err))
+		return r, err
+	}
+
+	if exportStatus.Status != actapro.ExportStatusCompleted {
+		r.DIP.ErrorMessage = "ACTApro export failed or canceled."
+		if exportStatus.Logs != "" {
+			r.DIP.ErrorMessage += " Logs:\n" + exportStatus.Logs
+		}
+		return r, errors.New(r.DIP.ErrorMessage)
+	}
+
+	// TODO: Add session handling, export download, DIP generation, bucket upload, etc.
 	r.DIP.ObjectKey = fmt.Sprintf("DIP_%s.zip", r.DIP.UUID.String())
 
 	return r, nil
 }
 
-func withOptsForRequest(ctx temporalsdk_workflow.Context) temporalsdk_workflow.Context {
+func activityErrorMessage(err error) string {
+	var applicationErr *temporalsdk_temporal.ApplicationError
+	if errors.As(err, &applicationErr) {
+		return applicationErr.Message()
+	}
+	return err.Error()
+}
+
+func withOptsForPersistenceOperation(ctx temporalsdk_workflow.Context) temporalsdk_workflow.Context {
 	return temporalsdk_workflow.WithActivityOptions(
 		ctx,
 		temporalsdk_workflow.ActivityOptions{
@@ -91,4 +152,15 @@ func withOptsForRequest(ctx temporalsdk_workflow.Context) temporalsdk_workflow.C
 			},
 		},
 	)
+}
+
+func withOptsForACTAproRequest(ctx temporalsdk_workflow.Context) temporalsdk_workflow.Context {
+	return temporalsdk_workflow.WithActivityOptions(ctx, temporalsdk_workflow.ActivityOptions{
+		StartToCloseTimeout: time.Minute,
+		RetryPolicy: &temporalsdk_temporal.RetryPolicy{
+			InitialInterval:    5 * time.Second,
+			BackoffCoefficient: 2,
+			MaximumAttempts:    3,
+		},
+	})
 }
