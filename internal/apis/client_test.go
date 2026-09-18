@@ -4,11 +4,48 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"gotest.tools/v3/assert"
 
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis/gen"
 )
+
+func TestNewClientTimeout(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name    string
+		timeout time.Duration
+		wantErr string
+	}{
+		{
+			name:    "negative timeout",
+			timeout: -time.Second,
+			wantErr: "APIS.Timeout: value -1s is less than 0",
+		},
+		{
+			name: "zero timeout",
+		},
+		{
+			name:    "positive timeout",
+			timeout: time.Second,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			client, err := NewClient(Config{URL: "http://localhost", Timeout: tt.timeout}, nil, nil)
+			if tt.wantErr != "" {
+				assert.Error(t, err, tt.wantErr)
+				assert.Assert(t, client == nil)
+				return
+			}
+			assert.NilError(t, err)
+			assert.Assert(t, client != nil)
+		})
+	}
+}
 
 type stubTokenProvider struct {
 	token string

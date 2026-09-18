@@ -18,7 +18,7 @@ type Config struct {
 	Enabled bool
 	// URL is the APIS base URL.
 	URL string
-	// Timeout configures APIS HTTP client timeout.
+	// Timeout configures APIS HTTP client timeout. A value of 0 disables the timeout.
 	Timeout time.Duration
 	// PollInterval configures the interval between APIS import task status polls.
 	PollInterval time.Duration

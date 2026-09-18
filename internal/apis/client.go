@@ -24,7 +24,7 @@ func NewClient(
 	if httpClient == nil {
 		timeout := config.Timeout
 		if timeout < 0 {
-			timeout = DefaultTimeout
+			return nil, fmt.Errorf("APIS.Timeout: value %s is less than 0", timeout)
 		}
 
 		httpClient = cleanhttp.DefaultPooledClient()

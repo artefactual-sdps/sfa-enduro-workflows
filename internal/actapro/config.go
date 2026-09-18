@@ -16,7 +16,7 @@ const (
 type Config struct {
 	// URL is the ACTApro base URL.
 	URL string
-	// Timeout configures ACTApro HTTP client timeout.
+	// Timeout configures ACTApro HTTP client timeout. A value of 0 disables the timeout.
 	Timeout time.Duration
 	// PollInterval configures the interval between ACTApro mass operation status polls.
 	PollInterval time.Duration
