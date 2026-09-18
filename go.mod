@@ -1,6 +1,6 @@
 module github.com/artefactual-sdps/sfa-enduro-workflows
 
-go 1.26.5
+go 1.26.6
 
 require (
 	ariga.io/atlas v1.3.0
