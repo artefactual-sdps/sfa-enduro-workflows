@@ -2,9 +2,11 @@ package workflows_test
 
 import (
 	"errors"
+	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/artefactual-sdps/temporal-activities/removepaths"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -12,6 +14,7 @@ import (
 	temporalsdk_converter "go.temporal.io/sdk/converter"
 	temporalsdk_temporal "go.temporal.io/sdk/temporal"
 	temporalsdk_testsuite "go.temporal.io/sdk/testsuite"
+	temporalsdk_worker "go.temporal.io/sdk/worker"
 	temporalsdk_workflow "go.temporal.io/sdk/workflow"
 
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/actapro"
@@ -25,9 +28,10 @@ type CreateDIPTestSuite struct {
 	suite.Suite
 	temporalsdk_testsuite.WorkflowTestSuite
 
-	env      *temporalsdk_testsuite.TestWorkflowEnvironment
-	workflow *workflows.CreateDIP
-	dip      datatypes.DIP
+	env        *temporalsdk_testsuite.TestWorkflowEnvironment
+	workflow   *workflows.CreateDIP
+	workingDir string
+	dip        datatypes.DIP
 }
 
 var createDIPTestTime = time.Date(2024, 6, 6, 15, 8, 39, 0, time.UTC)
@@ -35,6 +39,7 @@ var createDIPTestTime = time.Date(2024, 6, 6, 15, 8, 39, 0, time.UTC)
 func (s *CreateDIPTestSuite) SetupTest() {
 	s.env = s.NewTestWorkflowEnvironment()
 	s.env.SetStartTime(createDIPTestTime)
+	s.env.SetWorkerOptions(temporalsdk_worker.Options{EnableSessionWorker: true})
 	s.env.RegisterActivityWithOptions(
 		activities.NewUpdateDIP(nil).Execute,
 		temporalsdk_activity.RegisterOptions{Name: activities.UpdateDIPName},
@@ -51,7 +56,12 @@ func (s *CreateDIPTestSuite) SetupTest() {
 		actapro.NewPollExportStatusActivity(nil, actapro.DefaultPollInterval).Execute,
 		temporalsdk_activity.RegisterOptions{Name: actapro.PollExportStatusActivityName},
 	)
-	s.workflow = workflows.NewCreateDIP()
+	s.env.RegisterActivityWithOptions(
+		removepaths.New().Execute,
+		temporalsdk_activity.RegisterOptions{Name: removepaths.Name},
+	)
+	s.workingDir = s.T().TempDir()
+	s.workflow = workflows.NewCreateDIP(s.workingDir)
 	s.dip = datatypes.DIP{
 		DBID:      1,
 		UUID:      uuid.MustParse("9390594f-84c2-457d-bd6a-618f21f7c954"),
@@ -66,6 +76,22 @@ func TestCreateDIP(t *testing.T) {
 }
 
 func (s *CreateDIPTestSuite) TestSuccess() {
+	s.testSuccess(nil, 0)
+}
+
+func (s *CreateDIPTestSuite) TestCleanupFailureDoesNotFailWorkflow() {
+	s.testSuccess(errors.New("remove paths failed"), 0)
+}
+
+func (s *CreateDIPTestSuite) TestCleanupCompletesAfterCancellation() {
+	s.env.RegisterDelayedCallback(s.env.CancelWorkflow, time.Second)
+	s.testSuccess(nil, 2*time.Second)
+	s.Equal(createDIPTestTime.Add(2*time.Second), s.env.Now().UTC())
+}
+
+func (s *CreateDIPTestSuite) testSuccess(cleanupErr error, cleanupDelay time.Duration) {
+	s.T().Helper()
+
 	wDIP := s.dip
 	wDIP.Status = enums.DIPStatusInProgress
 	wDIP.StartedAt = createDIPTestTime
@@ -92,15 +118,20 @@ func (s *CreateDIPTestSuite) TestSuccess() {
 		mock.AnythingOfType("*context.timerCtx"),
 		&actapro.PollExportStatusParams{ExportID: "1ef33301-83c4-407c-9895-18d16a1f10b9"},
 	).Return(&actapro.PollExportStatusResult{Status: "COMPLETED"}, nil).Once().NotBefore(createExport)
+	cleanup := s.env.OnActivity(
+		removepaths.Name,
+		mock.AnythingOfType("*context.timerCtx"),
+		&removepaths.Params{Paths: []string{filepath.Join(s.workingDir, s.dip.UUID.String())}},
+	).Return(&removepaths.Result{}, cleanupErr).After(cleanupDelay).Once().NotBefore(pollExport)
 
 	wDIP.ObjectKey = "DIP_9390594f-84c2-457d-bd6a-618f21f7c954.zip"
 	wDIP.Status = enums.DIPStatusDone
-	wDIP.CompletedAt = createDIPTestTime
+	wDIP.CompletedAt = createDIPTestTime.Add(cleanupDelay)
 	s.env.OnActivity(
 		activities.UpdateDIPName,
 		mock.AnythingOfType("*context.timerCtx"),
 		&activities.UpdateDIPParams{DIP: wDIP},
-	).Return(&activities.UpdateDIPResult{}, nil).Once().NotBefore(pollExport)
+	).Return(&activities.UpdateDIPResult{}, nil).Once().NotBefore(cleanup)
 
 	s.env.ExecuteWorkflow(s.workflow.Execute, &workflows.CreateDIPParams{DIP: s.dip})
 

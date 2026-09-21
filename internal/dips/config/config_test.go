@@ -47,6 +47,7 @@ func TestReadLoadsConfiguration(t *testing.T) {
 	tmpDir := fs.NewDir(t, "", fs.WithFile("sfa-dips.toml", `
 logFormat = "text"
 verbosity = 2
+workingDir = "/var/tmp/dips"
 
 [api]
 listen = "127.0.0.1:8080"
@@ -86,8 +87,9 @@ retryBackoffCoefficient = 3.0
 	assert.Equal(t, found, true)
 	assert.Equal(t, used, tmpDir.Join("sfa-dips.toml"))
 	assert.DeepEqual(t, cfg, config.Config{
-		LogFormat: config.LogFormatText,
-		Verbosity: 2,
+		LogFormat:  config.LogFormatText,
+		Verbosity:  2,
+		WorkingDir: "/var/tmp/dips",
 		API: api.Config{
 			Listen:     "127.0.0.1:8080",
 			CORSOrigin: "https://example.test",
@@ -200,6 +202,7 @@ func TestReadLoadsConfigurationFromEnvironment(t *testing.T) {
 	t.Chdir(t.TempDir())
 	t.Setenv("SFA_DIPS_LOGFORMAT", "text")
 	t.Setenv("SFA_DIPS_VERBOSITY", "2")
+	t.Setenv("SFA_DIPS_WORKINGDIR", "/var/tmp/env-dips")
 	t.Setenv("SFA_DIPS_API_LISTEN", "127.0.0.1:8090")
 	t.Setenv("SFA_DIPS_API_CORSORIGIN", "https://env.example.test")
 	t.Setenv("SFA_DIPS_API_LOG_PATH", "stderr")
@@ -238,8 +241,9 @@ func TestReadLoadsConfigurationFromEnvironment(t *testing.T) {
 	assert.Equal(t, found, false)
 	assert.Equal(t, used, "")
 	assert.DeepEqual(t, cfg, config.Config{
-		LogFormat: config.LogFormatText,
-		Verbosity: 2,
+		LogFormat:  config.LogFormatText,
+		Verbosity:  2,
+		WorkingDir: "/var/tmp/env-dips",
 		API: api.Config{
 			Listen:     "127.0.0.1:8090",
 			CORSOrigin: "https://env.example.test",
@@ -300,7 +304,8 @@ func TestReadSetsDefaults(t *testing.T) {
 
 	assert.NilError(t, err)
 	assert.DeepEqual(t, cfg, config.Config{
-		LogFormat: config.LogFormatJSON,
+		LogFormat:  config.LogFormatJSON,
+		WorkingDir: os.TempDir(),
 		API: api.Config{
 			Listen:     "127.0.0.1:8080",
 			CORSOrigin: "127.0.0.1:8080",
