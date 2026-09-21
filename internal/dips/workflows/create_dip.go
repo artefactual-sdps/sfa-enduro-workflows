@@ -3,8 +3,11 @@ package workflows
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"time"
 
+	"github.com/artefactual-sdps/temporal-activities/removepaths"
+	temporalsdk_log "go.temporal.io/sdk/log"
 	temporalsdk_temporal "go.temporal.io/sdk/temporal"
 	temporalsdk_workflow "go.temporal.io/sdk/workflow"
 
@@ -14,7 +17,18 @@ import (
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/enums"
 )
 
-const CreateDIPName = "create-dip"
+const (
+	// We use this constant to represent a long period of time (10 years).
+	forever       = time.Hour * 24 * 365 * 10
+	CreateDIPName = "create-dip"
+)
+
+type state struct {
+	logger     temporalsdk_log.Logger
+	workingDir string
+	dip        datatypes.DIP
+	exportID   string
+}
 
 type CreateDIPParams struct {
 	DIP datatypes.DIP
@@ -24,30 +38,33 @@ type CreateDIPResult struct {
 	DIP datatypes.DIP
 }
 
-type CreateDIP struct{}
-
-func NewCreateDIP() *CreateDIP {
-	return &CreateDIP{}
+type CreateDIP struct {
+	workingDir string
 }
 
-func (a *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPParams) (r *CreateDIPResult, e error) {
-	logger := temporalsdk_workflow.GetLogger(ctx)
-	logger.Debug("Create DIP workflow running!", "params", params)
-	defer func() {
-		logger.Debug("Create DIP workflow finished!", "result", r, "error", e)
-	}()
+func NewCreateDIP(workingDir string) *CreateDIP {
+	return &CreateDIP{workingDir: workingDir}
+}
 
-	r = &CreateDIPResult{DIP: params.DIP}
-	r.DIP.Status = enums.DIPStatusInProgress
-	r.DIP.StartedAt = temporalsdk_workflow.Now(ctx)
+func (w *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPParams) (r *CreateDIPResult, e error) {
+	state := &state{
+		logger:     temporalsdk_workflow.GetLogger(ctx),
+		workingDir: w.workingDir,
+		dip:        params.DIP,
+	}
+
+	state.logger.Debug("Create DIP workflow running!", "params", params)
+	defer func() {
+		state.logger.Debug("Create DIP workflow finished!", "result", r, "error", e)
+	}()
 
 	// Record the final DIP update.
 	defer func() {
 		// The DIP's object key and error message are updated before this.
-		r.DIP.CompletedAt = temporalsdk_workflow.Now(ctx)
-		r.DIP.Status = enums.DIPStatusDone
+		state.dip.CompletedAt = temporalsdk_workflow.Now(ctx)
+		state.dip.Status = enums.DIPStatusDone
 		if e != nil {
-			r.DIP.Status = enums.DIPStatusFailed
+			state.dip.Status = enums.DIPStatusFailed
 		}
 		// Persist the final update even if the workflow was canceled.
 		dctx, cancel := temporalsdk_workflow.NewDisconnectedContext(ctx)
@@ -55,22 +72,29 @@ func (a *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPP
 		err := temporalsdk_workflow.ExecuteActivity(
 			withOptsForPersistenceOperation(dctx),
 			activities.UpdateDIPName,
-			&activities.UpdateDIPParams{DIP: r.DIP},
+			&activities.UpdateDIPParams{DIP: state.dip},
 		).Get(dctx, nil)
 		if err != nil {
 			e = errors.Join(e, err)
 		}
+		if r != nil {
+			// The return expression copies state.dip before this defer runs.
+			// Refresh the result with the final status and completion time.
+			r.DIP = state.dip
+		}
 	}()
 
 	// Initial DIP update.
+	state.dip.Status = enums.DIPStatusInProgress
+	state.dip.StartedAt = temporalsdk_workflow.Now(ctx)
 	err := temporalsdk_workflow.ExecuteActivity(
 		withOptsForPersistenceOperation(ctx),
 		activities.UpdateDIPName,
-		&activities.UpdateDIPParams{DIP: r.DIP},
+		&activities.UpdateDIPParams{DIP: state.dip},
 	).Get(ctx, nil)
 	if err != nil {
-		r.DIP.ErrorMessage = "DIP persistence update failed."
-		return r, err
+		state.dip.ErrorMessage = "DIP persistence update failed."
+		return nil, err
 	}
 
 	// Retrieve the document from ACTApro.
@@ -78,11 +102,11 @@ func (a *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPP
 	err = temporalsdk_workflow.ExecuteActivity(
 		withOptsForACTAproRequest(ctx),
 		actapro.GetDocumentActivityName,
-		&actapro.GetDocumentParams{DocKey: r.DIP.DocKey},
+		&actapro.GetDocumentParams{DocKey: state.dip.DocKey},
 	).Get(ctx, &document)
 	if err != nil {
-		r.DIP.ErrorMessage = fmt.Sprintf("ACTApro document retrieval failed: %s", activityErrorMessage(err))
-		return r, err
+		state.dip.ErrorMessage = fmt.Sprintf("ACTApro document retrieval failed: %s", activityErrorMessage(err))
+		return nil, err
 	}
 
 	// Start the document export.
@@ -90,12 +114,14 @@ func (a *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPP
 	err = temporalsdk_workflow.ExecuteActivity(
 		withOptsForACTAproRequest(ctx),
 		actapro.CreateExportActivityName,
-		&actapro.CreateExportParams{DocKey: r.DIP.DocKey},
+		&actapro.CreateExportParams{DocKey: state.dip.DocKey},
 	).Get(ctx, &export)
 	if err != nil {
-		r.DIP.ErrorMessage = fmt.Sprintf("ACTApro export creation failed: %s", activityErrorMessage(err))
-		return r, err
+		state.dip.ErrorMessage = fmt.Sprintf("ACTApro export creation failed: %s", activityErrorMessage(err))
+		return nil, err
 	}
+
+	state.exportID = export.ExportID
 
 	// Poll the export status until it is completed, failed, or canceled.
 	var exportStatus actapro.PollExportStatusResult
@@ -110,25 +136,110 @@ func (a *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPP
 			},
 		}),
 		actapro.PollExportStatusActivityName,
-		&actapro.PollExportStatusParams{ExportID: export.ExportID},
+		&actapro.PollExportStatusParams{ExportID: state.exportID},
 	).Get(ctx, &exportStatus)
 	if err != nil {
-		r.DIP.ErrorMessage = fmt.Sprintf("ACTApro export polling failed: %s", activityErrorMessage(err))
-		return r, err
+		state.dip.ErrorMessage = fmt.Sprintf("ACTApro export polling failed: %s", activityErrorMessage(err))
+		return nil, err
 	}
 
 	if exportStatus.Status != actapro.ExportStatusCompleted {
-		r.DIP.ErrorMessage = "ACTApro export failed or canceled."
+		state.dip.ErrorMessage = "ACTApro export failed or canceled."
 		if exportStatus.Logs != "" {
-			r.DIP.ErrorMessage += " Logs:\n" + exportStatus.Logs
+			state.dip.ErrorMessage += " Logs:\n" + exportStatus.Logs
 		}
-		return r, errors.New(r.DIP.ErrorMessage)
+		return nil, errors.New(state.dip.ErrorMessage)
 	}
 
-	// TODO: Add session handling, export download, DIP generation, bucket upload, etc.
-	r.DIP.ObjectKey = fmt.Sprintf("DIP_%s.zip", r.DIP.UUID.String())
+	// Activities running within a session.
+	{
+		var sessErr error
+		maxAttempts := 5
 
-	return r, nil
+		ctx = temporalsdk_workflow.WithActivityOptions(ctx, temporalsdk_workflow.ActivityOptions{
+			StartToCloseTimeout: time.Minute,
+		})
+		for attempt := 1; attempt <= maxAttempts; attempt++ {
+			sessCtx, err := temporalsdk_workflow.CreateSession(ctx, &temporalsdk_workflow.SessionOptions{
+				CreationTimeout:  forever,
+				ExecutionTimeout: forever,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("error creating session: %v", err)
+			}
+
+			sessErr = w.sessionHandler(sessCtx, state)
+
+			// We want to retry the session if it has been canceled as a result
+			// of losing the worker but not otherwise. This scenario seems to be
+			// identifiable when we have an error but the root context has not
+			// been canceled.
+			if sessErr != nil &&
+				(errors.Is(sessErr, temporalsdk_workflow.ErrSessionFailed) || temporalsdk_temporal.IsCanceledError(sessErr)) {
+				// Root context canceled, hence workflow canceled.
+				if ctx.Err() == temporalsdk_workflow.ErrCanceled {
+					return nil, ctx.Err()
+				}
+
+				state.logger.Error(
+					"Session failed, will retry shortly (10s)...",
+					"err", ctx.Err(),
+					"attemptFailed", attempt,
+					"attemptsLeft", maxAttempts-attempt,
+				)
+
+				_ = temporalsdk_workflow.Sleep(ctx, time.Second*10)
+
+				continue
+			}
+			break
+		}
+
+		if sessErr != nil {
+			return nil, sessErr
+		}
+	}
+
+	return &CreateDIPResult{DIP: state.dip}, nil
+}
+
+// sessionHandler runs activities that belong to the same session.
+func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *state) error {
+	// Cleanup session files on exit.
+	dipWorkingDir := filepath.Join(state.workingDir, state.dip.UUID.String())
+	defer func() {
+		// Allow cleanup to finish even if the workflow was canceled.
+		dctx, cancel := temporalsdk_workflow.NewDisconnectedContext(ctx)
+		defer cancel()
+		opts := temporalsdk_workflow.WithActivityOptions(dctx, temporalsdk_workflow.ActivityOptions{
+			ScheduleToCloseTimeout: 15 * time.Minute,
+			RetryPolicy: &temporalsdk_temporal.RetryPolicy{
+				MaximumAttempts: 1,
+			},
+		})
+
+		err := temporalsdk_workflow.ExecuteActivity(
+			opts,
+			removepaths.Name,
+			removepaths.Params{Paths: []string{dipWorkingDir}},
+		).Get(opts, nil)
+		if err != nil {
+			state.logger.Error(
+				"session cleanup: error(s) removing temporary directories",
+				"errors", err.Error(),
+			)
+		}
+
+		temporalsdk_workflow.CompleteSession(opts)
+	}()
+
+	// TODO: Add export download and validation.
+	// metadataExportPath := filepath.Join(dipWorkingDir, "metadata.xml")
+
+	// TODO: Add DIP generation and bucket upload.
+	state.dip.ObjectKey = fmt.Sprintf("DIP_%s.zip", state.dip.UUID.String())
+
+	return nil
 }
 
 func activityErrorMessage(err error) string {

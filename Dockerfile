@@ -68,6 +68,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	ca-certificates \
 	&& rm -rf /var/lib/apt/lists/*
 USER enduro
+RUN mkdir /home/enduro/dips
 COPY --link --chown=enduro:enduro --from=build-sfa-dips /out/sfa-dips /home/enduro/bin/sfa-dips
 CMD ["/home/enduro/bin/sfa-dips"]
 

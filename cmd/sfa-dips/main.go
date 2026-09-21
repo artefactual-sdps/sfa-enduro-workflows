@@ -13,6 +13,7 @@ import (
 
 	"ariga.io/sqlcomment"
 	"entgo.io/ent/dialect/sql"
+	"github.com/artefactual-sdps/temporal-activities/removepaths"
 	"github.com/oklog/run"
 	"github.com/spf13/pflag"
 	"go.artefactual.dev/tools/clientauth"
@@ -191,7 +192,7 @@ func main() {
 
 	// Register workflows and activities.
 	temporalWorker.RegisterWorkflowWithOptions(
-		workflows.NewCreateDIP().Execute,
+		workflows.NewCreateDIP(cfg.WorkingDir).Execute,
 		temporalsdk_workflow.RegisterOptions{Name: workflows.CreateDIPName},
 	)
 	temporalWorker.RegisterActivityWithOptions(
@@ -209,6 +210,10 @@ func main() {
 	temporalWorker.RegisterActivityWithOptions(
 		actapro.NewPollExportStatusActivity(actaproClient, cfg.ACTApro.PollInterval).Execute,
 		temporalsdk_activity.RegisterOptions{Name: actapro.PollExportStatusActivityName},
+	)
+	temporalWorker.RegisterActivityWithOptions(
+		removepaths.New().Execute,
+		temporalsdk_activity.RegisterOptions{Name: removepaths.Name},
 	)
 
 	var g run.Group
