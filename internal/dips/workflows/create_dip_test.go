@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/artefactual-sdps/temporal-activities/removepaths"
+	"github.com/artefactual-sdps/temporal-activities/xmlvalidate"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -31,6 +32,7 @@ type CreateDIPTestSuite struct {
 	env        *temporalsdk_testsuite.TestWorkflowEnvironment
 	workflow   *workflows.CreateDIP
 	workingDir string
+	xsdPath    string
 	dip        datatypes.DIP
 }
 
@@ -61,11 +63,16 @@ func (s *CreateDIPTestSuite) SetupTest() {
 		temporalsdk_activity.RegisterOptions{Name: actapro.DownloadExportActivityName},
 	)
 	s.env.RegisterActivityWithOptions(
+		xmlvalidate.New(nil).Execute,
+		temporalsdk_activity.RegisterOptions{Name: xmlvalidate.Name},
+	)
+	s.env.RegisterActivityWithOptions(
 		removepaths.New().Execute,
 		temporalsdk_activity.RegisterOptions{Name: removepaths.Name},
 	)
 	s.workingDir = s.T().TempDir()
-	s.workflow = workflows.NewCreateDIP(s.workingDir)
+	s.xsdPath = "/schemas/custom-arelda.xsd"
+	s.workflow = workflows.NewCreateDIP(s.workingDir, s.xsdPath)
 	s.dip = datatypes.DIP{
 		DBID:      1,
 		UUID:      uuid.MustParse("9390594f-84c2-457d-bd6a-618f21f7c954"),
@@ -130,11 +137,19 @@ func (s *CreateDIPTestSuite) testSuccess(cleanupErr error, cleanupDelay time.Dur
 			MetadataPath: filepath.Join(s.workingDir, s.dip.UUID.String(), "metadata.xml"),
 		},
 	).Return(&actapro.DownloadExportResult{}, nil).Once().NotBefore(pollExport)
+	validateExport := s.env.OnActivity(
+		xmlvalidate.Name,
+		mock.AnythingOfType("*context.timerCtx"),
+		&xmlvalidate.Params{
+			XMLPath: filepath.Join(s.workingDir, s.dip.UUID.String(), "metadata.xml"),
+			XSDPath: s.xsdPath,
+		},
+	).Return(&xmlvalidate.Result{}, nil).Once().NotBefore(downloadExport)
 	cleanup := s.env.OnActivity(
 		removepaths.Name,
 		mock.AnythingOfType("*context.timerCtx"),
 		&removepaths.Params{Paths: []string{filepath.Join(s.workingDir, s.dip.UUID.String())}},
-	).Return(&removepaths.Result{}, cleanupErr).After(cleanupDelay).Once().NotBefore(downloadExport)
+	).Return(&removepaths.Result{}, cleanupErr).After(cleanupDelay).Once().NotBefore(validateExport)
 
 	wDIP.ObjectKey = "DIP_9390594f-84c2-457d-bd6a-618f21f7c954.zip"
 	wDIP.Status = enums.DIPStatusDone
@@ -191,11 +206,19 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 		mock.AnythingOfType("*context.timerCtx"),
 		downloadParams,
 	).Return(nil, temporalsdk_temporal.NewCanceledError()).Once()
-	s.env.OnActivity(
+	downloadExport := s.env.OnActivity(
 		actapro.DownloadExportActivityName,
 		mock.AnythingOfType("*context.timerCtx"),
 		downloadParams,
 	).Return(&actapro.DownloadExportResult{}, nil).Once().NotBefore(failedDownload)
+	s.env.OnActivity(
+		xmlvalidate.Name,
+		mock.AnythingOfType("*context.timerCtx"),
+		&xmlvalidate.Params{
+			XMLPath: downloadParams.MetadataPath,
+			XSDPath: s.xsdPath,
+		},
+	).Return(&xmlvalidate.Result{}, nil).Once().NotBefore(downloadExport)
 	cleanup := s.env.OnActivity(
 		removepaths.Name,
 		mock.AnythingOfType("*context.timerCtx"),
@@ -462,6 +485,106 @@ func (s *CreateDIPTestSuite) TestExportActivityFails() {
 			s.True(s.env.IsWorkflowCompleted())
 			s.env.AssertExpectations(s.T())
 			s.ErrorContains(s.env.GetWorkflowError(), tt.err.Error())
+		})
+	}
+}
+
+func (s *CreateDIPTestSuite) TestExportValidationFails() {
+	for _, tt := range []struct {
+		name         string
+		result       *xmlvalidate.Result
+		err          error
+		errorMessage string
+	}{
+		{
+			name:         "Rejects XML that does not match the schema",
+			result:       &xmlvalidate.Result{Failures: []string{"metadata.xml fails to validate"}},
+			errorMessage: "ACTApro export validation failed:\nmetadata.xml fails to validate",
+		},
+		{
+			name: "Includes all validation failures",
+			result: &xmlvalidate.Result{Failures: []string{
+				"metadata.xml: invalid schemaVersion",
+				"metadata.xml: missing required element",
+			}},
+			errorMessage: "ACTApro export validation failed:\n" +
+				"metadata.xml: invalid schemaVersion\nmetadata.xml: missing required element",
+		},
+		{
+			name:         "Returns activity errors without retrying validation",
+			err:          errors.New("xmlvalidate: xmllint not found"),
+			errorMessage: "ACTApro export validation failed: xmlvalidate: xmllint not found",
+		},
+	} {
+		s.Run(tt.name, func() {
+			s.SetupTest()
+
+			wDIP := s.dip
+			wDIP.Status = enums.DIPStatusInProgress
+			wDIP.StartedAt = createDIPTestTime
+			s.env.OnActivity(
+				activities.UpdateDIPName,
+				mock.AnythingOfType("*context.timerCtx"),
+				&activities.UpdateDIPParams{DIP: wDIP},
+			).Return(&activities.UpdateDIPResult{}, nil).Once()
+			s.env.OnActivity(
+				actapro.GetDocumentActivityName,
+				mock.AnythingOfType("*context.timerCtx"),
+				&actapro.GetDocumentParams{DocKey: s.dip.DocKey},
+			).Return(&actapro.GetDocumentResult{}, nil).Once()
+			s.env.OnActivity(
+				actapro.CreateExportActivityName,
+				mock.AnythingOfType("*context.timerCtx"),
+				&actapro.CreateExportParams{DocKey: s.dip.DocKey},
+			).Return(&actapro.CreateExportResult{ExportID: "1ef33301-83c4-407c-9895-18d16a1f10b9"}, nil).Once()
+			s.env.OnActivity(
+				actapro.PollExportStatusActivityName,
+				mock.AnythingOfType("*context.timerCtx"),
+				&actapro.PollExportStatusParams{ExportID: "1ef33301-83c4-407c-9895-18d16a1f10b9"},
+			).Return(&actapro.PollExportStatusResult{Status: "COMPLETED"}, nil).Once()
+			metadataPath := filepath.Join(s.workingDir, s.dip.UUID.String(), "metadata.xml")
+			downloadExport := s.env.OnActivity(
+				actapro.DownloadExportActivityName,
+				mock.AnythingOfType("*context.timerCtx"),
+				&actapro.DownloadExportParams{
+					ExportID:     "1ef33301-83c4-407c-9895-18d16a1f10b9",
+					MetadataPath: metadataPath,
+				},
+			).Return(&actapro.DownloadExportResult{}, nil).Once()
+			validateExport := s.env.OnActivity(
+				xmlvalidate.Name,
+				mock.AnythingOfType("*context.timerCtx"),
+				&xmlvalidate.Params{
+					XMLPath: metadataPath,
+					XSDPath: s.xsdPath,
+				},
+			).Return(tt.result, tt.err).Once().NotBefore(downloadExport)
+			cleanup := s.env.OnActivity(
+				removepaths.Name,
+				mock.AnythingOfType("*context.timerCtx"),
+				&removepaths.Params{Paths: []string{filepath.Join(s.workingDir, s.dip.UUID.String())}},
+			).Return(&removepaths.Result{}, nil).Once().NotBefore(validateExport)
+
+			wDIP.Status = enums.DIPStatusFailed
+			wDIP.CompletedAt = createDIPTestTime
+			wDIP.ErrorMessage = tt.errorMessage
+			s.env.OnActivity(
+				activities.UpdateDIPName,
+				mock.AnythingOfType("*context.timerCtx"),
+				&activities.UpdateDIPParams{DIP: wDIP},
+			).Return(&activities.UpdateDIPResult{}, nil).Once().NotBefore(cleanup)
+
+			s.env.ExecuteWorkflow(s.workflow.Execute, &workflows.CreateDIPParams{DIP: s.dip})
+
+			s.True(s.env.IsWorkflowCompleted())
+			s.env.AssertExpectations(s.T())
+			if tt.err != nil {
+				s.ErrorContains(s.env.GetWorkflowError(), tt.err.Error())
+			} else {
+				var applicationErr *temporalsdk_temporal.ApplicationError
+				s.Require().True(errors.As(s.env.GetWorkflowError(), &applicationErr))
+				s.Equal(tt.errorMessage, applicationErr.Message())
+			}
 		})
 	}
 }
