@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,6 +15,45 @@ import (
 
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/actapro/gen"
 )
+
+// TestClientExportFileMediaTypes verifies that export downloads preserve the
+// response bytes for both the documented and observed media types.
+func TestClientExportFileMediaTypes(t *testing.T) {
+	t.Parallel()
+
+	id := uuid.MustParse("11111111-1111-4111-8111-111111111111")
+	const body = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n<metadata>Über &amp; export</metadata>\r\n"
+	for _, contentType := range []string{
+		"application/octet-stream",
+		"application/xml",
+		"application/xml; charset=UTF-8",
+	} {
+		t.Run(contentType, func(t *testing.T) {
+			t.Parallel()
+
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != http.MethodGet || r.URL.Path != "/massoperation/export/binary" ||
+					r.URL.Query().Get("id") != id.String() {
+					http.Error(w, "unexpected request", http.StatusBadRequest)
+					return
+				}
+				w.Header().Set("Content-Type", contentType)
+				_, _ = io.WriteString(w, body)
+			}))
+			t.Cleanup(server.Close)
+
+			client, err := NewClient(Config{URL: server.URL, Token: "test-token"}, server.Client(), nil)
+			assert.NilError(t, err)
+			response, err := client.GetExportFile(t.Context(), gen.GetExportFileParams{ID: id})
+			assert.NilError(t, err)
+			reader, ok := response.(io.Reader)
+			assert.Assert(t, ok, "unexpected response type %T", response)
+			data, err := io.ReadAll(reader)
+			assert.NilError(t, err)
+			assert.Equal(t, string(data), body)
+		})
+	}
+}
 
 func TestNewClientTimeout(t *testing.T) {
 	t.Parallel()

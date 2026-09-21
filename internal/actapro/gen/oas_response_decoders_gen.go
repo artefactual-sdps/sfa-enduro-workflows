@@ -541,7 +541,16 @@ func decodeGetExportFileResponse(resp *http.Response) (res GetExportFileRes, _ e
 				return res, err
 			}
 
-			response := GetExportFileOK{Data: bytes.NewReader(b)}
+			response := GetExportFileOKApplicationOctetStream{Data: bytes.NewReader(b)}
+			return &response, nil
+		case ct == "application/xml":
+			reader := resp.Body
+			b, err := io.ReadAll(reader)
+			if err != nil {
+				return res, err
+			}
+
+			response := GetExportFileOKApplicationXML{Data: bytes.NewReader(b)}
 			return &response, nil
 		default:
 			return res, validate.InvalidContentType(ct)

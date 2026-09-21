@@ -2,8 +2,9 @@
 
 This package uses an [ogen](https://github.com/ogen-go/ogen) client generated from
 the ACTApro OpenAPI specification. The specification cannot be published in this
-repository. Download it locally and correct its error response media types and
-creation date schemas before regenerating the client.
+repository. Download it locally and correct its error response media types,
+creation date schemas, and export response media types before regenerating the
+client.
 
 ## Generate the client
 
@@ -19,7 +20,7 @@ Run the commands below from the repository root.
    `application/hal+json` to `application/json`, preserving the associated schemas.
    These entries are under `paths.<path>.<method>.responses.<status>.content`.
    Leave responses already using `application/json` and successful responses
-   unchanged, including the binary export's `application/octet-stream` response.
+   unchanged in this step.
 
    ACTApro sends errors as `application/json`. Without this correction, the
    generated client expects `application/hal+json` and reports a content-type
@@ -34,7 +35,25 @@ Run the commands below from the repository root.
    Keeping them as strings preserves the server's value without assuming a
    timezone.
 
-4. Generate the client with the project's ogen version, configured in
+4. In the HTTP 200 response for `GET /massoperation/export/binary`, add
+   `application/xml` alongside the existing `application/octet-stream` entry:
+
+   ```json
+   "application/xml": {
+     "schema": {
+       "type": "string",
+       "format": "binary"
+     }
+   }
+   ```
+
+   The dev instance returns XML exports as `application/xml`. The binary format
+   makes ogen expose the body as an `io.Reader`, preserving the downloaded bytes
+   without decoding XML. Keeping `application/octet-stream` also supports the
+   originally documented response. The download activity handles both generated
+   success types.
+
+5. Generate the client with the project's ogen version, configured in
    [`.bine.json`](../../.bine.json), pointing it to the transformed local spec:
 
    ```sh

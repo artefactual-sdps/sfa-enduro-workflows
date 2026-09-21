@@ -637,21 +637,37 @@ type GetExportFileNotFound ErrorResponse
 
 func (*GetExportFileNotFound) getExportFileRes() {}
 
-type GetExportFileOK struct {
+type GetExportFileOKApplicationOctetStream struct {
 	Data io.Reader
 }
 
 // Read reads data from the Data reader.
 //
 // Kept to satisfy the io.Reader interface.
-func (s GetExportFileOK) Read(p []byte) (n int, err error) {
+func (s GetExportFileOKApplicationOctetStream) Read(p []byte) (n int, err error) {
 	if s.Data == nil {
 		return 0, io.EOF
 	}
 	return s.Data.Read(p)
 }
 
-func (*GetExportFileOK) getExportFileRes() {}
+func (*GetExportFileOKApplicationOctetStream) getExportFileRes() {}
+
+type GetExportFileOKApplicationXML struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s GetExportFileOKApplicationXML) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*GetExportFileOKApplicationXML) getExportFileRes() {}
 
 type GetMassOperationInfoBadRequest ErrorResponse
 

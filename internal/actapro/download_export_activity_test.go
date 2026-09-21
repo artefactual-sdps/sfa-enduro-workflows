@@ -33,13 +33,28 @@ func TestDownloadExportActivity(t *testing.T) {
 		nonRetryable bool
 	}{
 		{
-			name:     "downloads the export binary",
-			response: &actaprogen.GetExportFileOK{Data: strings.NewReader("<metadata>\x00\xff</metadata>\n")},
-			want:     "<metadata>\x00\xff</metadata>\n",
+			name: "downloads the export binary",
+			response: &actaprogen.GetExportFileOKApplicationOctetStream{
+				Data: strings.NewReader("<metadata>\x00\xff</metadata>\n"),
+			},
+			want: "<metadata>\x00\xff</metadata>\n",
+		},
+		{
+			name: "downloads the XML export",
+			response: &actaprogen.GetExportFileOKApplicationXML{
+				Data: strings.NewReader("<metadata>Über &amp; export</metadata>\r\n"),
+			},
+			want: "<metadata>Über &amp; export</metadata>\r\n",
 		},
 		{
 			name:         "rejects a missing export binary",
-			response:     &actaprogen.GetExportFileOK{},
+			response:     &actaprogen.GetExportFileOKApplicationOctetStream{},
+			wantErr:      "download ACTApro export: missing export binary",
+			nonRetryable: true,
+		},
+		{
+			name:         "rejects a missing XML export",
+			response:     &actaprogen.GetExportFileOKApplicationXML{},
 			wantErr:      "download ACTApro export: missing export binary",
 			nonRetryable: true,
 		},
@@ -228,7 +243,7 @@ func TestDownloadExportActivityFileErrors(t *testing.T) {
 			client := fake_actapro.NewMockClient(gomock.NewController(t))
 			client.EXPECT().GetExportFile(gomock.Any(), actaprogen.GetExportFileParams{
 				ID: uuid.MustParse("1ef33301-83c4-407c-9895-18d16a1f10b9"),
-			}).Return(&actaprogen.GetExportFileOK{Data: tt.data}, nil)
+			}).Return(&actaprogen.GetExportFileOKApplicationOctetStream{Data: tt.data}, nil)
 
 			suite := temporalsdk_testsuite.WorkflowTestSuite{}
 			env := suite.NewTestActivityEnvironment()
