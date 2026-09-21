@@ -17,6 +17,10 @@ import (
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence"
 )
 
+const validXSDConfig = `
+xsdPath = "/schemas/arelda.xsd"
+`
+
 const validPersistenceConfig = `
 [persistence]
 driver = "mysql"
@@ -48,6 +52,7 @@ func TestReadLoadsConfiguration(t *testing.T) {
 logFormat = "text"
 verbosity = 2
 workingDir = "/var/tmp/dips"
+xsdPath = "/schemas/custom-arelda.xsd"
 
 [api]
 listen = "127.0.0.1:8080"
@@ -90,6 +95,7 @@ retryBackoffCoefficient = 3.0
 		LogFormat:  config.LogFormatText,
 		Verbosity:  2,
 		WorkingDir: "/var/tmp/dips",
+		XSDPath:    "/schemas/custom-arelda.xsd",
 		API: api.Config{
 			Listen:     "127.0.0.1:8080",
 			CORSOrigin: "https://example.test",
@@ -174,7 +180,8 @@ format = "invalid"
 	assert.Error(
 		t,
 		err,
-		`failed to validate the provided config: LogFormat: unsupported value "invalid" (use "json" or "text")
+		`failed to validate the provided config: XSDPath: missing required value
+LogFormat: unsupported value "invalid" (use "json" or "text")
 unsupported log format: "invalid", supported formats are "json", "text"
 OIDC configuration required when API auth is enabled
 Persistence.Driver: missing required value
@@ -203,6 +210,7 @@ func TestReadLoadsConfigurationFromEnvironment(t *testing.T) {
 	t.Setenv("SFA_DIPS_LOGFORMAT", "text")
 	t.Setenv("SFA_DIPS_VERBOSITY", "2")
 	t.Setenv("SFA_DIPS_WORKINGDIR", "/var/tmp/env-dips")
+	t.Setenv("SFA_DIPS_XSDPATH", "/schemas/env-arelda.xsd")
 	t.Setenv("SFA_DIPS_API_LISTEN", "127.0.0.1:8090")
 	t.Setenv("SFA_DIPS_API_CORSORIGIN", "https://env.example.test")
 	t.Setenv("SFA_DIPS_API_LOG_PATH", "stderr")
@@ -244,6 +252,7 @@ func TestReadLoadsConfigurationFromEnvironment(t *testing.T) {
 		LogFormat:  config.LogFormatText,
 		Verbosity:  2,
 		WorkingDir: "/var/tmp/env-dips",
+		XSDPath:    "/schemas/env-arelda.xsd",
 		API: api.Config{
 			Listen:     "127.0.0.1:8090",
 			CORSOrigin: "https://env.example.test",
@@ -296,7 +305,7 @@ func TestReadSetsDefaults(t *testing.T) {
 	tmpDir := fs.NewDir(
 		t,
 		"",
-		fs.WithFile("sfa-dips.toml", validPersistenceConfig+validTemporalConfig+validACTAproConfig),
+		fs.WithFile("sfa-dips.toml", validXSDConfig+validPersistenceConfig+validTemporalConfig+validACTAproConfig),
 	)
 
 	var cfg config.Config
@@ -306,6 +315,7 @@ func TestReadSetsDefaults(t *testing.T) {
 	assert.DeepEqual(t, cfg, config.Config{
 		LogFormat:  config.LogFormatJSON,
 		WorkingDir: os.TempDir(),
+		XSDPath:    "/schemas/arelda.xsd",
 		API: api.Config{
 			Listen:     "127.0.0.1:8080",
 			CORSOrigin: "127.0.0.1:8080",
@@ -336,6 +346,8 @@ func TestReadSetsDefaults(t *testing.T) {
 func TestReadSetsCORSOriginEnvironment(t *testing.T) {
 	t.Setenv("SFA_DIPS_API_CORSORIGIN", "")
 	tmpDir := fs.NewDir(t, "", fs.WithFile("sfa-dips.toml", `
+xsdPath = "/schemas/arelda.xsd"
+
 [api]
 listen = "127.0.0.1:8080"
 corsOrigin = "https://example.test"

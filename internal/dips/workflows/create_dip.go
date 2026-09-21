@@ -4,9 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/artefactual-sdps/temporal-activities/removepaths"
+	"github.com/artefactual-sdps/temporal-activities/xmlvalidate"
 	temporalsdk_log "go.temporal.io/sdk/log"
 	temporalsdk_temporal "go.temporal.io/sdk/temporal"
 	temporalsdk_workflow "go.temporal.io/sdk/workflow"
@@ -40,10 +42,11 @@ type CreateDIPResult struct {
 
 type CreateDIP struct {
 	workingDir string
+	xsdPath    string
 }
 
-func NewCreateDIP(workingDir string) *CreateDIP {
-	return &CreateDIP{workingDir: workingDir}
+func NewCreateDIP(workingDir, xsdPath string) *CreateDIP {
+	return &CreateDIP{workingDir: workingDir, xsdPath: xsdPath}
 }
 
 func (w *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPParams) (r *CreateDIPResult, e error) {
@@ -253,7 +256,24 @@ func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *stat
 		return err
 	}
 
-	// TODO: Add export validation.
+	// Validate the export against the configured schema.
+	var validation xmlvalidate.Result
+	err = temporalsdk_workflow.ExecuteActivity(
+		withFilesystemActivityOpts(ctx),
+		xmlvalidate.Name,
+		&xmlvalidate.Params{
+			XMLPath: metadataExportPath,
+			XSDPath: w.xsdPath,
+		},
+	).Get(ctx, &validation)
+	if err != nil {
+		state.dip.ErrorMessage = fmt.Sprintf("ACTApro export validation failed: %s", activityErrorMessage(err))
+		return err
+	}
+	if len(validation.Failures) > 0 {
+		state.dip.ErrorMessage = "ACTApro export validation failed:\n" + strings.Join(validation.Failures, "\n")
+		return errors.New(state.dip.ErrorMessage)
+	}
 
 	// TODO: Add DIP generation and bucket upload.
 	state.dip.ObjectKey = fmt.Sprintf("DIP_%s.zip", state.dip.UUID.String())
@@ -291,6 +311,15 @@ func withOptsForACTAproRequest(ctx temporalsdk_workflow.Context) temporalsdk_wor
 			InitialInterval:    5 * time.Second,
 			BackoffCoefficient: 2,
 			MaximumAttempts:    3,
+		},
+	})
+}
+
+func withFilesystemActivityOpts(ctx temporalsdk_workflow.Context) temporalsdk_workflow.Context {
+	return temporalsdk_workflow.WithActivityOptions(ctx, temporalsdk_workflow.ActivityOptions{
+		StartToCloseTimeout: 2 * time.Hour,
+		RetryPolicy: &temporalsdk_temporal.RetryPolicy{
+			MaximumAttempts: 1,
 		},
 	})
 }

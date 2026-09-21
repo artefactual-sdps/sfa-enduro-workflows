@@ -94,6 +94,9 @@ type Config struct {
 	// WorkingDir is used to prepare DIP files and defaults to the OS temporary directory.
 	WorkingDir string
 
+	// XSDPath is the required schema path used to validate ACTApro exports.
+	XSDPath string
+
 	API         api.Config
 	Persistence persistence.Config
 	Temporal    TemporalConfig
@@ -101,7 +104,12 @@ type Config struct {
 }
 
 func (c *Config) Validate() error {
+	var err error
+	if c.XSDPath == "" {
+		err = fmt.Errorf("XSDPath: missing required value")
+	}
 	return errors.Join(
+		err,
 		c.LogFormat.Validate(),
 		c.API.Validate(),
 		c.Persistence.Validate(),
@@ -121,6 +129,7 @@ func Read(config *Config, configFile string) (found bool, configFileUsed string,
 	v.SetDefault("logFormat", LogFormatJSON)
 	v.SetDefault("verbosity", 0)
 	v.SetDefault("workingDir", os.TempDir())
+	v.SetDefault("xsdPath", "")
 	v.SetDefault("api.listen", "127.0.0.1:8080")
 	v.SetDefault("api.corsOrigin", "")
 	v.SetDefault("api.log.path", "")

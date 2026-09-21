@@ -14,6 +14,7 @@ import (
 	"ariga.io/sqlcomment"
 	"entgo.io/ent/dialect/sql"
 	"github.com/artefactual-sdps/temporal-activities/removepaths"
+	"github.com/artefactual-sdps/temporal-activities/xmlvalidate"
 	"github.com/oklog/run"
 	"github.com/spf13/pflag"
 	"go.artefactual.dev/tools/clientauth"
@@ -192,7 +193,7 @@ func main() {
 
 	// Register workflows and activities.
 	temporalWorker.RegisterWorkflowWithOptions(
-		workflows.NewCreateDIP(cfg.WorkingDir).Execute,
+		workflows.NewCreateDIP(cfg.WorkingDir, cfg.XSDPath).Execute,
 		temporalsdk_workflow.RegisterOptions{Name: workflows.CreateDIPName},
 	)
 	temporalWorker.RegisterActivityWithOptions(
@@ -214,6 +215,10 @@ func main() {
 	temporalWorker.RegisterActivityWithOptions(
 		actapro.NewDownloadExportActivity(actaproClient).Execute,
 		temporalsdk_activity.RegisterOptions{Name: actapro.DownloadExportActivityName},
+	)
+	temporalWorker.RegisterActivityWithOptions(
+		xmlvalidate.New(xmlvalidate.NewXMLLintValidator()).Execute,
+		temporalsdk_activity.RegisterOptions{Name: xmlvalidate.Name},
 	)
 	temporalWorker.RegisterActivityWithOptions(
 		removepaths.New().Execute,
