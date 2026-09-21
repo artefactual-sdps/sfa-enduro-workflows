@@ -200,6 +200,8 @@ func (w *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPP
 		}
 	}
 
+	// A successful session may follow a failed attempt.
+	state.dip.ErrorMessage = ""
 	return &CreateDIPResult{DIP: state.dip}, nil
 }
 
@@ -233,8 +235,25 @@ func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *stat
 		temporalsdk_workflow.CompleteSession(opts)
 	}()
 
-	// TODO: Add export download and validation.
-	// metadataExportPath := filepath.Join(dipWorkingDir, "metadata.xml")
+	// Download the metadata.xml export.
+	metadataExportPath := filepath.Join(dipWorkingDir, "metadata.xml")
+	downloadCtx := temporalsdk_workflow.WithHeartbeatTimeout(withOptsForACTAproRequest(ctx), 10*time.Second)
+	// Wait for the download to stop before removing the session files.
+	downloadCtx = temporalsdk_workflow.WithWaitForCancellation(downloadCtx, true)
+	err := temporalsdk_workflow.ExecuteActivity(
+		downloadCtx,
+		actapro.DownloadExportActivityName,
+		&actapro.DownloadExportParams{
+			ExportID:     state.exportID,
+			MetadataPath: metadataExportPath,
+		},
+	).Get(ctx, nil)
+	if err != nil {
+		state.dip.ErrorMessage = fmt.Sprintf("ACTApro export download failed: %s", activityErrorMessage(err))
+		return err
+	}
+
+	// TODO: Add export validation.
 
 	// TODO: Add DIP generation and bucket upload.
 	state.dip.ObjectKey = fmt.Sprintf("DIP_%s.zip", state.dip.UUID.String())
