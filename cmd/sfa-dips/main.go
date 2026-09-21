@@ -212,6 +212,10 @@ func main() {
 		temporalsdk_activity.RegisterOptions{Name: actapro.PollExportStatusActivityName},
 	)
 	temporalWorker.RegisterActivityWithOptions(
+		actapro.NewDownloadExportActivity(actaproClient).Execute,
+		temporalsdk_activity.RegisterOptions{Name: actapro.DownloadExportActivityName},
+	)
+	temporalWorker.RegisterActivityWithOptions(
 		removepaths.New().Execute,
 		temporalsdk_activity.RegisterOptions{Name: removepaths.Name},
 	)

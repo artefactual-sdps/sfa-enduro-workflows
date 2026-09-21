@@ -57,6 +57,10 @@ func (s *CreateDIPTestSuite) SetupTest() {
 		temporalsdk_activity.RegisterOptions{Name: actapro.PollExportStatusActivityName},
 	)
 	s.env.RegisterActivityWithOptions(
+		actapro.NewDownloadExportActivity(nil).Execute,
+		temporalsdk_activity.RegisterOptions{Name: actapro.DownloadExportActivityName},
+	)
+	s.env.RegisterActivityWithOptions(
 		removepaths.New().Execute,
 		temporalsdk_activity.RegisterOptions{Name: removepaths.Name},
 	)
@@ -118,11 +122,19 @@ func (s *CreateDIPTestSuite) testSuccess(cleanupErr error, cleanupDelay time.Dur
 		mock.AnythingOfType("*context.timerCtx"),
 		&actapro.PollExportStatusParams{ExportID: "1ef33301-83c4-407c-9895-18d16a1f10b9"},
 	).Return(&actapro.PollExportStatusResult{Status: "COMPLETED"}, nil).Once().NotBefore(createExport)
+	downloadExport := s.env.OnActivity(
+		actapro.DownloadExportActivityName,
+		mock.AnythingOfType("*context.timerCtx"),
+		&actapro.DownloadExportParams{
+			ExportID:     "1ef33301-83c4-407c-9895-18d16a1f10b9",
+			MetadataPath: filepath.Join(s.workingDir, s.dip.UUID.String(), "metadata.xml"),
+		},
+	).Return(&actapro.DownloadExportResult{}, nil).Once().NotBefore(pollExport)
 	cleanup := s.env.OnActivity(
 		removepaths.Name,
 		mock.AnythingOfType("*context.timerCtx"),
 		&removepaths.Params{Paths: []string{filepath.Join(s.workingDir, s.dip.UUID.String())}},
-	).Return(&removepaths.Result{}, cleanupErr).After(cleanupDelay).Once().NotBefore(pollExport)
+	).Return(&removepaths.Result{}, cleanupErr).After(cleanupDelay).Once().NotBefore(downloadExport)
 
 	wDIP.ObjectKey = "DIP_9390594f-84c2-457d-bd6a-618f21f7c954.zip"
 	wDIP.Status = enums.DIPStatusDone
@@ -139,6 +151,71 @@ func (s *CreateDIPTestSuite) testSuccess(cleanupErr error, cleanupDelay time.Dur
 	s.env.AssertExpectations(s.T())
 	s.NoError(s.env.GetWorkflowError())
 
+	var result workflows.CreateDIPResult
+	s.Require().NoError(s.env.GetWorkflowResult(&result))
+	s.Equal(workflows.CreateDIPResult{DIP: wDIP}, result)
+}
+
+func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
+	wDIP := s.dip
+	wDIP.Status = enums.DIPStatusInProgress
+	wDIP.StartedAt = createDIPTestTime
+	s.env.OnActivity(
+		activities.UpdateDIPName,
+		mock.AnythingOfType("*context.timerCtx"),
+		&activities.UpdateDIPParams{DIP: wDIP},
+	).Return(&activities.UpdateDIPResult{}, nil).Once()
+	s.env.OnActivity(
+		actapro.GetDocumentActivityName,
+		mock.AnythingOfType("*context.timerCtx"),
+		&actapro.GetDocumentParams{DocKey: s.dip.DocKey},
+	).Return(&actapro.GetDocumentResult{}, nil).Once()
+	s.env.OnActivity(
+		actapro.CreateExportActivityName,
+		mock.AnythingOfType("*context.timerCtx"),
+		&actapro.CreateExportParams{DocKey: s.dip.DocKey},
+	).Return(&actapro.CreateExportResult{ExportID: "1ef33301-83c4-407c-9895-18d16a1f10b9"}, nil).Once()
+	s.env.OnActivity(
+		actapro.PollExportStatusActivityName,
+		mock.AnythingOfType("*context.timerCtx"),
+		&actapro.PollExportStatusParams{ExportID: "1ef33301-83c4-407c-9895-18d16a1f10b9"},
+	).Return(&actapro.PollExportStatusResult{Status: "COMPLETED"}, nil).Once()
+
+	downloadParams := &actapro.DownloadExportParams{
+		ExportID:     "1ef33301-83c4-407c-9895-18d16a1f10b9",
+		MetadataPath: filepath.Join(s.workingDir, s.dip.UUID.String(), "metadata.xml"),
+	}
+	// A canceled download with an active workflow triggers a new session.
+	failedDownload := s.env.OnActivity(
+		actapro.DownloadExportActivityName,
+		mock.AnythingOfType("*context.timerCtx"),
+		downloadParams,
+	).Return(nil, temporalsdk_temporal.NewCanceledError()).Once()
+	s.env.OnActivity(
+		actapro.DownloadExportActivityName,
+		mock.AnythingOfType("*context.timerCtx"),
+		downloadParams,
+	).Return(&actapro.DownloadExportResult{}, nil).Once().NotBefore(failedDownload)
+	cleanup := s.env.OnActivity(
+		removepaths.Name,
+		mock.AnythingOfType("*context.timerCtx"),
+		&removepaths.Params{Paths: []string{filepath.Join(s.workingDir, s.dip.UUID.String())}},
+	).Return(&removepaths.Result{}, nil).Twice()
+
+	wDIP.ObjectKey = "DIP_9390594f-84c2-457d-bd6a-618f21f7c954.zip"
+	wDIP.Status = enums.DIPStatusDone
+	wDIP.CompletedAt = createDIPTestTime.Add(10 * time.Second)
+	s.env.OnActivity(
+		activities.UpdateDIPName,
+		mock.AnythingOfType("*context.timerCtx"),
+		&activities.UpdateDIPParams{DIP: wDIP},
+	).Return(&activities.UpdateDIPResult{}, nil).Once().NotBefore(cleanup)
+
+	s.env.ExecuteWorkflow(s.workflow.Execute, &workflows.CreateDIPParams{DIP: s.dip})
+
+	s.True(s.env.IsWorkflowCompleted())
+	s.env.AssertExpectations(s.T())
+	s.Require().NoError(s.env.GetWorkflowError())
 	var result workflows.CreateDIPResult
 	s.Require().NoError(s.env.GetWorkflowResult(&result))
 	s.Equal(workflows.CreateDIPResult{DIP: wDIP}, result)
@@ -274,6 +351,7 @@ func (s *CreateDIPTestSuite) TestExportActivityFails() {
 	for _, tt := range []struct {
 		name         string
 		poll         bool
+		download     bool
 		err          error
 		attempts     int
 		errorMessage string
@@ -304,6 +382,20 @@ func (s *CreateDIPTestSuite) TestExportActivityFails() {
 			attempts:     1,
 			errorMessage: "ACTApro export polling failed: export not found",
 		},
+		{
+			name:         "Retries transient download errors without recreating the export",
+			download:     true,
+			err:          errors.New("ACTApro unavailable"),
+			attempts:     3,
+			errorMessage: "ACTApro export download failed: ACTApro unavailable",
+		},
+		{
+			name:         "Does not retry permanent download errors",
+			download:     true,
+			err:          temporalsdk_temporal.NewNonRetryableApplicationError("export not found", "", nil),
+			attempts:     1,
+			errorMessage: "ACTApro export download failed: export not found",
+		},
 	} {
 		s.Run(tt.name, func() {
 			s.SetupTest()
@@ -326,14 +418,32 @@ func (s *CreateDIPTestSuite) TestExportActivityFails() {
 				mock.AnythingOfType("*context.timerCtx"),
 				&actapro.CreateExportParams{DocKey: s.dip.DocKey},
 			)
-			if tt.poll {
+			if tt.poll || tt.download {
 				createExport.Return(&actapro.CreateExportResult{ExportID: "1ef33301-83c4-407c-9895-18d16a1f10b9"}, nil).
 					Once()
-				s.env.OnActivity(
+				pollExport := s.env.OnActivity(
 					actapro.PollExportStatusActivityName,
 					mock.AnythingOfType("*context.timerCtx"),
 					&actapro.PollExportStatusParams{ExportID: "1ef33301-83c4-407c-9895-18d16a1f10b9"},
-				).Return(nil, tt.err).Times(tt.attempts)
+				)
+				if tt.download {
+					pollExport.Return(&actapro.PollExportStatusResult{Status: "COMPLETED"}, nil).Once()
+					downloadExport := s.env.OnActivity(
+						actapro.DownloadExportActivityName,
+						mock.AnythingOfType("*context.timerCtx"),
+						&actapro.DownloadExportParams{
+							ExportID:     "1ef33301-83c4-407c-9895-18d16a1f10b9",
+							MetadataPath: filepath.Join(s.workingDir, s.dip.UUID.String(), "metadata.xml"),
+						},
+					).Return(nil, tt.err).Times(tt.attempts)
+					s.env.OnActivity(
+						removepaths.Name,
+						mock.AnythingOfType("*context.timerCtx"),
+						&removepaths.Params{Paths: []string{filepath.Join(s.workingDir, s.dip.UUID.String())}},
+					).Return(&removepaths.Result{}, nil).Once().NotBefore(downloadExport)
+				} else {
+					pollExport.Return(nil, tt.err).Times(tt.attempts)
+				}
 			} else {
 				createExport.Return(nil, tt.err).Times(tt.attempts)
 			}
