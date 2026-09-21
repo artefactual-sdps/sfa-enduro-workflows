@@ -59,36 +59,12 @@ func (a *DownloadExportActivity) Execute(
 		return nil, fmt.Errorf("download ACTApro export: %v", err)
 	}
 
+	var data io.Reader
 	switch t := res.(type) {
-	case *gen.GetExportFileOK:
-		if t.Data == nil {
-			return nil, temporal.NewNonRetryableError(
-				fmt.Errorf("download ACTApro export: missing export binary"),
-			)
-		}
-		if err := os.MkdirAll(filepath.Dir(params.MetadataPath), 0o700); err != nil {
-			return nil, fmt.Errorf("download ACTApro export: create directory: %v", err)
-		}
-		file, err := os.OpenFile(
-			params.MetadataPath,
-			os.O_CREATE|os.O_WRONLY|os.O_TRUNC,
-			0o600,
-		) // #nosec G304 -- trusted path
-		if err != nil {
-			return nil, fmt.Errorf("download ACTApro export: create file: %v", err)
-		}
-		_, copyErr := io.Copy(file, t.Data)
-		closeErr := file.Close()
-		if copyErr != nil {
-			copyErr = fmt.Errorf("download ACTApro export: write file: %v", copyErr)
-		}
-		if closeErr != nil {
-			closeErr = fmt.Errorf("download ACTApro export: close file: %v", closeErr)
-		}
-		if err := errors.Join(copyErr, closeErr); err != nil {
-			return nil, err
-		}
-		return &DownloadExportResult{}, nil
+	case *gen.GetExportFileOKApplicationOctetStream:
+		data = t.Data
+	case *gen.GetExportFileOKApplicationXML:
+		data = t.Data
 	case *gen.GetExportFileBadRequest:
 		return nil, temporal.NewNonRetryableError(
 			fmt.Errorf("download ACTApro export: bad request: %s", t.Message.Value),
@@ -110,4 +86,32 @@ func (a *DownloadExportActivity) Execute(
 	default:
 		return nil, fmt.Errorf("download ACTApro export: unexpected response")
 	}
+	if data == nil {
+		return nil, temporal.NewNonRetryableError(
+			fmt.Errorf("download ACTApro export: missing export binary"),
+		)
+	}
+	if err := os.MkdirAll(filepath.Dir(params.MetadataPath), 0o700); err != nil {
+		return nil, fmt.Errorf("download ACTApro export: create directory: %v", err)
+	}
+	file, err := os.OpenFile(
+		params.MetadataPath,
+		os.O_CREATE|os.O_WRONLY|os.O_TRUNC,
+		0o600,
+	) // #nosec G304 -- trusted path
+	if err != nil {
+		return nil, fmt.Errorf("download ACTApro export: create file: %v", err)
+	}
+	_, copyErr := io.Copy(file, data)
+	closeErr := file.Close()
+	if copyErr != nil {
+		copyErr = fmt.Errorf("download ACTApro export: write file: %v", copyErr)
+	}
+	if closeErr != nil {
+		closeErr = fmt.Errorf("download ACTApro export: close file: %v", closeErr)
+	}
+	if err := errors.Join(copyErr, closeErr); err != nil {
+		return nil, err
+	}
+	return &DownloadExportResult{}, nil
 }
