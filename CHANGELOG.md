@@ -8,6 +8,16 @@ requests.
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-09-24
+
+### Fixed
+
+- Prozess_Digitalisierung_PREMIS.xml path in PREMIS XML ([#255])
+
+### Added
+
+- Initial SFA DIPs service implementation ([#229])
+
 ## [0.23.0] - 2026-08-24
 
 ### Fixed
@@ -211,7 +221,8 @@ requests.
 
 Initial release.
 
-[unreleased]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.23.0...HEAD
+[unreleased]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.24.0...HEAD
+[0.24.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.20.0...v0.21.0
@@ -235,10 +246,12 @@ Initial release.
 [0.3.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/releases/tag/v0.1.0
+[#255]: https://github.com/artefactual-sdps/sfa-enduro-workflows/issues/255
 [#246]: https://github.com/artefactual-sdps/sfa-enduro-workflows/pull/246
 [#241]: https://github.com/artefactual-sdps/sfa-enduro-workflows/issues/241
 [#233]: https://github.com/artefactual-sdps/sfa-enduro-workflows/issues/233
 [#230]: https://github.com/artefactual-sdps/sfa-enduro-workflows/pull/230
+[#229]: https://github.com/artefactual-sdps/sfa-enduro-workflows/issues/229
 [#222]: https://github.com/artefactual-sdps/sfa-enduro-workflows/issues/222
 [#202]: https://github.com/artefactual-sdps/sfa-enduro-workflows/pull/202
 [#174]: https://github.com/artefactual-sdps/sfa-enduro-workflows/issues/174
