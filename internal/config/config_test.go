@@ -6,11 +6,11 @@ import (
 
 	"github.com/artefactual-sdps/temporal-activities/bagcreate"
 	"github.com/artefactual-sdps/temporal-activities/ffvalidate"
-	"go.artefactual.dev/ssclient"
 	"go.artefactual.dev/tools/bucket"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/fs"
 
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/amss"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/config"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fvalidate"
@@ -135,7 +135,7 @@ func TestConfig(t *testing.T) {
 							URL: "file:///home/enduro/cantons?metadata=skip&no_tmp_dir=true&create_dir=true",
 						},
 					},
-					AMSS: ssclient.Config{
+					AMSS: amss.Config{
 						BaseURL:  "http://amss.example.test",
 						Username: "test",
 						Key:      "test",
@@ -161,9 +161,9 @@ Preprocessing.SharedPath: missing required value
 Preprocessing.WorkflowName: missing required value
 Preprocessing.BagValidate: PoolSize: 0 is less than the minimum value (1)
 Poststorage.WorkingDir: missing required value
-Poststorage.AMSS.BaseURL: missing required value
-Poststorage.AMSS.Username: missing required value
-Poststorage.AMSS.Key: missing required value
+AMSS.BaseURL: missing required value
+AMSS.Username: missing required value
+AMSS.Key: missing required value
 Poststorage.Cantons.WorkflowName: missing required value
 Poststorage.Cantons.Bucket: missing required value`,
 		},
@@ -254,7 +254,7 @@ url = "http://apis.example.test"
 							URL: "file:///home/enduro/cantons?metadata=skip&no_tmp_dir=true&create_dir=true",
 						},
 					},
-					AMSS: ssclient.Config{
+					AMSS: amss.Config{
 						BaseURL:  "http://amss.example.test",
 						Username: "test",
 						Key:      "test",
@@ -316,7 +316,7 @@ url = "http://apis.example.test"
 					APIS: config.PoststorageAPISConfig{
 						WorkflowName: "poststorage-apis",
 					},
-					AMSS: ssclient.Config{
+					AMSS: amss.Config{
 						BaseURL:  "http://amss.example.test",
 						Username: "test",
 						Key:      "test",
@@ -378,7 +378,7 @@ key = "test"
 							URL: "file:///home/enduro/cantons?metadata=skip&no_tmp_dir=true&create_dir=true",
 						},
 					},
-					AMSS: ssclient.Config{
+					AMSS: amss.Config{
 						BaseURL:  "http://amss.example.test",
 						Username: "test",
 						Key:      "test",
@@ -550,7 +550,7 @@ token = "mock-token"
 							URL: "file:///home/enduro/cantons?metadata=skip&no_tmp_dir=true&create_dir=true",
 						},
 					},
-					AMSS: ssclient.Config{
+					AMSS: amss.Config{
 						BaseURL:  "http://amss.example.test",
 						Username: "test",
 						Key:      "test",

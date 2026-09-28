@@ -2,8 +2,10 @@ package actapro
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
 	"go.artefactual.dev/tools/temporal"
 
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/actapro/gen"
@@ -21,7 +23,7 @@ type (
 	}
 
 	GetDocumentResult struct {
-		AIPUUIDs []string
+		AIPUUIDs []uuid.UUID
 	}
 )
 
@@ -40,11 +42,13 @@ func (a *GetDocumentActivity) Execute(ctx context.Context, params *GetDocumentPa
 
 	switch t := res.(type) {
 	case *gen.Document:
-		result := &GetDocumentResult{AIPUUIDs: []string{}}
+		result := &GetDocumentResult{AIPUUIDs: []uuid.UUID{}}
 		// Block.Fields may contain zero or more AIP_ID_Gp groups mixed with other
 		// document fields. Each group may contain multiple AIP_ID fields. Collect
-		// only non-empty unique AIP_ID values from these groups.
-		seen := make(map[string]struct{})
+		// only non-empty unique AIP_ID values from these groups, reporting all
+		// UUID parsing errors before returning.
+		seen := make(map[uuid.UUID]struct{})
+		var errs error
 		for _, group := range t.Block.Fields {
 			if group.Type != "AIP_ID_Gp" {
 				continue
@@ -57,12 +61,20 @@ func (a *GetDocumentActivity) Execute(ctx context.Context, params *GetDocumentPa
 				if !ok || id == "" {
 					continue
 				}
-				if _, ok := seen[id]; ok {
+				aipUUID, err := uuid.Parse(id)
+				if err != nil {
+					errs = errors.Join(errs, fmt.Errorf("invalid AIP UUID %q: %v", id, err))
 					continue
 				}
-				seen[id] = struct{}{}
-				result.AIPUUIDs = append(result.AIPUUIDs, id)
+				if _, ok := seen[aipUUID]; ok {
+					continue
+				}
+				seen[aipUUID] = struct{}{}
+				result.AIPUUIDs = append(result.AIPUUIDs, aipUUID)
 			}
+		}
+		if errs != nil {
+			return nil, temporal.NewNonRetryableError(fmt.Errorf("get ACTApro document: %v", errs))
 		}
 		return result, nil
 	case *gen.GetDocumentBadRequest:

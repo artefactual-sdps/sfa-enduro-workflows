@@ -109,7 +109,7 @@ func (m *Main) Run(ctx context.Context) error {
 		}
 	}
 
-	ssClient, err := ssclient.New(m.cfg.Poststorage.AMSS)
+	ssClient, err := ssclient.New(ssclient.Config(m.cfg.Poststorage.AMSS))
 	if err != nil {
 		return fmt.Errorf("unable to create Archivematica Storage Service client: %v", err)
 	}
