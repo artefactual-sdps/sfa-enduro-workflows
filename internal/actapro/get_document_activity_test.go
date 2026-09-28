@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
 	temporalsdk_activity "go.temporal.io/sdk/activity"
 	temporalsdk_temporal "go.temporal.io/sdk/temporal"
 	temporalsdk_testsuite "go.temporal.io/sdk/testsuite"
@@ -17,6 +18,11 @@ import (
 
 func TestGetDocumentActivity(t *testing.T) {
 	t.Parallel()
+
+	uuid1 := uuid.MustParse("28c1a3e2-abd3-4b9b-9214-ae851c87b1a6")
+	uuid2 := uuid.MustParse("1231e569-a94e-4ac1-873e-65e1f524b1c8")
+	uuid3 := uuid.MustParse("a38c3e43-c6c3-42f6-a7a0-8227c378deab")
+	uuid4 := uuid.MustParse("d4c779f8-b6e2-4b7b-9eab-7fd36c21de23")
 
 	tests := []struct {
 		name         string
@@ -45,7 +51,7 @@ func TestGetDocumentActivity(t *testing.T) {
 					},
 				},
 			},
-			want: actapro.GetDocumentResult{AIPUUIDs: []string{}},
+			want: actapro.GetDocumentResult{AIPUUIDs: []uuid.UUID{}},
 		},
 		{
 			name: "returns AIP UUIDs from multiple groups",
@@ -55,19 +61,19 @@ func TestGetDocumentActivity(t *testing.T) {
 						{
 							Type: "AIP_ID_Gp",
 							Fields: []actaprogen.DocumentField{
-								{Type: "AIP_ID", Value: actaprogen.NewOptString("ID 1")},
+								{Type: "AIP_ID", Value: actaprogen.NewOptString(uuid1.String())},
 							},
 						},
 						{
 							Type: "AIP_ID_Gp",
 							Fields: []actaprogen.DocumentField{
-								{Type: "AIP_ID", Value: actaprogen.NewOptString("ID 2")},
+								{Type: "AIP_ID", Value: actaprogen.NewOptString(uuid2.String())},
 							},
 						},
 					},
 				},
 			},
-			want: actapro.GetDocumentResult{AIPUUIDs: []string{"ID 1", "ID 2"}},
+			want: actapro.GetDocumentResult{AIPUUIDs: []uuid.UUID{uuid1, uuid2}},
 		},
 		{
 			name: "returns multiple AIP UUIDs from each group",
@@ -77,21 +83,21 @@ func TestGetDocumentActivity(t *testing.T) {
 						{
 							Type: "AIP_ID_Gp",
 							Fields: []actaprogen.DocumentField{
-								{Type: "AIP_ID", Value: actaprogen.NewOptString("ID 1")},
-								{Type: "AIP_ID", Value: actaprogen.NewOptString("ID 2")},
+								{Type: "AIP_ID", Value: actaprogen.NewOptString(uuid1.String())},
+								{Type: "AIP_ID", Value: actaprogen.NewOptString(uuid2.String())},
 							},
 						},
 						{
 							Type: "AIP_ID_Gp",
 							Fields: []actaprogen.DocumentField{
-								{Type: "AIP_ID", Value: actaprogen.NewOptString("ID 3")},
-								{Type: "AIP_ID", Value: actaprogen.NewOptString("ID 4")},
+								{Type: "AIP_ID", Value: actaprogen.NewOptString(uuid3.String())},
+								{Type: "AIP_ID", Value: actaprogen.NewOptString(uuid4.String())},
 							},
 						},
 					},
 				},
 			},
-			want: actapro.GetDocumentResult{AIPUUIDs: []string{"ID 1", "ID 2", "ID 3", "ID 4"}},
+			want: actapro.GetDocumentResult{AIPUUIDs: []uuid.UUID{uuid1, uuid2, uuid3, uuid4}},
 		},
 		{
 			name: "deduplicates AIP UUIDs within and across groups in response order",
@@ -101,22 +107,27 @@ func TestGetDocumentActivity(t *testing.T) {
 						{
 							Type: "AIP_ID_Gp",
 							Fields: []actaprogen.DocumentField{
-								{Type: "AIP_ID", Value: actaprogen.NewOptString("ID 2")},
-								{Type: "AIP_ID", Value: actaprogen.NewOptString("ID 2")},
-								{Type: "AIP_ID", Value: actaprogen.NewOptString("ID 1")},
+								{Type: "AIP_ID", Value: actaprogen.NewOptString(uuid2.String())},
+								{Type: "AIP_ID", Value: actaprogen.NewOptString(uuid2.String())},
+								{
+									Type:  "AIP_ID",
+									Value: actaprogen.NewOptString("1231E569-A94E-4AC1-873E-65E1F524B1C8"),
+								},
+								{Type: "AIP_ID", Value: actaprogen.NewOptString(uuid1.String())},
 							},
 						},
 						{
 							Type: "AIP_ID_Gp",
 							Fields: []actaprogen.DocumentField{
-								{Type: "AIP_ID", Value: actaprogen.NewOptString("ID 1")},
-								{Type: "AIP_ID", Value: actaprogen.NewOptString("ID 3")},
+								{Type: "AIP_ID", Value: actaprogen.NewOptString(uuid1.String())},
+								{Type: "AIP_ID", Value: actaprogen.NewOptString(uuid1.URN())},
+								{Type: "AIP_ID", Value: actaprogen.NewOptString(uuid3.String())},
 							},
 						},
 					},
 				},
 			},
-			want: actapro.GetDocumentResult{AIPUUIDs: []string{"ID 2", "ID 1", "ID 3"}},
+			want: actapro.GetDocumentResult{AIPUUIDs: []uuid.UUID{uuid2, uuid1, uuid3}},
 		},
 		{
 			name: "ignores unrelated fields and missing or empty IDs",
@@ -137,18 +148,67 @@ func TestGetDocumentActivity(t *testing.T) {
 								{Type: "other field", Value: actaprogen.NewOptString("unrelated value")},
 								{Type: "AIP_ID"},
 								{Type: "AIP_ID", Value: actaprogen.NewOptString("")},
-								{Type: "AIP_ID", Value: actaprogen.NewOptString("ID 1")},
+								{Type: "AIP_ID", Value: actaprogen.NewOptString(uuid1.String())},
 							},
 						},
 					},
 				},
 			},
-			want: actapro.GetDocumentResult{AIPUUIDs: []string{"ID 1"}},
+			want: actapro.GetDocumentResult{AIPUUIDs: []uuid.UUID{uuid1}},
 		},
 		{
 			name:     "returns no AIP UUIDs for an empty document",
 			response: &actaprogen.Document{},
-			want:     actapro.GetDocumentResult{AIPUUIDs: []string{}},
+			want:     actapro.GetDocumentResult{AIPUUIDs: []uuid.UUID{}},
+		},
+		{
+			name: "returns an error for an invalid AIP UUID",
+			response: &actaprogen.Document{
+				Block: actaprogen.DocumentBlock{
+					Fields: []actaprogen.DocumentField{
+						{
+							Type: "AIP_ID_Gp",
+							Fields: []actaprogen.DocumentField{
+								{Type: "AIP_ID", Value: actaprogen.NewOptString("invalid")},
+							},
+						},
+					},
+				},
+			},
+			wantErr:      `get ACTApro document: invalid AIP UUID "invalid": invalid UUID length: 7`,
+			nonRetryable: true,
+		},
+		{
+			name: "collects all UUID parsing errors",
+			response: &actaprogen.Document{
+				Block: actaprogen.DocumentBlock{
+					Fields: []actaprogen.DocumentField{
+						{
+							Type: "AIP_ID_Gp",
+							Fields: []actaprogen.DocumentField{
+								{Type: "AIP_ID", Value: actaprogen.NewOptString(uuid1.String())},
+								{Type: "AIP_ID", Value: actaprogen.NewOptString("invalid")},
+								{
+									Type:  "AIP_ID",
+									Value: actaprogen.NewOptString("1231e569-a94e-4ac1-873e-65e1f524b1cg"),
+								},
+							},
+						},
+						{
+							Type: "AIP_ID_Gp",
+							Fields: []actaprogen.DocumentField{
+								{Type: "AIP_ID", Value: actaprogen.NewOptString(uuid3.String())},
+								{Type: "AIP_ID", Value: actaprogen.NewOptString("invalid")},
+							},
+						},
+					},
+				},
+			},
+			wantErr: "get ACTApro document: " +
+				"invalid AIP UUID \"invalid\": invalid UUID length: 7\n" +
+				"invalid AIP UUID \"1231e569-a94e-4ac1-873e-65e1f524b1cg\": invalid UUID format\n" +
+				"invalid AIP UUID \"invalid\": invalid UUID length: 7",
+			nonRetryable: true,
 		},
 		{
 			name: "returns bad request error",
@@ -234,9 +294,11 @@ func TestGetDocumentActivity(t *testing.T) {
 				&actapro.GetDocumentParams{DocKey: "CH-000001"},
 			)
 			if tt.wantErr != "" {
+				assert.Assert(t, future == nil)
 				assert.ErrorContains(t, err, tt.wantErr)
 				var applicationErr *temporalsdk_temporal.ApplicationError
 				assert.Assert(t, errors.As(err, &applicationErr))
+				assert.Equal(t, applicationErr.Message(), tt.wantErr)
 				assert.Equal(t, applicationErr.NonRetryable(), tt.nonRetryable)
 				return
 			}

@@ -17,6 +17,7 @@ import (
 	"github.com/artefactual-sdps/temporal-activities/xmlvalidate"
 	"github.com/oklog/run"
 	"github.com/spf13/pflag"
+	"go.artefactual.dev/ssclient"
 	"go.artefactual.dev/tools/clientauth"
 	"go.artefactual.dev/tools/log"
 	temporal_tools "go.artefactual.dev/tools/temporal"
@@ -27,6 +28,7 @@ import (
 	temporalsdk_workflow "go.temporal.io/sdk/workflow"
 
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/actapro"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/amss"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/activities"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api"
@@ -169,6 +171,13 @@ func main() {
 		}
 	}
 
+	// Set up the Archivematica Storage Service client.
+	ssClient, err := ssclient.New(ssclient.Config(cfg.AMSS))
+	if err != nil {
+		logger.Error(err, "Unable to create Archivematica Storage Service client.")
+		os.Exit(1)
+	}
+
 	// Set up the Temporal client.
 	temporalClient, err := temporalsdk_client.Dial(temporalsdk_client.Options{
 		Namespace: cfg.Temporal.Namespace,
@@ -203,6 +212,14 @@ func main() {
 	temporalWorker.RegisterActivityWithOptions(
 		actapro.NewGetDocumentActivity(actaproClient).Execute,
 		temporalsdk_activity.RegisterOptions{Name: actapro.GetDocumentActivityName},
+	)
+	temporalWorker.RegisterActivityWithOptions(
+		amss.NewGetAIPPathActivity(ssClient.Packages()).Execute,
+		temporalsdk_activity.RegisterOptions{Name: amss.GetAIPPathActivityName},
+	)
+	temporalWorker.RegisterActivityWithOptions(
+		amss.NewFetchActivity(ssClient.Packages()).Execute,
+		temporalsdk_activity.RegisterOptions{Name: amss.FetchActivityName},
 	)
 	temporalWorker.RegisterActivityWithOptions(
 		actapro.NewCreateExportActivity(actaproClient).Execute,

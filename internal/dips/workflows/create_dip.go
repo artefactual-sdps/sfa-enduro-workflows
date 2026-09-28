@@ -9,11 +9,13 @@ import (
 
 	"github.com/artefactual-sdps/temporal-activities/removepaths"
 	"github.com/artefactual-sdps/temporal-activities/xmlvalidate"
+	"github.com/google/uuid"
 	temporalsdk_log "go.temporal.io/sdk/log"
 	temporalsdk_temporal "go.temporal.io/sdk/temporal"
 	temporalsdk_workflow "go.temporal.io/sdk/workflow"
 
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/actapro"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/amss"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/activities"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/datatypes"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/enums"
@@ -30,6 +32,16 @@ type state struct {
 	workingDir string
 	dip        datatypes.DIP
 	exportID   string
+	aips       []*aip
+}
+
+type aip struct {
+	// The UUID of the AIP from the ACTApro document.
+	uuid uuid.UUID
+	// The relative path of the AIP in the Archivematica Storage Service.
+	relativePath string
+	// The path to the METS file for the AIP in the local filesystem.
+	metsPath string
 }
 
 type CreateDIPParams struct {
@@ -103,7 +115,7 @@ func (w *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPP
 	// Retrieve the document from ACTApro.
 	var document actapro.GetDocumentResult
 	err = temporalsdk_workflow.ExecuteActivity(
-		withOptsForACTAproRequest(ctx),
+		withOptsForAPIRequest(ctx),
 		actapro.GetDocumentActivityName,
 		&actapro.GetDocumentParams{DocKey: state.dip.DocKey},
 	).Get(ctx, &document)
@@ -112,10 +124,30 @@ func (w *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPP
 		return nil, err
 	}
 
+	// Get AMSS AIP paths.
+	var aipPathErrs error
+	for _, aipUUID := range document.AIPUUIDs {
+		var getAIPPathResult amss.GetAIPPathActivityResult
+		err = temporalsdk_workflow.ExecuteActivity(
+			withOptsForAPIRequest(ctx),
+			amss.GetAIPPathActivityName,
+			&amss.GetAIPPathActivityParams{AIPUUID: aipUUID},
+		).Get(ctx, &getAIPPathResult)
+		if err != nil {
+			aipPathErrs = errors.Join(aipPathErrs, fmt.Errorf("AIP %s: %s", aipUUID, activityErrorMessage(err)))
+			continue
+		}
+		state.aips = append(state.aips, &aip{uuid: aipUUID, relativePath: getAIPPathResult.Path})
+	}
+	if aipPathErrs != nil {
+		state.dip.ErrorMessage = fmt.Sprintf("AMSS AIP path retrieval failed:\n%v", aipPathErrs)
+		return nil, errors.New(state.dip.ErrorMessage)
+	}
+
 	// Start the document export.
 	var export actapro.CreateExportResult
 	err = temporalsdk_workflow.ExecuteActivity(
-		withOptsForACTAproRequest(ctx),
+		withOptsForAPIRequest(ctx),
 		actapro.CreateExportActivityName,
 		&actapro.CreateExportParams{DocKey: state.dip.DocKey},
 	).Get(ctx, &export)
@@ -240,11 +272,8 @@ func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *stat
 
 	// Download the metadata.xml export.
 	metadataExportPath := filepath.Join(dipWorkingDir, "metadata.xml")
-	downloadCtx := temporalsdk_workflow.WithHeartbeatTimeout(withOptsForACTAproRequest(ctx), 10*time.Second)
-	// Wait for the download to stop before removing the session files.
-	downloadCtx = temporalsdk_workflow.WithWaitForCancellation(downloadCtx, true)
 	err := temporalsdk_workflow.ExecuteActivity(
-		downloadCtx,
+		withOptsForAPIDownload(ctx),
 		actapro.DownloadExportActivityName,
 		&actapro.DownloadExportParams{
 			ExportID:     state.exportID,
@@ -272,6 +301,33 @@ func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *stat
 	}
 	if len(validation.Failures) > 0 {
 		state.dip.ErrorMessage = "ACTApro export validation failed:\n" + strings.Join(validation.Failures, "\n")
+		return errors.New(state.dip.ErrorMessage)
+	}
+
+	// Download each AIP's METS file.
+	var metsErrs error
+	for _, aip := range state.aips {
+		aipUUID := aip.uuid.String()
+		// Strip any archive extension while preserving the AIP directory name.
+		aipDirName := strings.Split(filepath.Base(aip.relativePath), aipUUID)[0] + aipUUID
+		metsName := fmt.Sprintf("METS.%s.xml", aipUUID)
+		aip.metsPath = filepath.Join(dipWorkingDir, metsName)
+		err = temporalsdk_workflow.ExecuteActivity(
+			withOptsForAPIDownload(ctx),
+			amss.FetchActivityName,
+			&amss.FetchActivityParams{
+				AIPUUID:      aip.uuid,
+				RelativePath: fmt.Sprintf("%s/data/%s", aipDirName, metsName),
+				Destination:  aip.metsPath,
+			},
+		).Get(ctx, nil)
+		if err != nil {
+			metsErrs = errors.Join(metsErrs, fmt.Errorf("AIP %s: %s", aipUUID, activityErrorMessage(err)))
+			continue
+		}
+	}
+	if metsErrs != nil {
+		state.dip.ErrorMessage = fmt.Sprintf("AMSS AIP METS download failed:\n%v", metsErrs)
 		return errors.New(state.dip.ErrorMessage)
 	}
 
@@ -304,9 +360,23 @@ func withOptsForPersistenceOperation(ctx temporalsdk_workflow.Context) temporals
 	)
 }
 
-func withOptsForACTAproRequest(ctx temporalsdk_workflow.Context) temporalsdk_workflow.Context {
+func withOptsForAPIRequest(ctx temporalsdk_workflow.Context) temporalsdk_workflow.Context {
 	return temporalsdk_workflow.WithActivityOptions(ctx, temporalsdk_workflow.ActivityOptions{
 		StartToCloseTimeout: time.Minute,
+		RetryPolicy: &temporalsdk_temporal.RetryPolicy{
+			InitialInterval:    5 * time.Second,
+			BackoffCoefficient: 2,
+			MaximumAttempts:    3,
+		},
+	})
+}
+
+func withOptsForAPIDownload(ctx temporalsdk_workflow.Context) temporalsdk_workflow.Context {
+	return temporalsdk_workflow.WithActivityOptions(ctx, temporalsdk_workflow.ActivityOptions{
+		StartToCloseTimeout: 2 * time.Hour,
+		HeartbeatTimeout:    10 * time.Second,
+		// Wait for the download to stop before removing the session files.
+		WaitForCancellation: true,
 		RetryPolicy: &temporalsdk_temporal.RetryPolicy{
 			InitialInterval:    5 * time.Second,
 			BackoffCoefficient: 2,

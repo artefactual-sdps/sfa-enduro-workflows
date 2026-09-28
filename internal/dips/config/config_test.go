@@ -12,6 +12,7 @@ import (
 	"gotest.tools/v3/fs"
 
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/actapro"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/amss"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/config"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence"
@@ -39,6 +40,13 @@ maxConcurrentSessions = 1
 const validACTAproConfig = `
 [actapro]
 url = "http://actapro.example.test"
+`
+
+const validAMSSConfig = `
+[amss]
+baseURL = "http://amss.example.test"
+username = "test-user"
+key = "test-key"
 `
 
 func TestLogFormatLoggerFormat(t *testing.T) {
@@ -83,7 +91,7 @@ retryMaxAttempts = 5
 retryInitialInterval = "1s"
 retryMaxInterval = "4s"
 retryBackoffCoefficient = 3.0
-`+validPersistenceConfig+validTemporalConfig))
+`+validPersistenceConfig+validTemporalConfig+validAMSSConfig))
 
 	var cfg config.Config
 	found, used, err := config.Read(&cfg, tmpDir.Join("sfa-dips.toml"))
@@ -92,6 +100,11 @@ retryBackoffCoefficient = 3.0
 	assert.Equal(t, found, true)
 	assert.Equal(t, used, tmpDir.Join("sfa-dips.toml"))
 	assert.DeepEqual(t, cfg, config.Config{
+		AMSS: amss.Config{
+			BaseURL:  "http://amss.example.test",
+			Username: "test-user",
+			Key:      "test-key",
+		},
 		LogFormat:  config.LogFormatText,
 		Verbosity:  2,
 		WorkingDir: "/var/tmp/dips",
@@ -200,7 +213,10 @@ missing OIDC resource owner credentials
 invalid OIDC retry max attempts, value must be >= 1
 invalid OIDC duration configuration, values must be > 0
 invalid OIDC retry interval configuration, max interval must be >= initial interval
-invalid OIDC retry backoff coefficient, value must be >= 1`,
+invalid OIDC retry backoff coefficient, value must be >= 1
+AMSS.BaseURL: missing required value
+AMSS.Username: missing required value
+AMSS.Key: missing required value`,
 	)
 }
 
@@ -224,6 +240,9 @@ func TestReadLoadsConfigurationFromEnvironment(t *testing.T) {
 	t.Setenv("SFA_DIPS_TEMPORAL_NAMESPACE", "env-namespace")
 	t.Setenv("SFA_DIPS_TEMPORAL_TASKQUEUE", "env-dips")
 	t.Setenv("SFA_DIPS_TEMPORAL_MAXCONCURRENTSESSIONS", "3")
+	t.Setenv("SFA_DIPS_AMSS_BASEURL", "http://amss-env.example.test")
+	t.Setenv("SFA_DIPS_AMSS_USERNAME", "env-user")
+	t.Setenv("SFA_DIPS_AMSS_KEY", "env-key")
 	t.Setenv("SFA_DIPS_ACTAPRO_URL", "http://actapro-env.example.test")
 	t.Setenv("SFA_DIPS_ACTAPRO_TIMEOUT", "20s")
 	t.Setenv("SFA_DIPS_ACTAPRO_POLLINTERVAL", "5s")
@@ -249,6 +268,11 @@ func TestReadLoadsConfigurationFromEnvironment(t *testing.T) {
 	assert.Equal(t, found, false)
 	assert.Equal(t, used, "")
 	assert.DeepEqual(t, cfg, config.Config{
+		AMSS: amss.Config{
+			BaseURL:  "http://amss-env.example.test",
+			Username: "env-user",
+			Key:      "env-key",
+		},
 		LogFormat:  config.LogFormatText,
 		Verbosity:  2,
 		WorkingDir: "/var/tmp/env-dips",
@@ -305,7 +329,10 @@ func TestReadSetsDefaults(t *testing.T) {
 	tmpDir := fs.NewDir(
 		t,
 		"",
-		fs.WithFile("sfa-dips.toml", validXSDConfig+validPersistenceConfig+validTemporalConfig+validACTAproConfig),
+		fs.WithFile(
+			"sfa-dips.toml",
+			validXSDConfig+validPersistenceConfig+validTemporalConfig+validACTAproConfig+validAMSSConfig,
+		),
 	)
 
 	var cfg config.Config
@@ -313,6 +340,11 @@ func TestReadSetsDefaults(t *testing.T) {
 
 	assert.NilError(t, err)
 	assert.DeepEqual(t, cfg, config.Config{
+		AMSS: amss.Config{
+			BaseURL:  "http://amss.example.test",
+			Username: "test-user",
+			Key:      "test-key",
+		},
 		LogFormat:  config.LogFormatJSON,
 		WorkingDir: os.TempDir(),
 		XSDPath:    "/schemas/arelda.xsd",
@@ -351,7 +383,7 @@ xsdPath = "/schemas/arelda.xsd"
 [api]
 listen = "127.0.0.1:8080"
 corsOrigin = "https://example.test"
-`+validPersistenceConfig+validTemporalConfig+validACTAproConfig))
+`+validPersistenceConfig+validTemporalConfig+validACTAproConfig+validAMSSConfig))
 
 	var cfg config.Config
 	_, _, err := config.Read(&cfg, tmpDir.Join("sfa-dips.toml"))

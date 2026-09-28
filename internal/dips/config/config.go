@@ -14,6 +14,7 @@ import (
 	"go.artefactual.dev/tools/log"
 
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/actapro"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/amss"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence"
 )
@@ -101,6 +102,7 @@ type Config struct {
 	Persistence persistence.Config
 	Temporal    TemporalConfig
 	ACTApro     actapro.Config
+	AMSS        amss.Config
 }
 
 func (c *Config) Validate() error {
@@ -115,6 +117,7 @@ func (c *Config) Validate() error {
 		c.Persistence.Validate(),
 		c.Temporal.Validate(),
 		c.ACTApro.Validate(),
+		c.AMSS.Validate(),
 	)
 }
 
@@ -160,6 +163,9 @@ func Read(config *Config, configFile string) (found bool, configFileUsed string,
 	v.SetDefault("actapro.oidc.retryInitialInterval", 0)
 	v.SetDefault("actapro.oidc.retryMaxInterval", 0)
 	v.SetDefault("actapro.oidc.retryBackoffCoefficient", 0.0)
+	v.SetDefault("amss.baseURL", "")
+	v.SetDefault("amss.username", "")
+	v.SetDefault("amss.key", "")
 	v.SetEnvPrefix("SFA_DIPS")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()

@@ -19,6 +19,7 @@ import (
 	temporalsdk_workflow "go.temporal.io/sdk/workflow"
 
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/actapro"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/amss"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/activities"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/datatypes"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/enums"
@@ -49,6 +50,14 @@ func (s *CreateDIPTestSuite) SetupTest() {
 	s.env.RegisterActivityWithOptions(
 		actapro.NewGetDocumentActivity(nil).Execute,
 		temporalsdk_activity.RegisterOptions{Name: actapro.GetDocumentActivityName},
+	)
+	s.env.RegisterActivityWithOptions(
+		amss.NewGetAIPPathActivity(nil).Execute,
+		temporalsdk_activity.RegisterOptions{Name: amss.GetAIPPathActivityName},
+	)
+	s.env.RegisterActivityWithOptions(
+		amss.NewFetchActivity(nil).Execute,
+		temporalsdk_activity.RegisterOptions{Name: amss.FetchActivityName},
 	)
 	s.env.RegisterActivityWithOptions(
 		actapro.NewCreateExportActivity(nil).Execute,
@@ -111,19 +120,35 @@ func (s *CreateDIPTestSuite) testSuccess(cleanupErr error, cleanupDelay time.Dur
 		mock.AnythingOfType("*context.timerCtx"),
 		&activities.UpdateDIPParams{DIP: wDIP},
 	).Return(&activities.UpdateDIPResult{}, nil).Once()
+	aipUUIDs := []uuid.UUID{
+		uuid.MustParse("28c1a3e2-abd3-4b9b-9214-ae851c87b1a6"),
+		uuid.MustParse("1231e569-a94e-4ac1-873e-65e1f524b1c8"),
+		uuid.MustParse("a38c3e43-c6c3-42f6-a7a0-8227c378deab"),
+	}
+	aipExtensions := []string{".7z", ".tar.gz", ""}
 	getDocument := s.env.OnActivity(
 		actapro.GetDocumentActivityName,
 		mock.AnythingOfType("*context.timerCtx"),
 		&actapro.GetDocumentParams{DocKey: s.dip.DocKey},
 	).Return(&actapro.GetDocumentResult{
-		AIPUUIDs: []string{"28c1a3e2-abd3-4b9b-9214-ae851c87b1a6", "1231e569-a94e-4ac1-873e-65e1f524b1c8"},
+		AIPUUIDs: aipUUIDs,
 	}, nil).Once().NotBefore(initialUpdate)
+	getAIPPath := getDocument
+	for i, aipUUID := range aipUUIDs {
+		getAIPPath = s.env.OnActivity(
+			amss.GetAIPPathActivityName,
+			mock.AnythingOfType("*context.timerCtx"),
+			&amss.GetAIPPathActivityParams{AIPUUID: aipUUID},
+		).Return(&amss.GetAIPPathActivityResult{
+			Path: "aa/bb/test-" + aipUUID.String() + aipExtensions[i],
+		}, nil).Once().NotBefore(getAIPPath)
+	}
 	createExport := s.env.OnActivity(
 		actapro.CreateExportActivityName,
 		mock.AnythingOfType("*context.timerCtx"),
 		&actapro.CreateExportParams{DocKey: s.dip.DocKey},
 	).Return(&actapro.CreateExportResult{ExportID: "1ef33301-83c4-407c-9895-18d16a1f10b9"}, nil).
-		Once().NotBefore(getDocument)
+		Once().NotBefore(getAIPPath)
 	pollExport := s.env.OnActivity(
 		actapro.PollExportStatusActivityName,
 		mock.AnythingOfType("*context.timerCtx"),
@@ -145,11 +170,25 @@ func (s *CreateDIPTestSuite) testSuccess(cleanupErr error, cleanupDelay time.Dur
 			XSDPath: s.xsdPath,
 		},
 	).Return(&xmlvalidate.Result{}, nil).Once().NotBefore(downloadExport)
+	previousActivity := validateExport
+	for _, aipUUID := range aipUUIDs {
+		metsName := "METS." + aipUUID.String() + ".xml"
+		fetchMETS := s.env.OnActivity(
+			amss.FetchActivityName,
+			mock.AnythingOfType("*context.timerCtx"),
+			&amss.FetchActivityParams{
+				AIPUUID:      aipUUID,
+				RelativePath: "test-" + aipUUID.String() + "/data/" + metsName,
+				Destination:  filepath.Join(s.workingDir, s.dip.UUID.String(), metsName),
+			},
+		).Return(&amss.FetchActivityResult{}, nil).Once().NotBefore(previousActivity)
+		previousActivity = fetchMETS
+	}
 	cleanup := s.env.OnActivity(
 		removepaths.Name,
 		mock.AnythingOfType("*context.timerCtx"),
 		&removepaths.Params{Paths: []string{filepath.Join(s.workingDir, s.dip.UUID.String())}},
-	).Return(&removepaths.Result{}, cleanupErr).After(cleanupDelay).Once().NotBefore(validateExport)
+	).Return(&removepaths.Result{}, cleanupErr).After(cleanupDelay).Once().NotBefore(previousActivity)
 
 	wDIP.ObjectKey = "DIP_9390594f-84c2-457d-bd6a-618f21f7c954.zip"
 	wDIP.Status = enums.DIPStatusDone
@@ -282,7 +321,12 @@ func (s *CreateDIPTestSuite) testExportFailed(logs, wantMessage string) {
 		actapro.GetDocumentActivityName,
 		mock.AnythingOfType("*context.timerCtx"),
 		&actapro.GetDocumentParams{DocKey: s.dip.DocKey},
-	).Return(&actapro.GetDocumentResult{AIPUUIDs: []string{"28c1a3e2-abd3-4b9b-9214-ae851c87b1a6"}}, nil).Once()
+	).Return(&actapro.GetDocumentResult{AIPUUIDs: []uuid.UUID{uuid.MustParse("28c1a3e2-abd3-4b9b-9214-ae851c87b1a6")}}, nil).Once()
+	s.env.OnActivity(
+		amss.GetAIPPathActivityName,
+		mock.AnythingOfType("*context.timerCtx"),
+		&amss.GetAIPPathActivityParams{AIPUUID: uuid.MustParse("28c1a3e2-abd3-4b9b-9214-ae851c87b1a6")},
+	).Return(&amss.GetAIPPathActivityResult{Path: "aip.7z"}, nil).Once()
 	s.env.OnActivity(
 		actapro.CreateExportActivityName,
 		mock.AnythingOfType("*context.timerCtx"),
@@ -370,6 +414,108 @@ func (s *CreateDIPTestSuite) TestGetDocumentFails() {
 	}
 }
 
+func (s *CreateDIPTestSuite) TestGetAIPPathsFails() {
+	aipUUIDs := []uuid.UUID{
+		uuid.MustParse("28c1a3e2-abd3-4b9b-9214-ae851c87b1a6"),
+		uuid.MustParse("1231e569-a94e-4ac1-873e-65e1f524b1c8"),
+		uuid.MustParse("a38c3e43-c6c3-42f6-a7a0-8227c378deab"),
+	}
+	for _, tt := range []struct {
+		name         string
+		errs         []error
+		attempts     int
+		errorMessage string
+	}{
+		{
+			name: "Collects paths after a lookup fails",
+			errs: []error{
+				temporalsdk_temporal.NewNonRetryableApplicationError("package not found", "", nil),
+				nil,
+				nil,
+			},
+			attempts: 1,
+			errorMessage: "AMSS AIP path retrieval failed:\n" +
+				"AIP 28c1a3e2-abd3-4b9b-9214-ae851c87b1a6: package not found",
+		},
+		{
+			name: "Includes all lookup errors alongside successful paths",
+			errs: []error{
+				temporalsdk_temporal.NewNonRetryableApplicationError("package not found", "", nil),
+				nil,
+				temporalsdk_temporal.NewNonRetryableApplicationError("current path missing", "", nil),
+			},
+			attempts: 1,
+			errorMessage: "AMSS AIP path retrieval failed:\n" +
+				"AIP 28c1a3e2-abd3-4b9b-9214-ae851c87b1a6: package not found\n" +
+				"AIP a38c3e43-c6c3-42f6-a7a0-8227c378deab: current path missing",
+		},
+		{
+			name: "Retries transient lookup errors before collecting them",
+			errs: []error{
+				errors.New("AMSS unavailable"),
+				nil,
+				errors.New("AMSS request failed"),
+			},
+			attempts: 3,
+			errorMessage: "AMSS AIP path retrieval failed:\n" +
+				"AIP 28c1a3e2-abd3-4b9b-9214-ae851c87b1a6: AMSS unavailable\n" +
+				"AIP a38c3e43-c6c3-42f6-a7a0-8227c378deab: AMSS request failed",
+		},
+	} {
+		s.Run(tt.name, func() {
+			s.SetupTest()
+
+			wDIP := s.dip
+			wDIP.Status = enums.DIPStatusInProgress
+			wDIP.StartedAt = createDIPTestTime
+			initialUpdate := s.env.OnActivity(
+				activities.UpdateDIPName,
+				mock.AnythingOfType("*context.timerCtx"),
+				&activities.UpdateDIPParams{DIP: wDIP},
+			).Return(&activities.UpdateDIPResult{}, nil).Once()
+			previous := s.env.OnActivity(
+				actapro.GetDocumentActivityName,
+				mock.AnythingOfType("*context.timerCtx"),
+				&actapro.GetDocumentParams{DocKey: s.dip.DocKey},
+			).Return(&actapro.GetDocumentResult{AIPUUIDs: aipUUIDs}, nil).Once().NotBefore(initialUpdate)
+
+			var retryDelay time.Duration
+			for i, aipUUID := range aipUUIDs {
+				lookup := s.env.OnActivity(
+					amss.GetAIPPathActivityName,
+					mock.AnythingOfType("*context.timerCtx"),
+					&amss.GetAIPPathActivityParams{AIPUUID: aipUUID},
+				).NotBefore(previous)
+				if tt.errs[i] != nil {
+					lookup.Return(nil, tt.errs[i]).Times(tt.attempts)
+					retryDelay += time.Duration(tt.attempts-1) * 5 * time.Second
+				} else {
+					lookup.Return(&amss.GetAIPPathActivityResult{Path: aipUUID.String() + ".7z"}, nil).Once()
+				}
+				previous = lookup
+			}
+
+			wDIP.Status = enums.DIPStatusFailed
+			wDIP.CompletedAt = createDIPTestTime.Add(retryDelay)
+			wDIP.ErrorMessage = tt.errorMessage
+			s.env.OnActivity(
+				activities.UpdateDIPName,
+				mock.AnythingOfType("*context.timerCtx"),
+				&activities.UpdateDIPParams{DIP: wDIP},
+			).Return(&activities.UpdateDIPResult{}, nil).Once().NotBefore(previous)
+
+			s.env.ExecuteWorkflow(s.workflow.Execute, &workflows.CreateDIPParams{DIP: s.dip})
+
+			s.True(s.env.IsWorkflowCompleted())
+			s.env.AssertExpectations(s.T())
+			var applicationErr *temporalsdk_temporal.ApplicationError
+			s.Require().True(errors.As(s.env.GetWorkflowError(), &applicationErr))
+			s.Equal(tt.errorMessage, applicationErr.Message())
+			s.env.AssertNotCalled(s.T(), actapro.CreateExportActivityName, mock.Anything, mock.Anything)
+		})
+	}
+}
+
 func (s *CreateDIPTestSuite) TestExportActivityFails() {
 	for _, tt := range []struct {
 		name         string
@@ -435,7 +581,12 @@ func (s *CreateDIPTestSuite) TestExportActivityFails() {
 				actapro.GetDocumentActivityName,
 				mock.AnythingOfType("*context.timerCtx"),
 				&actapro.GetDocumentParams{DocKey: s.dip.DocKey},
-			).Return(&actapro.GetDocumentResult{AIPUUIDs: []string{"28c1a3e2-abd3-4b9b-9214-ae851c87b1a6"}}, nil).Once()
+			).Return(&actapro.GetDocumentResult{AIPUUIDs: []uuid.UUID{uuid.MustParse("28c1a3e2-abd3-4b9b-9214-ae851c87b1a6")}}, nil).Once()
+			s.env.OnActivity(
+				amss.GetAIPPathActivityName,
+				mock.AnythingOfType("*context.timerCtx"),
+				&amss.GetAIPPathActivityParams{AIPUUID: uuid.MustParse("28c1a3e2-abd3-4b9b-9214-ae851c87b1a6")},
+			).Return(&amss.GetAIPPathActivityResult{Path: "aip.7z"}, nil).Once()
 			createExport := s.env.OnActivity(
 				actapro.CreateExportActivityName,
 				mock.AnythingOfType("*context.timerCtx"),
@@ -489,7 +640,153 @@ func (s *CreateDIPTestSuite) TestExportActivityFails() {
 	}
 }
 
+func (s *CreateDIPTestSuite) TestDownloadAIPMETSFails() {
+	aipUUIDs := []uuid.UUID{
+		uuid.MustParse("28c1a3e2-abd3-4b9b-9214-ae851c87b1a6"),
+		uuid.MustParse("1231e569-a94e-4ac1-873e-65e1f524b1c8"),
+		uuid.MustParse("a38c3e43-c6c3-42f6-a7a0-8227c378deab"),
+	}
+	for _, tt := range []struct {
+		name         string
+		errs         []error
+		attempts     int
+		errorMessage string
+	}{
+		{
+			name: "Continues downloading after a failure",
+			errs: []error{
+				temporalsdk_temporal.NewNonRetryableApplicationError("METS not found", "", nil),
+				nil,
+				nil,
+			},
+			attempts: 1,
+			errorMessage: "AMSS AIP METS download failed:\n" +
+				"AIP 28c1a3e2-abd3-4b9b-9214-ae851c87b1a6: METS not found",
+		},
+		{
+			name: "Collects every error alongside successful downloads",
+			errs: []error{
+				temporalsdk_temporal.NewNonRetryableApplicationError("METS not found", "", nil),
+				nil,
+				temporalsdk_temporal.NewNonRetryableApplicationError("permission denied", "", nil),
+			},
+			attempts: 1,
+			errorMessage: "AMSS AIP METS download failed:\n" +
+				"AIP 28c1a3e2-abd3-4b9b-9214-ae851c87b1a6: METS not found\n" +
+				"AIP a38c3e43-c6c3-42f6-a7a0-8227c378deab: permission denied",
+		},
+		{
+			name: "Retries transient errors before collecting them",
+			errs: []error{
+				errors.New("AMSS unavailable"),
+				nil,
+				errors.New("download interrupted"),
+			},
+			attempts: 3,
+			errorMessage: "AMSS AIP METS download failed:\n" +
+				"AIP 28c1a3e2-abd3-4b9b-9214-ae851c87b1a6: AMSS unavailable\n" +
+				"AIP a38c3e43-c6c3-42f6-a7a0-8227c378deab: download interrupted",
+		},
+	} {
+		s.Run(tt.name, func() {
+			s.SetupTest()
+
+			wDIP := s.dip
+			wDIP.Status = enums.DIPStatusInProgress
+			wDIP.StartedAt = createDIPTestTime
+			s.env.OnActivity(
+				activities.UpdateDIPName,
+				mock.AnythingOfType("*context.timerCtx"),
+				&activities.UpdateDIPParams{DIP: wDIP},
+			).Return(&activities.UpdateDIPResult{}, nil).Once()
+			s.env.OnActivity(
+				actapro.GetDocumentActivityName,
+				mock.AnythingOfType("*context.timerCtx"),
+				&actapro.GetDocumentParams{DocKey: s.dip.DocKey},
+			).Return(&actapro.GetDocumentResult{AIPUUIDs: aipUUIDs}, nil).Once()
+			for _, aipUUID := range aipUUIDs {
+				s.env.OnActivity(
+					amss.GetAIPPathActivityName,
+					mock.AnythingOfType("*context.timerCtx"),
+					&amss.GetAIPPathActivityParams{AIPUUID: aipUUID},
+				).Return(&amss.GetAIPPathActivityResult{Path: "aa/bb/test-" + aipUUID.String() + ".7z"}, nil).Once()
+			}
+			s.env.OnActivity(
+				actapro.CreateExportActivityName,
+				mock.AnythingOfType("*context.timerCtx"),
+				&actapro.CreateExportParams{DocKey: s.dip.DocKey},
+			).Return(&actapro.CreateExportResult{ExportID: "1ef33301-83c4-407c-9895-18d16a1f10b9"}, nil).Once()
+			s.env.OnActivity(
+				actapro.PollExportStatusActivityName,
+				mock.AnythingOfType("*context.timerCtx"),
+				&actapro.PollExportStatusParams{ExportID: "1ef33301-83c4-407c-9895-18d16a1f10b9"},
+			).Return(&actapro.PollExportStatusResult{Status: "COMPLETED"}, nil).Once()
+			dipWorkingDir := filepath.Join(s.workingDir, s.dip.UUID.String())
+			previous := s.env.OnActivity(
+				actapro.DownloadExportActivityName,
+				mock.AnythingOfType("*context.timerCtx"),
+				&actapro.DownloadExportParams{
+					ExportID:     "1ef33301-83c4-407c-9895-18d16a1f10b9",
+					MetadataPath: filepath.Join(dipWorkingDir, "metadata.xml"),
+				},
+			).Return(&actapro.DownloadExportResult{}, nil).Once()
+			previous = s.env.OnActivity(
+				xmlvalidate.Name,
+				mock.AnythingOfType("*context.timerCtx"),
+				&xmlvalidate.Params{
+					XMLPath: filepath.Join(dipWorkingDir, "metadata.xml"),
+					XSDPath: s.xsdPath,
+				},
+			).Return(&xmlvalidate.Result{}, nil).Once().NotBefore(previous)
+
+			var retryDelay time.Duration
+			for i, aipUUID := range aipUUIDs {
+				metsName := "METS." + aipUUID.String() + ".xml"
+				fetch := s.env.OnActivity(
+					amss.FetchActivityName,
+					mock.AnythingOfType("*context.timerCtx"),
+					&amss.FetchActivityParams{
+						AIPUUID:      aipUUID,
+						RelativePath: "test-" + aipUUID.String() + "/data/" + metsName,
+						Destination:  filepath.Join(dipWorkingDir, metsName),
+					},
+				).NotBefore(previous)
+				if tt.errs[i] != nil {
+					fetch.Return(nil, tt.errs[i]).Times(tt.attempts)
+					retryDelay += time.Duration(tt.attempts-1) * 5 * time.Second
+				} else {
+					fetch.Return(&amss.FetchActivityResult{}, nil).Once()
+				}
+				previous = fetch
+			}
+			cleanup := s.env.OnActivity(
+				removepaths.Name,
+				mock.AnythingOfType("*context.timerCtx"),
+				&removepaths.Params{Paths: []string{dipWorkingDir}},
+			).Return(&removepaths.Result{}, nil).Once().NotBefore(previous)
+
+			wDIP.Status = enums.DIPStatusFailed
+			wDIP.CompletedAt = createDIPTestTime.Add(retryDelay)
+			wDIP.ErrorMessage = tt.errorMessage
+			s.env.OnActivity(
+				activities.UpdateDIPName,
+				mock.AnythingOfType("*context.timerCtx"),
+				&activities.UpdateDIPParams{DIP: wDIP},
+			).Return(&activities.UpdateDIPResult{}, nil).Once().NotBefore(cleanup)
+
+			s.env.ExecuteWorkflow(s.workflow.Execute, &workflows.CreateDIPParams{DIP: s.dip})
+
+			s.True(s.env.IsWorkflowCompleted())
+			s.env.AssertExpectations(s.T())
+			var applicationErr *temporalsdk_temporal.ApplicationError
+			s.Require().True(errors.As(s.env.GetWorkflowError(), &applicationErr))
+			s.Equal(tt.errorMessage, applicationErr.Message())
+		})
+	}
+}
+
 func (s *CreateDIPTestSuite) TestExportValidationFails() {
+	aipUUID := uuid.MustParse("28c1a3e2-abd3-4b9b-9214-ae851c87b1a6")
 	for _, tt := range []struct {
 		name         string
 		result       *xmlvalidate.Result
@@ -531,7 +828,12 @@ func (s *CreateDIPTestSuite) TestExportValidationFails() {
 				actapro.GetDocumentActivityName,
 				mock.AnythingOfType("*context.timerCtx"),
 				&actapro.GetDocumentParams{DocKey: s.dip.DocKey},
-			).Return(&actapro.GetDocumentResult{}, nil).Once()
+			).Return(&actapro.GetDocumentResult{AIPUUIDs: []uuid.UUID{aipUUID}}, nil).Once()
+			s.env.OnActivity(
+				amss.GetAIPPathActivityName,
+				mock.AnythingOfType("*context.timerCtx"),
+				&amss.GetAIPPathActivityParams{AIPUUID: aipUUID},
+			).Return(&amss.GetAIPPathActivityResult{Path: "aa/bb/test-" + aipUUID.String() + ".7z"}, nil).Once()
 			s.env.OnActivity(
 				actapro.CreateExportActivityName,
 				mock.AnythingOfType("*context.timerCtx"),
@@ -578,6 +880,7 @@ func (s *CreateDIPTestSuite) TestExportValidationFails() {
 
 			s.True(s.env.IsWorkflowCompleted())
 			s.env.AssertExpectations(s.T())
+			s.env.AssertNotCalled(s.T(), amss.FetchActivityName, mock.Anything, mock.Anything)
 			if tt.err != nil {
 				s.ErrorContains(s.env.GetWorkflowError(), tt.err.Error())
 			} else {

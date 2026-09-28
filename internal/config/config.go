@@ -9,9 +9,9 @@ import (
 	"github.com/artefactual-sdps/temporal-activities/bagcreate"
 	"github.com/artefactual-sdps/temporal-activities/ffvalidate"
 	"github.com/spf13/viper"
-	"go.artefactual.dev/ssclient"
 	"go.artefactual.dev/tools/bucket"
 
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/amss"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/apis"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/fvalidate"
 )
@@ -142,7 +142,7 @@ type PoststorageConfig struct {
 	// Cantons configures the Cantons poststorage workflow.
 	Cantons PoststorageCantonsConfig
 
-	AMSS ssclient.Config
+	AMSS amss.Config
 }
 
 type PoststorageAPISConfig struct {
@@ -164,17 +164,8 @@ func (c PoststorageConfig) Validate() error {
 	if c.WorkingDir == "" {
 		errs = errors.Join(errs, errRequired("Poststorage.WorkingDir"))
 	}
-	if c.AMSS.BaseURL == "" {
-		errs = errors.Join(errs, errRequired("Poststorage.AMSS.BaseURL"))
-	}
-	if c.AMSS.Username == "" {
-		errs = errors.Join(errs, errRequired("Poststorage.AMSS.Username"))
-	}
-	if c.AMSS.Key == "" {
-		errs = errors.Join(errs, errRequired("Poststorage.AMSS.Key"))
-	}
 
-	return errs
+	return errors.Join(errs, c.AMSS.Validate())
 }
 
 func (c PoststorageAPISConfig) Validate() error {
