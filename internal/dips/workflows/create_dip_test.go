@@ -100,26 +100,35 @@ func TestCreateDIP(t *testing.T) {
 }
 
 func (s *CreateDIPTestSuite) TestSuccess() {
-	s.testSessionResult(nil, 0, nil)
+	s.testSessionResult(nil, 0, nil, nil)
 }
 
 func (s *CreateDIPTestSuite) TestCleanupFailureDoesNotFailWorkflow() {
-	s.testSessionResult(errors.New("remove paths failed"), 0, nil)
+	s.testSessionResult(errors.New("remove paths failed"), 0, nil, nil)
 }
 
 func (s *CreateDIPTestSuite) TestCleanupCompletesAfterCancellation() {
 	s.env.RegisterDelayedCallback(s.env.CancelWorkflow, time.Second)
-	s.testSessionResult(nil, 2*time.Second, nil)
+	s.testSessionResult(nil, 2*time.Second, nil, nil)
 	s.Equal(createDIPTestTime.Add(2*time.Second), s.env.Now().UTC())
 }
 
 func (s *CreateDIPTestSuite) TestParseMetadataFails() {
-	s.testSessionResult(nil, 0, errors.New(
+	s.testSessionResult(nil, 0, nil, errors.New(
 		"files not found in AIP METS:\n_file1 (content/file1.jp2)\n_file2 (content/file2.jp2)",
 	))
 }
 
-func (s *CreateDIPTestSuite) testSessionResult(cleanupErr error, cleanupDelay time.Duration, parseErr error) {
+func (s *CreateDIPTestSuite) TestMetadataContainsNoFiles() {
+	s.testSessionResult(nil, 0, &activities.ParseMetadataResult{}, nil)
+}
+
+func (s *CreateDIPTestSuite) testSessionResult(
+	cleanupErr error,
+	cleanupDelay time.Duration,
+	parseResult *activities.ParseMetadataResult,
+	parseErr error,
+) {
 	s.T().Helper()
 
 	wDIP := s.dip
@@ -209,10 +218,13 @@ func (s *CreateDIPTestSuite) testSessionResult(cleanupErr error, cleanupDelay ti
 	if parseErr != nil {
 		parseMetadata.Return(nil, parseErr)
 	} else {
-		parseMetadata.Return(&activities.ParseMetadataResult{Files: []*datatypes.File{{
-			DateiID: "_file1", DIPPath: "content/file1.jp2", Checksum: "checksum", ChecksumAlgorithm: "MD5",
-			AIPUUID: aipUUIDs[0], AIPPath: "data/objects/file1.jp2",
-		}}}, nil)
+		if parseResult == nil {
+			parseResult = &activities.ParseMetadataResult{Files: []*datatypes.File{{
+				DateiID: "_file1", DIPPath: "content/file1.jp2", Checksum: "checksum", ChecksumAlgorithm: "MD5",
+				AIPUUID: aipUUIDs[0], AIPPath: "data/objects/file1.jp2",
+			}}}
+		}
+		parseMetadata.Return(parseResult, nil)
 	}
 	cleanup := s.env.OnActivity(
 		removepaths.Name,
@@ -226,6 +238,10 @@ func (s *CreateDIPTestSuite) testSessionResult(cleanupErr error, cleanupDelay ti
 		wDIP.ObjectKey = ""
 		wDIP.Status = enums.DIPStatusFailed
 		wDIP.ErrorMessage = "DIP metadata parsing failed: " + parseErr.Error()
+	} else if len(parseResult.Files) == 0 {
+		wDIP.ObjectKey = ""
+		wDIP.Status = enums.DIPStatusFailed
+		wDIP.ErrorMessage = "DIP metadata contains no files."
 	}
 	wDIP.CompletedAt = createDIPTestTime.Add(cleanupDelay)
 	s.env.OnActivity(
@@ -242,6 +258,12 @@ func (s *CreateDIPTestSuite) testSessionResult(cleanupErr error, cleanupDelay ti
 		s.ErrorContains(s.env.GetWorkflowError(), parseErr.Error())
 		return
 	}
+	if len(parseResult.Files) == 0 {
+		var applicationErr *temporalsdk_temporal.ApplicationError
+		s.Require().True(errors.As(s.env.GetWorkflowError(), &applicationErr))
+		s.Equal(wDIP.ErrorMessage, applicationErr.Message())
+		return
+	}
 	s.NoError(s.env.GetWorkflowError())
 
 	var result workflows.CreateDIPResult
@@ -250,6 +272,7 @@ func (s *CreateDIPTestSuite) testSessionResult(cleanupErr error, cleanupDelay ti
 }
 
 func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
+	aipUUID := uuid.MustParse("28c1a3e2-abd3-4b9b-9214-ae851c87b1a6")
 	wDIP := s.dip
 	wDIP.Status = enums.DIPStatusInProgress
 	wDIP.StartedAt = createDIPTestTime
@@ -262,7 +285,12 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 		actapro.GetDocumentActivityName,
 		mock.AnythingOfType("*context.timerCtx"),
 		&actapro.GetDocumentParams{DocKey: s.dip.DocKey},
-	).Return(&actapro.GetDocumentResult{}, nil).Once()
+	).Return(&actapro.GetDocumentResult{AIPUUIDs: []uuid.UUID{aipUUID}}, nil).Once()
+	s.env.OnActivity(
+		amss.GetAIPPathActivityName,
+		mock.AnythingOfType("*context.timerCtx"),
+		&amss.GetAIPPathActivityParams{AIPUUID: aipUUID},
+	).Return(&amss.GetAIPPathActivityResult{Path: "test-" + aipUUID.String() + ".7z"}, nil).Once()
 	s.env.OnActivity(
 		actapro.CreateExportActivityName,
 		mock.AnythingOfType("*context.timerCtx"),
@@ -297,11 +325,28 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 			XSDPath: s.xsdPath,
 		},
 	).Return(&xmlvalidate.Result{}, nil).Once().NotBefore(downloadExport)
+	metsName := "METS." + aipUUID.String() + ".xml"
+	metsPath := filepath.Join(s.workingDir, s.dip.UUID.String(), metsName)
+	fetchMETS := s.env.OnActivity(
+		amss.FetchActivityName,
+		mock.AnythingOfType("*context.timerCtx"),
+		&amss.FetchActivityParams{
+			AIPUUID:      aipUUID,
+			RelativePath: "test-" + aipUUID.String() + "/data/" + metsName,
+			Destination:  metsPath,
+		},
+	).Return(&amss.FetchActivityResult{}, nil).Once().NotBefore(validateExport)
 	s.env.OnActivity(
 		activities.ParseMetadataName,
 		mock.AnythingOfType("*context.timerCtx"),
-		&activities.ParseMetadataParams{MetadataPath: downloadParams.MetadataPath},
-	).Return(&activities.ParseMetadataResult{}, nil).Once().NotBefore(validateExport)
+		&activities.ParseMetadataParams{
+			MetadataPath: downloadParams.MetadataPath,
+			AIPs:         []activities.AIPMETS{{AIPUUID: aipUUID, METSPath: metsPath}},
+		},
+	).Return(&activities.ParseMetadataResult{Files: []*datatypes.File{{
+		DateiID: "_file1", DIPPath: "content/file1.jp2", Checksum: "checksum", ChecksumAlgorithm: "MD5",
+		AIPUUID: aipUUID, AIPPath: "data/objects/file1.jp2",
+	}}}, nil).Once().NotBefore(fetchMETS)
 	cleanup := s.env.OnActivity(
 		removepaths.Name,
 		mock.AnythingOfType("*context.timerCtx"),
@@ -456,6 +501,53 @@ func (s *CreateDIPTestSuite) TestGetDocumentFails() {
 			s.True(s.env.IsWorkflowCompleted())
 			s.env.AssertExpectations(s.T())
 			s.ErrorContains(s.env.GetWorkflowError(), tt.err.Error())
+		})
+	}
+}
+
+func (s *CreateDIPTestSuite) TestDocumentContainsNoAIPs() {
+	for _, tt := range []struct {
+		name     string
+		aipUUIDs []uuid.UUID
+	}{
+		{name: "Nil AIP list"},
+		{name: "Empty AIP list", aipUUIDs: []uuid.UUID{}},
+	} {
+		s.Run(tt.name, func() {
+			s.SetupTest()
+
+			wDIP := s.dip
+			wDIP.Status = enums.DIPStatusInProgress
+			wDIP.StartedAt = createDIPTestTime
+			initialUpdate := s.env.OnActivity(
+				activities.UpdateDIPName,
+				mock.AnythingOfType("*context.timerCtx"),
+				&activities.UpdateDIPParams{DIP: wDIP},
+			).Return(&activities.UpdateDIPResult{}, nil).Once()
+			getDocument := s.env.OnActivity(
+				actapro.GetDocumentActivityName,
+				mock.AnythingOfType("*context.timerCtx"),
+				&actapro.GetDocumentParams{DocKey: s.dip.DocKey},
+			).Return(&actapro.GetDocumentResult{AIPUUIDs: tt.aipUUIDs}, nil).Once().NotBefore(initialUpdate)
+
+			wDIP.Status = enums.DIPStatusFailed
+			wDIP.CompletedAt = createDIPTestTime
+			wDIP.ErrorMessage = "ACTApro document contains no AIPs."
+			s.env.OnActivity(
+				activities.UpdateDIPName,
+				mock.AnythingOfType("*context.timerCtx"),
+				&activities.UpdateDIPParams{DIP: wDIP},
+			).Return(&activities.UpdateDIPResult{}, nil).Once().NotBefore(getDocument)
+
+			s.env.ExecuteWorkflow(s.workflow.Execute, &workflows.CreateDIPParams{DIP: s.dip})
+
+			s.True(s.env.IsWorkflowCompleted())
+			s.env.AssertExpectations(s.T())
+			var applicationErr *temporalsdk_temporal.ApplicationError
+			s.Require().True(errors.As(s.env.GetWorkflowError(), &applicationErr))
+			s.Equal(wDIP.ErrorMessage, applicationErr.Message())
+			s.env.AssertNotCalled(s.T(), amss.GetAIPPathActivityName, mock.Anything, mock.Anything)
+			s.env.AssertNotCalled(s.T(), actapro.CreateExportActivityName, mock.Anything, mock.Anything)
 		})
 	}
 }
@@ -967,6 +1059,7 @@ func (s *CreateDIPTestSuite) TestBothUpdatesFail() {
 }
 
 func (s *CreateDIPTestSuite) TestCancellationPersistsFinalStatus() {
+	aipUUID := uuid.MustParse("28c1a3e2-abd3-4b9b-9214-ae851c87b1a6")
 	for _, tt := range []struct {
 		name                  string
 		activityDelay         time.Duration
@@ -1001,7 +1094,7 @@ func (s *CreateDIPTestSuite) TestCancellationPersistsFinalStatus() {
 			getDocument:           true,
 			cancelAfterCompletion: true,
 			wantStatus:            enums.DIPStatusFailed,
-			wantErrorMessage:      "ACTApro export creation failed: canceled",
+			wantErrorMessage:      "AMSS AIP path retrieval failed:\nAIP " + aipUUID.String() + ": canceled",
 		},
 	} {
 		s.Run(tt.name, func() {
@@ -1017,7 +1110,8 @@ func (s *CreateDIPTestSuite) TestCancellationPersistsFinalStatus() {
 					actapro.GetDocumentActivityName,
 					mock.AnythingOfType("*context.timerCtx"),
 					&actapro.GetDocumentParams{DocKey: s.dip.DocKey},
-				).Return(&actapro.GetDocumentResult{}, nil).After(tt.activityDelay).Once()
+				).Return(&actapro.GetDocumentResult{AIPUUIDs: []uuid.UUID{aipUUID}}, nil).
+					After(tt.activityDelay).Once()
 			}
 			s.env.OnActivity(
 				activities.UpdateDIPName,
@@ -1072,6 +1166,9 @@ func (s *CreateDIPTestSuite) TestCancellationPersistsFinalStatus() {
 				var result workflows.CreateDIPResult
 				s.Require().NoError(s.env.GetWorkflowResult(&result))
 				s.Equal(workflows.CreateDIPResult{DIP: wDIP}, result)
+			} else if tt.getDocument && tt.cancelAfterCompletion {
+				// AIP path lookup errors are collected into an application error.
+				s.ErrorContains(s.env.GetWorkflowError(), tt.wantErrorMessage)
 			} else {
 				s.True(temporalsdk_temporal.IsCanceledError(s.env.GetWorkflowError()))
 			}

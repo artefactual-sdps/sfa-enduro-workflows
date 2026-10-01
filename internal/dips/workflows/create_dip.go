@@ -124,6 +124,10 @@ func (w *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPP
 		state.dip.ErrorMessage = fmt.Sprintf("ACTApro document retrieval failed: %s", activityErrorMessage(err))
 		return nil, err
 	}
+	if len(document.AIPUUIDs) == 0 {
+		state.dip.ErrorMessage = "ACTApro document contains no AIPs."
+		return nil, errors.New(state.dip.ErrorMessage)
+	}
 
 	// Get AMSS AIP paths.
 	var aipPathErrs error
@@ -349,6 +353,10 @@ func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *stat
 	if err != nil {
 		state.dip.ErrorMessage = fmt.Sprintf("DIP metadata parsing failed: %s", activityErrorMessage(err))
 		return err
+	}
+	if len(metadata.Files) == 0 {
+		state.dip.ErrorMessage = "DIP metadata contains no files."
+		return errors.New(state.dip.ErrorMessage)
 	}
 	state.files = metadata.Files
 
