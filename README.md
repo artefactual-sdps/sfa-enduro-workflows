@@ -9,6 +9,7 @@ enabled or `poststorage-cantons` when APIS is disabled.
 - [Local environment](#local-environment)
 - [Makefile](#makefile)
 - [Available activities](#available-activities)
+- [DIP service](#dip-service)
 
 ## Configuration
 
@@ -513,6 +514,13 @@ Storage Service and submits it to APIS. The `poststorage-cantons` workflow
 downloads the AIP METS file and the selected Arelda metadata file from
 Archivematica Storage Service, combines them, creates a ZIP bundle, and deposits
 the bundle in the configured bucket.
+
+## DIP service
+
+This project also contains `sfa-dips`, a separate application that runs an HTTP
+API and a Temporal worker for Dissemination Information Package (DIP) creation.
+See the [DIPs package README](internal/dips/README.md) for the API and workflow
+documentation.
 
 [bucket configuration options]: https://enduro.readthedocs.io/admin-manual/configuration/#bucket-configuration-options
 [Enduro development manual]: https://enduro.readthedocs.io/dev-manual/devel/
