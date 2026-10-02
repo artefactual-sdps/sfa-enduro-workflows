@@ -79,9 +79,10 @@ are exhausted, with the aggregation and cleanup exceptions below.
     `AIPPath`, which already includes the AIP directory name, into
     `<DIP directory>/<DIPPath>`, creating missing parent directories. A failed
     download stops processing once retries are exhausted.
-12. `remove-paths`: removes the DIP working directory on session exit, including
+12. `archive-zip`: creates `DIP_<DIP UUID>.zip` alongside the DIP directory.
+13. `remove-paths`: removes the DIP working directory on session exit, including
     on failure. Cleanup errors are logged without failing the workflow.
-13. `update-dip`: records completion time and `done` or `failed`, with the
+14. `update-dip`: records completion time and `done` or `failed`, with the
     object key or error message.
 
 For all ACTApro activities, a potentially transient API error response
@@ -93,19 +94,18 @@ immediately.
 Whenever the workflow fails, no further retrieval or export steps run, but the
 final update to record the failure is still attempted.
 
-Downloads, validation, parsing and DIP preparation run in a Temporal session so
-they share one worker's local files. Worker loss can restart the session from
-the export download. If the session cannot be created or recovered, the
-workflow fails.
+Downloads, validation, parsing, DIP preparation and ZIP creation run in a
+Temporal session so they share one worker's local files. Worker loss can restart
+the session from the export download. If the session cannot be created or
+recovered, the workflow fails.
 
 Cleanup and the final database update are attempted even after workflow
 cancellation. If the final update fails, the database may retain an earlier
 status.
 
-**Current implementation:** successful content downloads set the DIP's object
-key to `DIP_<DIP UUID>.zip` and complete with `done`. ZIP creation and bucket
-upload are still TODOs, so this status does not yet mean a DIP archive is
-available.
+**Current implementation:** successful ZIP creation sets the DIP's object key to
+`DIP_<DIP UUID>.zip` and completes with `done`. Bucket upload is still a TODO,
+so this status does not yet mean a DIP archive is available.
 
 ### Metadata parsing and file paths
 

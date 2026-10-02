@@ -13,6 +13,7 @@ import (
 
 	"ariga.io/sqlcomment"
 	"entgo.io/ent/dialect/sql"
+	"github.com/artefactual-sdps/temporal-activities/archivezip"
 	"github.com/artefactual-sdps/temporal-activities/removepaths"
 	"github.com/artefactual-sdps/temporal-activities/xmlvalidate"
 	"github.com/oklog/run"
@@ -244,6 +245,10 @@ func main() {
 	temporalWorker.RegisterActivityWithOptions(
 		activities.NewPrepareDIP().Execute,
 		temporalsdk_activity.RegisterOptions{Name: activities.PrepareDIPName},
+	)
+	temporalWorker.RegisterActivityWithOptions(
+		archivezip.New().Execute,
+		temporalsdk_activity.RegisterOptions{Name: archivezip.Name},
 	)
 	temporalWorker.RegisterActivityWithOptions(
 		removepaths.New().Execute,

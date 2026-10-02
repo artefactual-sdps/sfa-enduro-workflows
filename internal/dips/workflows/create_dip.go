@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/artefactual-sdps/temporal-activities/archivezip"
 	"github.com/artefactual-sdps/temporal-activities/removepaths"
 	"github.com/artefactual-sdps/temporal-activities/xmlvalidate"
 	"github.com/google/uuid"
@@ -400,8 +401,21 @@ func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *stat
 		}
 	}
 
-	// TODO: Add ZIP creation and bucket upload.
-	state.dip.ObjectKey = fmt.Sprintf("DIP_%s.zip", state.dip.UUID.String())
+	// Create the ZIP alongside the DIP directory.
+	var zipResult archivezip.Result
+	err = temporalsdk_workflow.ExecuteActivity(
+		withFilesystemActivityOpts(ctx),
+		archivezip.Name,
+		&archivezip.Params{SourceDir: state.dipPath},
+	).Get(ctx, &zipResult)
+	if err != nil {
+		state.dip.ErrorMessage = fmt.Sprintf("DIP ZIP creation failed: %s", activityErrorMessage(err))
+		return err
+	}
+	state.dipPath = zipResult.Path
+
+	// TODO: Add bucket upload.
+	state.dip.ObjectKey = filepath.Base(state.dipPath)
 
 	return nil
 }

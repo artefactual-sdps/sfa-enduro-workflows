@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/artefactual-sdps/temporal-activities/archivezip"
 	"github.com/artefactual-sdps/temporal-activities/removepaths"
 	"github.com/artefactual-sdps/temporal-activities/xmlvalidate"
 	"github.com/google/uuid"
@@ -84,6 +85,10 @@ func (s *CreateDIPTestSuite) SetupTest() {
 		temporalsdk_activity.RegisterOptions{Name: activities.PrepareDIPName},
 	)
 	s.env.RegisterActivityWithOptions(
+		archivezip.New().Execute,
+		temporalsdk_activity.RegisterOptions{Name: archivezip.Name},
+	)
+	s.env.RegisterActivityWithOptions(
 		removepaths.New().Execute,
 		temporalsdk_activity.RegisterOptions{Name: removepaths.Name},
 	)
@@ -104,36 +109,43 @@ func TestCreateDIP(t *testing.T) {
 }
 
 func (s *CreateDIPTestSuite) TestSuccess() {
-	s.testSessionResult(nil, 0, nil, nil, nil, nil)
+	s.testSessionResult(nil, 0, nil, nil, nil, nil, nil)
 }
 
 func (s *CreateDIPTestSuite) TestCleanupFailureDoesNotFailWorkflow() {
-	s.testSessionResult(errors.New("remove paths failed"), 0, nil, nil, nil, nil)
+	s.testSessionResult(errors.New("remove paths failed"), 0, nil, nil, nil, nil, nil)
 }
 
 func (s *CreateDIPTestSuite) TestCleanupCompletesAfterCancellation() {
 	s.env.RegisterDelayedCallback(s.env.CancelWorkflow, time.Second)
-	s.testSessionResult(nil, 2*time.Second, nil, nil, nil, nil)
+	s.testSessionResult(nil, 2*time.Second, nil, nil, nil, nil, nil)
 	s.Equal(createDIPTestTime.Add(2*time.Second), s.env.Now().UTC())
 }
 
 func (s *CreateDIPTestSuite) TestParseMetadataFails() {
 	s.testSessionResult(nil, 0, nil, errors.New(
 		"files not found in AIP METS:\n_file1 (content/file1.jp2)\n_file2 (content/file2.jp2)",
-	), nil, nil)
+	), nil, nil, nil)
 }
 
 func (s *CreateDIPTestSuite) TestMetadataContainsNoFiles() {
-	s.testSessionResult(nil, 0, &activities.ParseMetadataResult{}, nil, nil, nil)
+	s.testSessionResult(nil, 0, &activities.ParseMetadataResult{}, nil, nil, nil, nil)
 }
 
 func (s *CreateDIPTestSuite) TestPrepareDIPFails() {
-	s.testSessionResult(nil, 0, nil, nil, errors.New("move DIP metadata: permission denied"), nil)
+	s.testSessionResult(nil, 0, nil, nil, errors.New("move DIP metadata: permission denied"), nil, nil)
 }
 
 func (s *CreateDIPTestSuite) TestDownloadContentFails() {
 	s.testSessionResult(nil, 0, nil, nil, nil,
 		temporalsdk_temporal.NewNonRetryableApplicationError("content file not found", "", nil),
+		nil,
+	)
+}
+
+func (s *CreateDIPTestSuite) TestArchiveDIPFails() {
+	s.testSessionResult(nil, 0, nil, nil, nil, nil,
+		errors.New("archivezip: create destination: permission denied"),
 	)
 }
 
@@ -144,6 +156,7 @@ func (s *CreateDIPTestSuite) testSessionResult(
 	parseErr error,
 	prepareErr error,
 	contentErr error,
+	archiveErr error,
 ) {
 	s.T().Helper()
 
@@ -305,6 +318,15 @@ func (s *CreateDIPTestSuite) testSessionResult(
 				}
 				fetch.Return(&amss.FetchActivityResult{}, nil)
 			}
+			if contentErr == nil {
+				// Archive after every file is downloaded; cleanup must wait for it.
+				dipPath := filepath.Join(s.workingDir, s.dip.UUID.String(), "DIP_"+s.dip.UUID.String())
+				previousActivity = s.env.OnActivity(
+					archivezip.Name,
+					mock.AnythingOfType("*context.timerCtx"),
+					&archivezip.Params{SourceDir: dipPath},
+				).Return(&archivezip.Result{Path: dipPath + ".zip"}, archiveErr).Once().NotBefore(previousActivity)
+			}
 		}
 	}
 	cleanup := s.env.OnActivity(
@@ -331,6 +353,10 @@ func (s *CreateDIPTestSuite) testSessionResult(
 		wDIP.ObjectKey = ""
 		wDIP.Status = enums.DIPStatusFailed
 		wDIP.ErrorMessage = contentErrorMessage
+	} else if archiveErr != nil {
+		wDIP.ObjectKey = ""
+		wDIP.Status = enums.DIPStatusFailed
+		wDIP.ErrorMessage = "DIP ZIP creation failed: " + archiveErr.Error()
 	}
 	wDIP.CompletedAt = createDIPTestTime.Add(cleanupDelay)
 	s.env.OnActivity(
@@ -359,6 +385,10 @@ func (s *CreateDIPTestSuite) testSessionResult(
 	}
 	if contentErr != nil {
 		s.ErrorContains(s.env.GetWorkflowError(), "content file not found")
+		return
+	}
+	if archiveErr != nil {
+		s.ErrorContains(s.env.GetWorkflowError(), archiveErr.Error())
 		return
 	}
 	s.NoError(s.env.GetWorkflowError())
@@ -455,7 +485,7 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 			XSDDir:       "/schemas",
 		},
 	).Return(&activities.PrepareDIPResult{}, nil).Once().NotBefore(parseMetadata)
-	s.env.OnActivity(
+	fetchContent := s.env.OnActivity(
 		amss.FetchActivityName,
 		mock.AnythingOfType("*context.timerCtx"),
 		&amss.FetchActivityParams{
@@ -470,6 +500,12 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 			),
 		},
 	).Return(&amss.FetchActivityResult{}, nil).Once().NotBefore(prepareDIP)
+	dipPath := filepath.Join(s.workingDir, s.dip.UUID.String(), "DIP_"+s.dip.UUID.String())
+	s.env.OnActivity(
+		archivezip.Name,
+		mock.AnythingOfType("*context.timerCtx"),
+		&archivezip.Params{SourceDir: dipPath},
+	).Return(&archivezip.Result{Path: dipPath + ".zip"}, nil).Once().NotBefore(fetchContent)
 	cleanup := s.env.OnActivity(
 		removepaths.Name,
 		mock.AnythingOfType("*context.timerCtx"),
