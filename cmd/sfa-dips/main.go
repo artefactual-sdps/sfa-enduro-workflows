@@ -14,11 +14,13 @@ import (
 	"ariga.io/sqlcomment"
 	"entgo.io/ent/dialect/sql"
 	"github.com/artefactual-sdps/temporal-activities/archivezip"
+	"github.com/artefactual-sdps/temporal-activities/bucketupload"
 	"github.com/artefactual-sdps/temporal-activities/removepaths"
 	"github.com/artefactual-sdps/temporal-activities/xmlvalidate"
 	"github.com/oklog/run"
 	"github.com/spf13/pflag"
 	"go.artefactual.dev/ssclient"
+	"go.artefactual.dev/tools/bucket"
 	"go.artefactual.dev/tools/clientauth"
 	"go.artefactual.dev/tools/log"
 	temporal_tools "go.artefactual.dev/tools/temporal"
@@ -179,6 +181,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Set up the bucket for completed DIP archives.
+	dipBucket, err := bucket.NewWithConfig(ctx, &cfg.Bucket)
+	if err != nil {
+		logger.Error(err, "Unable to open DIP bucket.")
+		os.Exit(1)
+	}
+	defer func() {
+		if err := dipBucket.Close(); err != nil {
+			logger.Error(err, "Error closing DIP bucket.")
+		}
+	}()
+
 	// Set up the Temporal client.
 	temporalClient, err := temporalsdk_client.Dial(temporalsdk_client.Options{
 		Namespace: cfg.Temporal.Namespace,
@@ -249,6 +263,10 @@ func main() {
 	temporalWorker.RegisterActivityWithOptions(
 		archivezip.New().Execute,
 		temporalsdk_activity.RegisterOptions{Name: archivezip.Name},
+	)
+	temporalWorker.RegisterActivityWithOptions(
+		bucketupload.New(dipBucket).Execute,
+		temporalsdk_activity.RegisterOptions{Name: bucketupload.Name},
 	)
 	temporalWorker.RegisterActivityWithOptions(
 		removepaths.New().Execute,

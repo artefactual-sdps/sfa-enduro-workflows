@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/artefactual-sdps/temporal-activities/archivezip"
+	"github.com/artefactual-sdps/temporal-activities/bucketupload"
 	"github.com/artefactual-sdps/temporal-activities/removepaths"
 	"github.com/artefactual-sdps/temporal-activities/xmlvalidate"
 	"github.com/google/uuid"
@@ -89,6 +90,10 @@ func (s *CreateDIPTestSuite) SetupTest() {
 		temporalsdk_activity.RegisterOptions{Name: archivezip.Name},
 	)
 	s.env.RegisterActivityWithOptions(
+		bucketupload.New(nil).Execute,
+		temporalsdk_activity.RegisterOptions{Name: bucketupload.Name},
+	)
+	s.env.RegisterActivityWithOptions(
 		removepaths.New().Execute,
 		temporalsdk_activity.RegisterOptions{Name: removepaths.Name},
 	)
@@ -109,43 +114,50 @@ func TestCreateDIP(t *testing.T) {
 }
 
 func (s *CreateDIPTestSuite) TestSuccess() {
-	s.testSessionResult(nil, 0, nil, nil, nil, nil, nil)
+	s.testSessionResult(nil, 0, nil, nil, nil, nil, nil, nil)
 }
 
 func (s *CreateDIPTestSuite) TestCleanupFailureDoesNotFailWorkflow() {
-	s.testSessionResult(errors.New("remove paths failed"), 0, nil, nil, nil, nil, nil)
+	s.testSessionResult(errors.New("remove paths failed"), 0, nil, nil, nil, nil, nil, nil)
 }
 
 func (s *CreateDIPTestSuite) TestCleanupCompletesAfterCancellation() {
 	s.env.RegisterDelayedCallback(s.env.CancelWorkflow, time.Second)
-	s.testSessionResult(nil, 2*time.Second, nil, nil, nil, nil, nil)
+	s.testSessionResult(nil, 2*time.Second, nil, nil, nil, nil, nil, nil)
 	s.Equal(createDIPTestTime.Add(2*time.Second), s.env.Now().UTC())
 }
 
 func (s *CreateDIPTestSuite) TestParseMetadataFails() {
 	s.testSessionResult(nil, 0, nil, errors.New(
 		"files not found in AIP METS:\n_file1 (content/file1.jp2)\n_file2 (content/file2.jp2)",
-	), nil, nil, nil)
+	), nil, nil, nil, nil)
 }
 
 func (s *CreateDIPTestSuite) TestMetadataContainsNoFiles() {
-	s.testSessionResult(nil, 0, &activities.ParseMetadataResult{}, nil, nil, nil, nil)
+	s.testSessionResult(nil, 0, &activities.ParseMetadataResult{}, nil, nil, nil, nil, nil)
 }
 
 func (s *CreateDIPTestSuite) TestPrepareDIPFails() {
-	s.testSessionResult(nil, 0, nil, nil, errors.New("move DIP metadata: permission denied"), nil, nil)
+	s.testSessionResult(nil, 0, nil, nil, errors.New("move DIP metadata: permission denied"), nil, nil, nil)
 }
 
 func (s *CreateDIPTestSuite) TestDownloadContentFails() {
 	s.testSessionResult(nil, 0, nil, nil, nil,
 		temporalsdk_temporal.NewNonRetryableApplicationError("content file not found", "", nil),
-		nil,
+		nil, nil,
 	)
 }
 
 func (s *CreateDIPTestSuite) TestArchiveDIPFails() {
 	s.testSessionResult(nil, 0, nil, nil, nil, nil,
 		errors.New("archivezip: create destination: permission denied"),
+		nil,
+	)
+}
+
+func (s *CreateDIPTestSuite) TestUploadDIPFails() {
+	s.testSessionResult(nil, 0, nil, nil, nil, nil, nil,
+		temporalsdk_temporal.NewNonRetryableApplicationError("bucket upload denied", "", nil),
 	)
 }
 
@@ -157,6 +169,7 @@ func (s *CreateDIPTestSuite) testSessionResult(
 	prepareErr error,
 	contentErr error,
 	archiveErr error,
+	uploadErr error,
 ) {
 	s.T().Helper()
 
@@ -326,6 +339,16 @@ func (s *CreateDIPTestSuite) testSessionResult(
 					mock.AnythingOfType("*context.timerCtx"),
 					&archivezip.Params{SourceDir: dipPath},
 				).Return(&archivezip.Result{Path: dipPath + ".zip"}, archiveErr).Once().NotBefore(previousActivity)
+				if archiveErr == nil {
+					// Use a distinct key to verify the workflow stores the upload result.
+					previousActivity = s.env.OnActivity(
+						bucketupload.Name,
+						mock.AnythingOfType("*context.timerCtx"),
+						&bucketupload.Params{Path: dipPath + ".zip"},
+					).Return(&bucketupload.Result{
+						Key: "uploads/DIP_9390594f-84c2-457d-bd6a-618f21f7c954.zip",
+					}, uploadErr).Once().NotBefore(previousActivity)
+				}
 			}
 		}
 	}
@@ -335,7 +358,7 @@ func (s *CreateDIPTestSuite) testSessionResult(
 		&removepaths.Params{Paths: []string{filepath.Join(s.workingDir, s.dip.UUID.String())}},
 	).Return(&removepaths.Result{}, cleanupErr).After(cleanupDelay).Once().NotBefore(previousActivity)
 
-	wDIP.ObjectKey = "DIP_9390594f-84c2-457d-bd6a-618f21f7c954.zip"
+	wDIP.ObjectKey = "uploads/DIP_9390594f-84c2-457d-bd6a-618f21f7c954.zip"
 	wDIP.Status = enums.DIPStatusDone
 	if parseErr != nil {
 		wDIP.ObjectKey = ""
@@ -357,6 +380,10 @@ func (s *CreateDIPTestSuite) testSessionResult(
 		wDIP.ObjectKey = ""
 		wDIP.Status = enums.DIPStatusFailed
 		wDIP.ErrorMessage = "DIP ZIP creation failed: " + archiveErr.Error()
+	} else if uploadErr != nil {
+		wDIP.ObjectKey = ""
+		wDIP.Status = enums.DIPStatusFailed
+		wDIP.ErrorMessage = "DIP upload failed: bucket upload denied"
 	}
 	wDIP.CompletedAt = createDIPTestTime.Add(cleanupDelay)
 	s.env.OnActivity(
@@ -389,6 +416,10 @@ func (s *CreateDIPTestSuite) testSessionResult(
 	}
 	if archiveErr != nil {
 		s.ErrorContains(s.env.GetWorkflowError(), archiveErr.Error())
+		return
+	}
+	if uploadErr != nil {
+		s.ErrorContains(s.env.GetWorkflowError(), "bucket upload denied")
 		return
 	}
 	s.NoError(s.env.GetWorkflowError())
@@ -501,11 +532,16 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 		},
 	).Return(&amss.FetchActivityResult{}, nil).Once().NotBefore(prepareDIP)
 	dipPath := filepath.Join(s.workingDir, s.dip.UUID.String(), "DIP_"+s.dip.UUID.String())
-	s.env.OnActivity(
+	archiveDIP := s.env.OnActivity(
 		archivezip.Name,
 		mock.AnythingOfType("*context.timerCtx"),
 		&archivezip.Params{SourceDir: dipPath},
 	).Return(&archivezip.Result{Path: dipPath + ".zip"}, nil).Once().NotBefore(fetchContent)
+	s.env.OnActivity(
+		bucketupload.Name,
+		mock.AnythingOfType("*context.timerCtx"),
+		&bucketupload.Params{Path: dipPath + ".zip"},
+	).Return(&bucketupload.Result{Key: filepath.Base(dipPath) + ".zip"}, nil).Once().NotBefore(archiveDIP)
 	cleanup := s.env.OnActivity(
 		removepaths.Name,
 		mock.AnythingOfType("*context.timerCtx"),

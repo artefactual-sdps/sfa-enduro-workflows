@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/artefactual-sdps/temporal-activities/archivezip"
+	"github.com/artefactual-sdps/temporal-activities/bucketupload"
 	"github.com/artefactual-sdps/temporal-activities/removepaths"
 	"github.com/artefactual-sdps/temporal-activities/xmlvalidate"
 	"github.com/google/uuid"
@@ -282,7 +283,7 @@ func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *stat
 	// Download the metadata.xml export.
 	metadataExportPath := filepath.Join(dipWorkingDir, "metadata.xml")
 	err := temporalsdk_workflow.ExecuteActivity(
-		withOptsForAPIDownload(ctx),
+		withOptsForFileTransfer(ctx),
 		actapro.DownloadExportActivityName,
 		&actapro.DownloadExportParams{
 			ExportID:     state.exportID,
@@ -322,7 +323,7 @@ func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *stat
 		metsName := fmt.Sprintf("METS.%s.xml", aipUUID)
 		aip.metsPath = filepath.Join(dipWorkingDir, metsName)
 		err = temporalsdk_workflow.ExecuteActivity(
-			withOptsForAPIDownload(ctx),
+			withOptsForFileTransfer(ctx),
 			amss.FetchActivityName,
 			&amss.FetchActivityParams{
 				AIPUUID:      aip.uuid,
@@ -384,7 +385,7 @@ func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *stat
 	// Download each content file directly into the DIP.
 	for _, file := range state.files {
 		err = temporalsdk_workflow.ExecuteActivity(
-			withOptsForAPIDownload(ctx),
+			withOptsForFileTransfer(ctx),
 			amss.FetchActivityName,
 			&amss.FetchActivityParams{
 				AIPUUID:      file.AIPUUID,
@@ -414,8 +415,18 @@ func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *stat
 	}
 	state.dipPath = zipResult.Path
 
-	// TODO: Add bucket upload.
-	state.dip.ObjectKey = filepath.Base(state.dipPath)
+	// Upload the ZIP before cleaning up the session files.
+	var uploadResult bucketupload.Result
+	err = temporalsdk_workflow.ExecuteActivity(
+		withOptsForFileTransfer(ctx),
+		bucketupload.Name,
+		&bucketupload.Params{Path: state.dipPath},
+	).Get(ctx, &uploadResult)
+	if err != nil {
+		state.dip.ErrorMessage = fmt.Sprintf("DIP upload failed: %s", activityErrorMessage(err))
+		return err
+	}
+	state.dip.ObjectKey = uploadResult.Key
 
 	return nil
 }
@@ -454,11 +465,11 @@ func withOptsForAPIRequest(ctx temporalsdk_workflow.Context) temporalsdk_workflo
 	})
 }
 
-func withOptsForAPIDownload(ctx temporalsdk_workflow.Context) temporalsdk_workflow.Context {
+func withOptsForFileTransfer(ctx temporalsdk_workflow.Context) temporalsdk_workflow.Context {
 	return temporalsdk_workflow.WithActivityOptions(ctx, temporalsdk_workflow.ActivityOptions{
 		StartToCloseTimeout: 2 * time.Hour,
 		HeartbeatTimeout:    10 * time.Second,
-		// Wait for the download to stop before removing the session files.
+		// Wait for the transfer to stop before removing the session files.
 		WaitForCancellation: true,
 		RetryPolicy: &temporalsdk_temporal.RetryPolicy{
 			InitialInterval:    5 * time.Second,

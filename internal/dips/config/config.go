@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/spf13/viper"
+	"go.artefactual.dev/tools/bucket"
 	"go.artefactual.dev/tools/log"
 
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/actapro"
@@ -103,12 +104,18 @@ type Config struct {
 	Temporal    TemporalConfig
 	ACTApro     actapro.Config
 	AMSS        amss.Config
+
+	// Bucket is the destination for completed DIP ZIP archives.
+	Bucket bucket.Config
 }
 
 func (c *Config) Validate() error {
 	var err error
 	if c.XSDPath == "" {
 		err = fmt.Errorf("XSDPath: missing required value")
+	}
+	if c.Bucket.URL == "" && c.Bucket.Endpoint == "" {
+		err = errors.Join(err, fmt.Errorf("Bucket.URL or Bucket.Endpoint: missing required value"))
 	}
 	return errors.Join(
 		err,
@@ -166,6 +173,15 @@ func Read(config *Config, configFile string) (found bool, configFileUsed string,
 	v.SetDefault("amss.baseURL", "")
 	v.SetDefault("amss.username", "")
 	v.SetDefault("amss.key", "")
+	v.SetDefault("bucket.url", "")
+	v.SetDefault("bucket.endpoint", "")
+	v.SetDefault("bucket.bucket", "")
+	v.SetDefault("bucket.accessKey", "")
+	v.SetDefault("bucket.secretKey", "")
+	v.SetDefault("bucket.token", "")
+	v.SetDefault("bucket.profile", "")
+	v.SetDefault("bucket.region", "")
+	v.SetDefault("bucket.pathStyle", false)
 	v.SetEnvPrefix("SFA_DIPS")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
