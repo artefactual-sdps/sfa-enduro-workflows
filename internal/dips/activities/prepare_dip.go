@@ -27,7 +27,7 @@ func NewPrepareDIP() *PrepareDIP {
 	return &PrepareDIP{}
 }
 
-// Execute creates the DIP header with its schemas and exported metadata.
+// Execute creates the DIP header directory with its schemas and exported metadata.
 func (a *PrepareDIP) Execute(ctx context.Context, params *PrepareDIPParams) (*PrepareDIPResult, error) {
 	headerPath := filepath.Join(params.DIPPath, "header")
 	xsdPath := filepath.Join(headerPath, "xsd")

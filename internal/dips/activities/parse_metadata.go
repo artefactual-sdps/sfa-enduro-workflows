@@ -18,14 +18,15 @@ const ParseMetadataName = "parse-dip-metadata"
 
 const premisNamespace = "http://www.loc.gov/premis/v3"
 
-type AIPMETS struct {
-	AIPUUID  uuid.UUID
+type AIP struct {
+	UUID     uuid.UUID
+	DirName  string
 	METSPath string
 }
 
 type ParseMetadataParams struct {
 	MetadataPath string
-	AIPs         []AIPMETS
+	AIPs         []AIP
 }
 
 type ParseMetadataResult struct {
@@ -58,7 +59,7 @@ func (a *ParseMetadata) Execute(ctx context.Context, params *ParseMetadataParams
 			break
 		}
 		if err := matchMETS(ctx, aip, unmatched); err != nil {
-			return nil, fmt.Errorf("parse DIP metadata: AIP %s: %w", aip.AIPUUID, err)
+			return nil, fmt.Errorf("parse DIP metadata: AIP %s: %w", aip.UUID, err)
 		}
 	}
 
@@ -130,7 +131,7 @@ func appendExportFiles(files []*datatypes.File, folder exportFolder, parent stri
 	return files
 }
 
-func matchMETS(ctx context.Context, aip AIPMETS, unmatched map[string]*datatypes.File) error {
+func matchMETS(ctx context.Context, aip AIP, unmatched map[string]*datatypes.File) error {
 	mets, err := os.Open(aip.METSPath)
 	if err != nil {
 		return fmt.Errorf("open METS: %w", err)
@@ -172,8 +173,8 @@ func matchMETS(ctx context.Context, aip AIPMETS, unmatched map[string]*datatypes
 				continue
 			}
 			if file, ok := unmatched[id.Value]; ok {
-				file.AIPUUID = aip.AIPUUID
-				file.AIPPath = aipPath
+				file.AIPUUID = aip.UUID
+				file.AIPPath = path.Join(aip.DirName, aipPath)
 				// Remove the ID so later objects or AIPs cannot overwrite this match.
 				delete(unmatched, id.Value)
 				if len(unmatched) == 0 {

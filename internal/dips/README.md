@@ -75,9 +75,13 @@ are exhausted, with the aggregation and cleanup exceptions below.
 10. `prepare-dip`: creates `<workingDir>/<DIP UUID>/DIP_<DIP UUID>`, copies all
     `.xsd` files from the configured schema's directory into `header/xsd`, and
     moves the export into `header/metadata.xml`.
-11. `remove-paths`: removes the DIP working directory on session exit, including
+11. `fetch-aip-file` (each content file): downloads from the matched AIP using
+    `AIPPath`, which already includes the AIP directory name, into
+    `<DIP directory>/<DIPPath>`, creating missing parent directories. A failed
+    download stops processing once retries are exhausted.
+12. `remove-paths`: removes the DIP working directory on session exit, including
     on failure. Cleanup errors are logged without failing the workflow.
-12. `update-dip`: records completion time and `done` or `failed`, with the
+13. `update-dip`: records completion time and `done` or `failed`, with the
     object key or error message.
 
 For all ACTApro activities, a potentially transient API error response
@@ -98,10 +102,10 @@ Cleanup and the final database update are attempted even after workflow
 cancellation. If the final update fails, the database may retain an earlier
 status.
 
-**Current implementation:** successful DIP preparation sets the DIP's object key
-to `DIP_<DIP UUID>.zip` and completes with `done`. Content download, ZIP
-creation and bucket upload are still TODOs, so this status does not yet mean a
-DIP archive is available.
+**Current implementation:** successful content downloads set the DIP's object
+key to `DIP_<DIP UUID>.zip` and complete with `done`. ZIP creation and bucket
+upload are still TODOs, so this status does not yet mean a DIP archive is
+available.
 
 ### Metadata parsing and file paths
 

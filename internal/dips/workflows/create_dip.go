@@ -42,6 +42,8 @@ type aip struct {
 	uuid uuid.UUID
 	// The relative path of the AIP in the Archivematica Storage Service.
 	relativePath string
+	// The AIP directory name, without its archive extension.
+	dirName string
 	// The path to the METS file for the AIP in the local filesystem.
 	metsPath string
 }
@@ -315,7 +317,7 @@ func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *stat
 	for _, aip := range state.aips {
 		aipUUID := aip.uuid.String()
 		// Strip any archive extension while preserving the AIP directory name.
-		aipDirName := strings.Split(filepath.Base(aip.relativePath), aipUUID)[0] + aipUUID
+		aip.dirName = strings.Split(filepath.Base(aip.relativePath), aipUUID)[0] + aipUUID
 		metsName := fmt.Sprintf("METS.%s.xml", aipUUID)
 		aip.metsPath = filepath.Join(dipWorkingDir, metsName)
 		err = temporalsdk_workflow.ExecuteActivity(
@@ -323,7 +325,7 @@ func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *stat
 			amss.FetchActivityName,
 			&amss.FetchActivityParams{
 				AIPUUID:      aip.uuid,
-				RelativePath: fmt.Sprintf("%s/data/%s", aipDirName, metsName),
+				RelativePath: fmt.Sprintf("%s/data/%s", aip.dirName, metsName),
 				Destination:  aip.metsPath,
 			},
 		).Get(ctx, nil)
@@ -337,11 +339,12 @@ func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *stat
 		return errors.New(state.dip.ErrorMessage)
 	}
 
-	// Parse metadata export AIP METS files.
+	// Parse metadata export and AIP METS files.
 	parseParams := &activities.ParseMetadataParams{MetadataPath: metadataExportPath}
 	for _, aip := range state.aips {
-		parseParams.AIPs = append(parseParams.AIPs, activities.AIPMETS{
-			AIPUUID:  aip.uuid,
+		parseParams.AIPs = append(parseParams.AIPs, activities.AIP{
+			UUID:     aip.uuid,
+			DirName:  aip.dirName,
 			METSPath: aip.metsPath,
 		})
 	}
@@ -377,7 +380,27 @@ func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *stat
 		return err
 	}
 
-	// TODO: Add content download, ZIP creation and bucket upload.
+	// Download each content file directly into the DIP.
+	for _, file := range state.files {
+		err = temporalsdk_workflow.ExecuteActivity(
+			withOptsForAPIDownload(ctx),
+			amss.FetchActivityName,
+			&amss.FetchActivityParams{
+				AIPUUID:      file.AIPUUID,
+				RelativePath: file.AIPPath,
+				Destination:  filepath.Join(state.dipPath, file.DIPPath),
+			},
+		).Get(ctx, nil)
+		if err != nil {
+			state.dip.ErrorMessage = fmt.Sprintf(
+				"AMSS content download failed for %q (AIP %s): %s",
+				file.AIPPath, file.AIPUUID, activityErrorMessage(err),
+			)
+			return err
+		}
+	}
+
+	// TODO: Add ZIP creation and bucket upload.
 	state.dip.ObjectKey = fmt.Sprintf("DIP_%s.zip", state.dip.UUID.String())
 
 	return nil

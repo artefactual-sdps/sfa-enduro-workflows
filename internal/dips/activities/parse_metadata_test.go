@@ -60,6 +60,11 @@ func TestParseMetadata(t *testing.T) {
 	t.Parallel()
 
 	aipUUIDs := []uuid.UUID{uuid.New(), uuid.New(), uuid.New()}
+	aipDirNames := []string{
+		"first-" + aipUUIDs[0].String(),
+		"second-" + aipUUIDs[1].String(),
+		"third-" + aipUUIDs[2].String(),
+	}
 
 	for _, tt := range []struct {
 		name      string
@@ -86,17 +91,17 @@ func TestParseMetadata(t *testing.T) {
 				{
 					DateiID: "_one", DIPPath: "content/one.jp2",
 					Checksum: "09ac7d901a0dd16f1f95bbfe015336ae", ChecksumAlgorithm: "MD5",
-					AIPUUID: aipUUIDs[0], AIPPath: "data/objects/one.jp2",
+					AIPUUID: aipUUIDs[0], AIPPath: aipDirNames[0] + "/data/objects/one.jp2",
 				},
 				{
 					DateiID: "_two", DIPPath: "content/folder/nested/two.pdf",
 					Checksum: "checksum-two", ChecksumAlgorithm: "SHA-256",
-					AIPUUID: aipUUIDs[1], AIPPath: "data/objects/two.pdf",
+					AIPUUID: aipUUIDs[1], AIPPath: aipDirNames[1] + "/data/objects/two.pdf",
 				},
 				{
 					DateiID: "_three", DIPPath: "content/sibling/three.txt",
 					Checksum: "checksum-three", ChecksumAlgorithm: "SHA-1",
-					AIPUUID: aipUUIDs[1], AIPPath: "data/objects/three.txt",
+					AIPUUID: aipUUIDs[1], AIPPath: aipDirNames[1] + "/data/objects/three.txt",
 				},
 			},
 		},
@@ -153,8 +158,8 @@ func TestParseMetadata(t *testing.T) {
 				if mets != "" {
 					assert.NilError(t, os.WriteFile(metsPath, []byte(mets), 0o600))
 				}
-				params.AIPs = append(params.AIPs, activities.AIPMETS{
-					AIPUUID: aipUUIDs[i], METSPath: metsPath,
+				params.AIPs = append(params.AIPs, activities.AIP{
+					UUID: aipUUIDs[i], DirName: aipDirNames[i], METSPath: metsPath,
 				})
 			}
 

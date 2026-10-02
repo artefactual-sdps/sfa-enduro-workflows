@@ -14,6 +14,6 @@ type File struct {
 	ChecksumAlgorithm string
 	// The UUID of the AIP that contains the file.
 	AIPUUID uuid.UUID
-	// The path for the file in the AIP, relative to the AIP root.
+	// The AMSS extraction path, including the AIP directory name.
 	AIPPath string
 }

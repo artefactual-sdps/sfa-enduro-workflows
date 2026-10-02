@@ -104,31 +104,37 @@ func TestCreateDIP(t *testing.T) {
 }
 
 func (s *CreateDIPTestSuite) TestSuccess() {
-	s.testSessionResult(nil, 0, nil, nil, nil)
+	s.testSessionResult(nil, 0, nil, nil, nil, nil)
 }
 
 func (s *CreateDIPTestSuite) TestCleanupFailureDoesNotFailWorkflow() {
-	s.testSessionResult(errors.New("remove paths failed"), 0, nil, nil, nil)
+	s.testSessionResult(errors.New("remove paths failed"), 0, nil, nil, nil, nil)
 }
 
 func (s *CreateDIPTestSuite) TestCleanupCompletesAfterCancellation() {
 	s.env.RegisterDelayedCallback(s.env.CancelWorkflow, time.Second)
-	s.testSessionResult(nil, 2*time.Second, nil, nil, nil)
+	s.testSessionResult(nil, 2*time.Second, nil, nil, nil, nil)
 	s.Equal(createDIPTestTime.Add(2*time.Second), s.env.Now().UTC())
 }
 
 func (s *CreateDIPTestSuite) TestParseMetadataFails() {
 	s.testSessionResult(nil, 0, nil, errors.New(
 		"files not found in AIP METS:\n_file1 (content/file1.jp2)\n_file2 (content/file2.jp2)",
-	), nil)
+	), nil, nil)
 }
 
 func (s *CreateDIPTestSuite) TestMetadataContainsNoFiles() {
-	s.testSessionResult(nil, 0, &activities.ParseMetadataResult{}, nil, nil)
+	s.testSessionResult(nil, 0, &activities.ParseMetadataResult{}, nil, nil, nil)
 }
 
 func (s *CreateDIPTestSuite) TestPrepareDIPFails() {
-	s.testSessionResult(nil, 0, nil, nil, errors.New("move DIP metadata: permission denied"))
+	s.testSessionResult(nil, 0, nil, nil, errors.New("move DIP metadata: permission denied"), nil)
+}
+
+func (s *CreateDIPTestSuite) TestDownloadContentFails() {
+	s.testSessionResult(nil, 0, nil, nil, nil,
+		temporalsdk_temporal.NewNonRetryableApplicationError("content file not found", "", nil),
+	)
 }
 
 func (s *CreateDIPTestSuite) testSessionResult(
@@ -137,6 +143,7 @@ func (s *CreateDIPTestSuite) testSessionResult(
 	parseResult *activities.ParseMetadataResult,
 	parseErr error,
 	prepareErr error,
+	contentErr error,
 ) {
 	s.T().Helper()
 
@@ -204,8 +211,9 @@ func (s *CreateDIPTestSuite) testSessionResult(
 	}
 	for _, aipUUID := range aipUUIDs {
 		metsName := "METS." + aipUUID.String() + ".xml"
-		parseParams.AIPs = append(parseParams.AIPs, activities.AIPMETS{
-			AIPUUID:  aipUUID,
+		parseParams.AIPs = append(parseParams.AIPs, activities.AIP{
+			UUID:     aipUUID,
+			DirName:  "test-" + aipUUID.String(),
 			METSPath: filepath.Join(s.workingDir, s.dip.UUID.String(), metsName),
 		})
 		fetchMETS := s.env.OnActivity(
@@ -228,14 +236,38 @@ func (s *CreateDIPTestSuite) testSessionResult(
 		parseMetadata.Return(nil, parseErr)
 	} else {
 		if parseResult == nil {
-			parseResult = &activities.ParseMetadataResult{Files: []*datatypes.File{{
-				DateiID: "_file1", DIPPath: "content/file1.jp2", Checksum: "checksum", ChecksumAlgorithm: "MD5",
-				AIPUUID: aipUUIDs[0], AIPPath: "data/objects/file1.jp2",
-			}}}
+			// Cover compressed and directory AIPs, nested destinations, and repeated AIPs.
+			parseResult = &activities.ParseMetadataResult{Files: []*datatypes.File{
+				{
+					DateiID: "_file1", DIPPath: "content/file1.jp2", Checksum: "checksum1", ChecksumAlgorithm: "MD5",
+					AIPUUID: aipUUIDs[0], AIPPath: "test-" + aipUUIDs[0].String() + "/data/objects/file1.jp2",
+				},
+				{
+					DateiID:           "_file2",
+					DIPPath:           "content/dossier/file2.pdf",
+					Checksum:          "checksum2",
+					ChecksumAlgorithm: "MD5",
+					AIPUUID:           aipUUIDs[1],
+					AIPPath:           "test-" + aipUUIDs[1].String() + "/data/objects/originals/file2.pdf",
+				},
+				{
+					DateiID:           "_file3",
+					DIPPath:           "content/dossier/nested/file3.txt",
+					Checksum:          "checksum3",
+					ChecksumAlgorithm: "MD5",
+					AIPUUID:           aipUUIDs[2],
+					AIPPath:           "test-" + aipUUIDs[2].String() + "/data/objects/file3.txt",
+				},
+				{
+					DateiID: "_file4", DIPPath: "content/file4.jp2", Checksum: "checksum4", ChecksumAlgorithm: "MD5",
+					AIPUUID: aipUUIDs[0], AIPPath: "test-" + aipUUIDs[0].String() + "/data/objects/file4.jp2",
+				},
+			}}
 		}
 		parseMetadata.Return(parseResult, nil)
 	}
 	previousActivity = parseMetadata
+	var contentErrorMessage string
 	if parseErr == nil && len(parseResult.Files) > 0 {
 		previousActivity = s.env.OnActivity(
 			activities.PrepareDIPName,
@@ -246,6 +278,34 @@ func (s *CreateDIPTestSuite) testSessionResult(
 				XSDDir:       "/schemas",
 			},
 		).Return(&activities.PrepareDIPResult{}, prepareErr).Once().NotBefore(parseMetadata)
+		if prepareErr == nil {
+			for i, file := range parseResult.Files {
+				fetch := s.env.OnActivity(
+					amss.FetchActivityName,
+					mock.AnythingOfType("*context.timerCtx"),
+					&amss.FetchActivityParams{
+						AIPUUID:      file.AIPUUID,
+						RelativePath: file.AIPPath,
+						Destination: filepath.Join(
+							s.workingDir,
+							s.dip.UUID.String(),
+							"DIP_"+s.dip.UUID.String(),
+							file.DIPPath,
+						),
+					},
+				).Once().NotBefore(previousActivity)
+				previousActivity = fetch
+				if contentErr != nil && i == 1 {
+					// Fail the second download; later files must not be fetched.
+					fetch.Return(nil, contentErr)
+					contentErrorMessage = "AMSS content download failed for " +
+						"\"test-1231e569-a94e-4ac1-873e-65e1f524b1c8/data/objects/originals/file2.pdf\" " +
+						"(AIP 1231e569-a94e-4ac1-873e-65e1f524b1c8): content file not found"
+					break
+				}
+				fetch.Return(&amss.FetchActivityResult{}, nil)
+			}
+		}
 	}
 	cleanup := s.env.OnActivity(
 		removepaths.Name,
@@ -267,6 +327,10 @@ func (s *CreateDIPTestSuite) testSessionResult(
 		wDIP.ObjectKey = ""
 		wDIP.Status = enums.DIPStatusFailed
 		wDIP.ErrorMessage = "DIP preparation failed: " + prepareErr.Error()
+	} else if contentErr != nil {
+		wDIP.ObjectKey = ""
+		wDIP.Status = enums.DIPStatusFailed
+		wDIP.ErrorMessage = contentErrorMessage
 	}
 	wDIP.CompletedAt = createDIPTestTime.Add(cleanupDelay)
 	s.env.OnActivity(
@@ -284,13 +348,17 @@ func (s *CreateDIPTestSuite) testSessionResult(
 		return
 	}
 	if len(parseResult.Files) == 0 {
-		var applicationErr *temporalsdk_temporal.ApplicationError
-		s.Require().True(errors.As(s.env.GetWorkflowError(), &applicationErr))
+		applicationErr, ok := errors.AsType[*temporalsdk_temporal.ApplicationError](s.env.GetWorkflowError())
+		s.Require().True(ok)
 		s.Equal(wDIP.ErrorMessage, applicationErr.Message())
 		return
 	}
 	if prepareErr != nil {
 		s.ErrorContains(s.env.GetWorkflowError(), prepareErr.Error())
+		return
+	}
+	if contentErr != nil {
+		s.ErrorContains(s.env.GetWorkflowError(), "content file not found")
 		return
 	}
 	s.NoError(s.env.GetWorkflowError())
@@ -370,13 +438,15 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 		mock.AnythingOfType("*context.timerCtx"),
 		&activities.ParseMetadataParams{
 			MetadataPath: downloadParams.MetadataPath,
-			AIPs:         []activities.AIPMETS{{AIPUUID: aipUUID, METSPath: metsPath}},
+			AIPs: []activities.AIP{
+				{UUID: aipUUID, DirName: "test-" + aipUUID.String(), METSPath: metsPath},
+			},
 		},
 	).Return(&activities.ParseMetadataResult{Files: []*datatypes.File{{
 		DateiID: "_file1", DIPPath: "content/file1.jp2", Checksum: "checksum", ChecksumAlgorithm: "MD5",
-		AIPUUID: aipUUID, AIPPath: "data/objects/file1.jp2",
+		AIPUUID: aipUUID, AIPPath: "test-" + aipUUID.String() + "/data/objects/file1.jp2",
 	}}}, nil).Once().NotBefore(fetchMETS)
-	s.env.OnActivity(
+	prepareDIP := s.env.OnActivity(
 		activities.PrepareDIPName,
 		mock.AnythingOfType("*context.timerCtx"),
 		&activities.PrepareDIPParams{
@@ -385,6 +455,21 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 			XSDDir:       "/schemas",
 		},
 	).Return(&activities.PrepareDIPResult{}, nil).Once().NotBefore(parseMetadata)
+	s.env.OnActivity(
+		amss.FetchActivityName,
+		mock.AnythingOfType("*context.timerCtx"),
+		&amss.FetchActivityParams{
+			AIPUUID:      aipUUID,
+			RelativePath: "test-" + aipUUID.String() + "/data/objects/file1.jp2",
+			Destination: filepath.Join(
+				s.workingDir,
+				s.dip.UUID.String(),
+				"DIP_"+s.dip.UUID.String(),
+				"content",
+				"file1.jp2",
+			),
+		},
+	).Return(&amss.FetchActivityResult{}, nil).Once().NotBefore(prepareDIP)
 	cleanup := s.env.OnActivity(
 		removepaths.Name,
 		mock.AnythingOfType("*context.timerCtx"),
