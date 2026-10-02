@@ -30,6 +30,7 @@ const (
 type state struct {
 	logger     temporalsdk_log.Logger
 	workingDir string
+	dipPath    string
 	dip        datatypes.DIP
 	exportID   string
 	aips       []*aip
@@ -360,7 +361,23 @@ func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *stat
 	}
 	state.files = metadata.Files
 
-	// TODO: Add DIP generation and bucket upload.
+	// Prepare the DIP header before adding content files.
+	state.dipPath = filepath.Join(dipWorkingDir, "DIP_"+state.dip.UUID.String())
+	err = temporalsdk_workflow.ExecuteActivity(
+		withFilesystemActivityOpts(ctx),
+		activities.PrepareDIPName,
+		&activities.PrepareDIPParams{
+			DIPPath:      state.dipPath,
+			MetadataPath: metadataExportPath,
+			XSDDir:       filepath.Dir(w.xsdPath),
+		},
+	).Get(ctx, nil)
+	if err != nil {
+		state.dip.ErrorMessage = fmt.Sprintf("DIP preparation failed: %s", activityErrorMessage(err))
+		return err
+	}
+
+	// TODO: Add content download, ZIP creation and bucket upload.
 	state.dip.ObjectKey = fmt.Sprintf("DIP_%s.zip", state.dip.UUID.String())
 
 	return nil
@@ -417,6 +434,8 @@ func withOptsForAPIDownload(ctx temporalsdk_workflow.Context) temporalsdk_workfl
 func withFilesystemActivityOpts(ctx temporalsdk_workflow.Context) temporalsdk_workflow.Context {
 	return temporalsdk_workflow.WithActivityOptions(ctx, temporalsdk_workflow.ActivityOptions{
 		StartToCloseTimeout: 2 * time.Hour,
+		// Wait for filesystem operations to stop before removing session files.
+		WaitForCancellation: true,
 		RetryPolicy: &temporalsdk_temporal.RetryPolicy{
 			MaximumAttempts: 1,
 		},

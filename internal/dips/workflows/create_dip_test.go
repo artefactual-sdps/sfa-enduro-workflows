@@ -80,6 +80,10 @@ func (s *CreateDIPTestSuite) SetupTest() {
 		temporalsdk_activity.RegisterOptions{Name: activities.ParseMetadataName},
 	)
 	s.env.RegisterActivityWithOptions(
+		activities.NewPrepareDIP().Execute,
+		temporalsdk_activity.RegisterOptions{Name: activities.PrepareDIPName},
+	)
+	s.env.RegisterActivityWithOptions(
 		removepaths.New().Execute,
 		temporalsdk_activity.RegisterOptions{Name: removepaths.Name},
 	)
@@ -100,27 +104,31 @@ func TestCreateDIP(t *testing.T) {
 }
 
 func (s *CreateDIPTestSuite) TestSuccess() {
-	s.testSessionResult(nil, 0, nil, nil)
+	s.testSessionResult(nil, 0, nil, nil, nil)
 }
 
 func (s *CreateDIPTestSuite) TestCleanupFailureDoesNotFailWorkflow() {
-	s.testSessionResult(errors.New("remove paths failed"), 0, nil, nil)
+	s.testSessionResult(errors.New("remove paths failed"), 0, nil, nil, nil)
 }
 
 func (s *CreateDIPTestSuite) TestCleanupCompletesAfterCancellation() {
 	s.env.RegisterDelayedCallback(s.env.CancelWorkflow, time.Second)
-	s.testSessionResult(nil, 2*time.Second, nil, nil)
+	s.testSessionResult(nil, 2*time.Second, nil, nil, nil)
 	s.Equal(createDIPTestTime.Add(2*time.Second), s.env.Now().UTC())
 }
 
 func (s *CreateDIPTestSuite) TestParseMetadataFails() {
 	s.testSessionResult(nil, 0, nil, errors.New(
 		"files not found in AIP METS:\n_file1 (content/file1.jp2)\n_file2 (content/file2.jp2)",
-	))
+	), nil)
 }
 
 func (s *CreateDIPTestSuite) TestMetadataContainsNoFiles() {
-	s.testSessionResult(nil, 0, &activities.ParseMetadataResult{}, nil)
+	s.testSessionResult(nil, 0, &activities.ParseMetadataResult{}, nil, nil)
+}
+
+func (s *CreateDIPTestSuite) TestPrepareDIPFails() {
+	s.testSessionResult(nil, 0, nil, nil, errors.New("move DIP metadata: permission denied"))
 }
 
 func (s *CreateDIPTestSuite) testSessionResult(
@@ -128,6 +136,7 @@ func (s *CreateDIPTestSuite) testSessionResult(
 	cleanupDelay time.Duration,
 	parseResult *activities.ParseMetadataResult,
 	parseErr error,
+	prepareErr error,
 ) {
 	s.T().Helper()
 
@@ -226,11 +235,23 @@ func (s *CreateDIPTestSuite) testSessionResult(
 		}
 		parseMetadata.Return(parseResult, nil)
 	}
+	previousActivity = parseMetadata
+	if parseErr == nil && len(parseResult.Files) > 0 {
+		previousActivity = s.env.OnActivity(
+			activities.PrepareDIPName,
+			mock.AnythingOfType("*context.timerCtx"),
+			&activities.PrepareDIPParams{
+				DIPPath:      filepath.Join(s.workingDir, s.dip.UUID.String(), "DIP_"+s.dip.UUID.String()),
+				MetadataPath: parseParams.MetadataPath,
+				XSDDir:       "/schemas",
+			},
+		).Return(&activities.PrepareDIPResult{}, prepareErr).Once().NotBefore(parseMetadata)
+	}
 	cleanup := s.env.OnActivity(
 		removepaths.Name,
 		mock.AnythingOfType("*context.timerCtx"),
 		&removepaths.Params{Paths: []string{filepath.Join(s.workingDir, s.dip.UUID.String())}},
-	).Return(&removepaths.Result{}, cleanupErr).After(cleanupDelay).Once().NotBefore(parseMetadata)
+	).Return(&removepaths.Result{}, cleanupErr).After(cleanupDelay).Once().NotBefore(previousActivity)
 
 	wDIP.ObjectKey = "DIP_9390594f-84c2-457d-bd6a-618f21f7c954.zip"
 	wDIP.Status = enums.DIPStatusDone
@@ -242,6 +263,10 @@ func (s *CreateDIPTestSuite) testSessionResult(
 		wDIP.ObjectKey = ""
 		wDIP.Status = enums.DIPStatusFailed
 		wDIP.ErrorMessage = "DIP metadata contains no files."
+	} else if prepareErr != nil {
+		wDIP.ObjectKey = ""
+		wDIP.Status = enums.DIPStatusFailed
+		wDIP.ErrorMessage = "DIP preparation failed: " + prepareErr.Error()
 	}
 	wDIP.CompletedAt = createDIPTestTime.Add(cleanupDelay)
 	s.env.OnActivity(
@@ -262,6 +287,10 @@ func (s *CreateDIPTestSuite) testSessionResult(
 		var applicationErr *temporalsdk_temporal.ApplicationError
 		s.Require().True(errors.As(s.env.GetWorkflowError(), &applicationErr))
 		s.Equal(wDIP.ErrorMessage, applicationErr.Message())
+		return
+	}
+	if prepareErr != nil {
+		s.ErrorContains(s.env.GetWorkflowError(), prepareErr.Error())
 		return
 	}
 	s.NoError(s.env.GetWorkflowError())
@@ -336,7 +365,7 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 			Destination:  metsPath,
 		},
 	).Return(&amss.FetchActivityResult{}, nil).Once().NotBefore(validateExport)
-	s.env.OnActivity(
+	parseMetadata := s.env.OnActivity(
 		activities.ParseMetadataName,
 		mock.AnythingOfType("*context.timerCtx"),
 		&activities.ParseMetadataParams{
@@ -347,6 +376,15 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 		DateiID: "_file1", DIPPath: "content/file1.jp2", Checksum: "checksum", ChecksumAlgorithm: "MD5",
 		AIPUUID: aipUUID, AIPPath: "data/objects/file1.jp2",
 	}}}, nil).Once().NotBefore(fetchMETS)
+	s.env.OnActivity(
+		activities.PrepareDIPName,
+		mock.AnythingOfType("*context.timerCtx"),
+		&activities.PrepareDIPParams{
+			DIPPath:      filepath.Join(s.workingDir, s.dip.UUID.String(), "DIP_"+s.dip.UUID.String()),
+			MetadataPath: downloadParams.MetadataPath,
+			XSDDir:       "/schemas",
+		},
+	).Return(&activities.PrepareDIPResult{}, nil).Once().NotBefore(parseMetadata)
 	cleanup := s.env.OnActivity(
 		removepaths.Name,
 		mock.AnythingOfType("*context.timerCtx"),

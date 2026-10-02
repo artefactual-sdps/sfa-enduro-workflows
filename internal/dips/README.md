@@ -72,9 +72,12 @@ are exhausted, with the aggregation and cleanup exceptions below.
    described below. Parsing or matching errors fail both the activity and the
    workflow, without retrying the activity. An empty file list also fails the
    workflow.
-10. `remove-paths`: removes the DIP working directory on session exit, including
+10. `prepare-dip`: creates `<workingDir>/<DIP UUID>/DIP_<DIP UUID>`, copies all
+    `.xsd` files from the configured schema's directory into `header/xsd`, and
+    moves the export into `header/metadata.xml`.
+11. `remove-paths`: removes the DIP working directory on session exit, including
     on failure. Cleanup errors are logged without failing the workflow.
-11. `update-dip`: records completion time and `done` or `failed`, with the
+12. `update-dip`: records completion time and `done` or `failed`, with the
     object key or error message.
 
 For all ACTApro activities, a potentially transient API error response
@@ -86,18 +89,19 @@ immediately.
 Whenever the workflow fails, no further retrieval or export steps run, but the
 final update to record the failure is still attempted.
 
-Downloads, validation and parsing run in a Temporal session so they share one
-worker's local files. Worker loss can restart the session from the export
-download. If the session cannot be created or recovered, the workflow fails.
+Downloads, validation, parsing and DIP preparation run in a Temporal session so
+they share one worker's local files. Worker loss can restart the session from
+the export download. If the session cannot be created or recovered, the
+workflow fails.
 
 Cleanup and the final database update are attempted even after workflow
 cancellation. If the final update fails, the database may retain an earlier
 status.
 
-**Current implementation:** successful parsing sets the DIP's object key to
-`DIP_<DIP UUID>.zip` and completes with `done`. Content download, ZIP creation
-and bucket upload are still TODOs, so this status does not yet mean a DIP
-archive is available.
+**Current implementation:** successful DIP preparation sets the DIP's object key
+to `DIP_<DIP UUID>.zip` and completes with `done`. Content download, ZIP
+creation and bucket upload are still TODOs, so this status does not yet mean a
+DIP archive is available.
 
 ### Metadata parsing and file paths
 

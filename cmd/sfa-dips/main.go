@@ -242,6 +242,10 @@ func main() {
 		temporalsdk_activity.RegisterOptions{Name: activities.ParseMetadataName},
 	)
 	temporalWorker.RegisterActivityWithOptions(
+		activities.NewPrepareDIP().Execute,
+		temporalsdk_activity.RegisterOptions{Name: activities.PrepareDIPName},
+	)
+	temporalWorker.RegisterActivityWithOptions(
 		removepaths.New().Execute,
 		temporalsdk_activity.RegisterOptions{Name: removepaths.Name},
 	)
