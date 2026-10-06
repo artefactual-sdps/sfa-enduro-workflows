@@ -76,6 +76,10 @@ func (s *CreateDIPTestSuite) SetupTest() {
 		temporalsdk_activity.RegisterOptions{Name: xmlvalidate.Name},
 	)
 	s.env.RegisterActivityWithOptions(
+		activities.NewParseMetadata().Execute,
+		temporalsdk_activity.RegisterOptions{Name: activities.ParseMetadataName},
+	)
+	s.env.RegisterActivityWithOptions(
 		removepaths.New().Execute,
 		temporalsdk_activity.RegisterOptions{Name: removepaths.Name},
 	)
@@ -96,20 +100,26 @@ func TestCreateDIP(t *testing.T) {
 }
 
 func (s *CreateDIPTestSuite) TestSuccess() {
-	s.testSuccess(nil, 0)
+	s.testSessionResult(nil, 0, nil)
 }
 
 func (s *CreateDIPTestSuite) TestCleanupFailureDoesNotFailWorkflow() {
-	s.testSuccess(errors.New("remove paths failed"), 0)
+	s.testSessionResult(errors.New("remove paths failed"), 0, nil)
 }
 
 func (s *CreateDIPTestSuite) TestCleanupCompletesAfterCancellation() {
 	s.env.RegisterDelayedCallback(s.env.CancelWorkflow, time.Second)
-	s.testSuccess(nil, 2*time.Second)
+	s.testSessionResult(nil, 2*time.Second, nil)
 	s.Equal(createDIPTestTime.Add(2*time.Second), s.env.Now().UTC())
 }
 
-func (s *CreateDIPTestSuite) testSuccess(cleanupErr error, cleanupDelay time.Duration) {
+func (s *CreateDIPTestSuite) TestParseMetadataFails() {
+	s.testSessionResult(nil, 0, errors.New(
+		"files not found in AIP METS:\n_file1 (content/file1.jp2)\n_file2 (content/file2.jp2)",
+	))
+}
+
+func (s *CreateDIPTestSuite) testSessionResult(cleanupErr error, cleanupDelay time.Duration, parseErr error) {
 	s.T().Helper()
 
 	wDIP := s.dip
@@ -171,8 +181,15 @@ func (s *CreateDIPTestSuite) testSuccess(cleanupErr error, cleanupDelay time.Dur
 		},
 	).Return(&xmlvalidate.Result{}, nil).Once().NotBefore(downloadExport)
 	previousActivity := validateExport
+	parseParams := &activities.ParseMetadataParams{
+		MetadataPath: filepath.Join(s.workingDir, s.dip.UUID.String(), "metadata.xml"),
+	}
 	for _, aipUUID := range aipUUIDs {
 		metsName := "METS." + aipUUID.String() + ".xml"
+		parseParams.AIPs = append(parseParams.AIPs, activities.AIPMETS{
+			AIPUUID:  aipUUID,
+			METSPath: filepath.Join(s.workingDir, s.dip.UUID.String(), metsName),
+		})
 		fetchMETS := s.env.OnActivity(
 			amss.FetchActivityName,
 			mock.AnythingOfType("*context.timerCtx"),
@@ -184,14 +201,32 @@ func (s *CreateDIPTestSuite) testSuccess(cleanupErr error, cleanupDelay time.Dur
 		).Return(&amss.FetchActivityResult{}, nil).Once().NotBefore(previousActivity)
 		previousActivity = fetchMETS
 	}
+	parseMetadata := s.env.OnActivity(
+		activities.ParseMetadataName,
+		mock.AnythingOfType("*context.timerCtx"),
+		parseParams,
+	).Once().NotBefore(previousActivity)
+	if parseErr != nil {
+		parseMetadata.Return(nil, parseErr)
+	} else {
+		parseMetadata.Return(&activities.ParseMetadataResult{Files: []*datatypes.File{{
+			DateiID: "_file1", DIPPath: "content/file1.jp2", Checksum: "checksum", ChecksumAlgorithm: "MD5",
+			AIPUUID: aipUUIDs[0], AIPPath: "data/objects/file1.jp2",
+		}}}, nil)
+	}
 	cleanup := s.env.OnActivity(
 		removepaths.Name,
 		mock.AnythingOfType("*context.timerCtx"),
 		&removepaths.Params{Paths: []string{filepath.Join(s.workingDir, s.dip.UUID.String())}},
-	).Return(&removepaths.Result{}, cleanupErr).After(cleanupDelay).Once().NotBefore(previousActivity)
+	).Return(&removepaths.Result{}, cleanupErr).After(cleanupDelay).Once().NotBefore(parseMetadata)
 
 	wDIP.ObjectKey = "DIP_9390594f-84c2-457d-bd6a-618f21f7c954.zip"
 	wDIP.Status = enums.DIPStatusDone
+	if parseErr != nil {
+		wDIP.ObjectKey = ""
+		wDIP.Status = enums.DIPStatusFailed
+		wDIP.ErrorMessage = "DIP metadata parsing failed: " + parseErr.Error()
+	}
 	wDIP.CompletedAt = createDIPTestTime.Add(cleanupDelay)
 	s.env.OnActivity(
 		activities.UpdateDIPName,
@@ -203,6 +238,10 @@ func (s *CreateDIPTestSuite) testSuccess(cleanupErr error, cleanupDelay time.Dur
 
 	s.True(s.env.IsWorkflowCompleted())
 	s.env.AssertExpectations(s.T())
+	if parseErr != nil {
+		s.ErrorContains(s.env.GetWorkflowError(), parseErr.Error())
+		return
+	}
 	s.NoError(s.env.GetWorkflowError())
 
 	var result workflows.CreateDIPResult
@@ -250,7 +289,7 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 		mock.AnythingOfType("*context.timerCtx"),
 		downloadParams,
 	).Return(&actapro.DownloadExportResult{}, nil).Once().NotBefore(failedDownload)
-	s.env.OnActivity(
+	validateExport := s.env.OnActivity(
 		xmlvalidate.Name,
 		mock.AnythingOfType("*context.timerCtx"),
 		&xmlvalidate.Params{
@@ -258,6 +297,11 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 			XSDPath: s.xsdPath,
 		},
 	).Return(&xmlvalidate.Result{}, nil).Once().NotBefore(downloadExport)
+	s.env.OnActivity(
+		activities.ParseMetadataName,
+		mock.AnythingOfType("*context.timerCtx"),
+		&activities.ParseMetadataParams{MetadataPath: downloadParams.MetadataPath},
+	).Return(&activities.ParseMetadataResult{}, nil).Once().NotBefore(validateExport)
 	cleanup := s.env.OnActivity(
 		removepaths.Name,
 		mock.AnythingOfType("*context.timerCtx"),
@@ -307,6 +351,8 @@ func (s *CreateDIPTestSuite) TestExportFailed() {
 }
 
 func (s *CreateDIPTestSuite) testExportFailed(logs, wantMessage string) {
+	s.T().Helper()
+
 	s.SetupTest()
 
 	wDIP := s.dip

@@ -33,6 +33,7 @@ type state struct {
 	dip        datatypes.DIP
 	exportID   string
 	aips       []*aip
+	files      []*datatypes.File
 }
 
 type aip struct {
@@ -330,6 +331,26 @@ func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *stat
 		state.dip.ErrorMessage = fmt.Sprintf("AMSS AIP METS download failed:\n%v", metsErrs)
 		return errors.New(state.dip.ErrorMessage)
 	}
+
+	// Parse metadata export AIP METS files.
+	parseParams := &activities.ParseMetadataParams{MetadataPath: metadataExportPath}
+	for _, aip := range state.aips {
+		parseParams.AIPs = append(parseParams.AIPs, activities.AIPMETS{
+			AIPUUID:  aip.uuid,
+			METSPath: aip.metsPath,
+		})
+	}
+	var metadata activities.ParseMetadataResult
+	err = temporalsdk_workflow.ExecuteActivity(
+		withFilesystemActivityOpts(ctx),
+		activities.ParseMetadataName,
+		parseParams,
+	).Get(ctx, &metadata)
+	if err != nil {
+		state.dip.ErrorMessage = fmt.Sprintf("DIP metadata parsing failed: %s", activityErrorMessage(err))
+		return err
+	}
+	state.files = metadata.Files
 
 	// TODO: Add DIP generation and bucket upload.
 	state.dip.ObjectKey = fmt.Sprintf("DIP_%s.zip", state.dip.UUID.String())

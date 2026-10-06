@@ -238,6 +238,10 @@ func main() {
 		temporalsdk_activity.RegisterOptions{Name: xmlvalidate.Name},
 	)
 	temporalWorker.RegisterActivityWithOptions(
+		activities.NewParseMetadata().Execute,
+		temporalsdk_activity.RegisterOptions{Name: activities.ParseMetadataName},
+	)
+	temporalWorker.RegisterActivityWithOptions(
 		removepaths.New().Execute,
 		temporalsdk_activity.RegisterOptions{Name: removepaths.Name},
 	)
