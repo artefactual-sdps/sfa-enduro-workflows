@@ -60,11 +60,11 @@ type CreateDIPResult struct {
 
 type CreateDIP struct {
 	workingDir string
-	xsdPath    string
+	xsdDir     string
 }
 
-func NewCreateDIP(workingDir, xsdPath string) *CreateDIP {
-	return &CreateDIP{workingDir: workingDir, xsdPath: xsdPath}
+func NewCreateDIP(workingDir, xsdDir string) *CreateDIP {
+	return &CreateDIP{workingDir: workingDir, xsdDir: xsdDir}
 }
 
 func (w *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPParams) (r *CreateDIPResult, e error) {
@@ -302,7 +302,7 @@ func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *stat
 		xmlvalidate.Name,
 		&xmlvalidate.Params{
 			XMLPath: metadataExportPath,
-			XSDPath: w.xsdPath,
+			XSDPath: filepath.Join(w.xsdDir, "arelda.xsd"),
 		},
 	).Get(ctx, &validation)
 	if err != nil {
@@ -374,7 +374,7 @@ func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *stat
 		&activities.PrepareDIPParams{
 			DIPPath:      state.dipPath,
 			MetadataPath: metadataExportPath,
-			XSDDir:       filepath.Dir(w.xsdPath),
+			XSDDir:       w.xsdDir,
 		},
 	).Get(ctx, nil)
 	if err != nil {

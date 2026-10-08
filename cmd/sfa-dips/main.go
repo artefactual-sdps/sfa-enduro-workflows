@@ -217,7 +217,7 @@ func main() {
 
 	// Register workflows and activities.
 	temporalWorker.RegisterWorkflowWithOptions(
-		workflows.NewCreateDIP(cfg.WorkingDir, cfg.XSDPath).Execute,
+		workflows.NewCreateDIP(cfg.WorkingDir, cfg.XSDDir).Execute,
 		temporalsdk_workflow.RegisterOptions{Name: workflows.CreateDIPName},
 	)
 	temporalWorker.RegisterActivityWithOptions(

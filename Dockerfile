@@ -70,7 +70,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	&& rm -rf /var/lib/apt/lists/*
 USER enduro
 RUN mkdir /home/enduro/dips
-COPY --link --chown=enduro:enduro hack/eCH-0160-1.1.xsd /home/enduro/eCH-0160-1.1.xsd
+COPY --link --chown=enduro:enduro hack/eCH-0160-1.1 /home/enduro/eCH-0160-1.1
 COPY --link --chown=enduro:enduro --from=build-sfa-dips /out/sfa-dips /home/enduro/bin/sfa-dips
 CMD ["/home/enduro/bin/sfa-dips"]
 

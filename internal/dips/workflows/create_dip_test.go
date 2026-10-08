@@ -35,7 +35,7 @@ type CreateDIPTestSuite struct {
 	env        *temporalsdk_testsuite.TestWorkflowEnvironment
 	workflow   *workflows.CreateDIP
 	workingDir string
-	xsdPath    string
+	xsdDir     string
 	dip        datatypes.DIP
 }
 
@@ -98,8 +98,8 @@ func (s *CreateDIPTestSuite) SetupTest() {
 		temporalsdk_activity.RegisterOptions{Name: removepaths.Name},
 	)
 	s.workingDir = s.T().TempDir()
-	s.xsdPath = "/schemas/custom-arelda.xsd"
-	s.workflow = workflows.NewCreateDIP(s.workingDir, s.xsdPath)
+	s.xsdDir = "/schemas/custom"
+	s.workflow = workflows.NewCreateDIP(s.workingDir, s.xsdDir)
 	s.dip = datatypes.DIP{
 		DBID:      1,
 		UUID:      uuid.MustParse("9390594f-84c2-457d-bd6a-618f21f7c954"),
@@ -228,7 +228,7 @@ func (s *CreateDIPTestSuite) testSessionResult(
 		mock.AnythingOfType("*context.timerCtx"),
 		&xmlvalidate.Params{
 			XMLPath: filepath.Join(s.workingDir, s.dip.UUID.String(), "metadata.xml"),
-			XSDPath: s.xsdPath,
+			XSDPath: filepath.Join(s.xsdDir, "arelda.xsd"),
 		},
 	).Return(&xmlvalidate.Result{}, nil).Once().NotBefore(downloadExport)
 	previousActivity := validateExport
@@ -301,7 +301,7 @@ func (s *CreateDIPTestSuite) testSessionResult(
 			&activities.PrepareDIPParams{
 				DIPPath:      filepath.Join(s.workingDir, s.dip.UUID.String(), "DIP_"+s.dip.UUID.String()),
 				MetadataPath: parseParams.MetadataPath,
-				XSDDir:       "/schemas",
+				XSDDir:       s.xsdDir,
 			},
 		).Return(&activities.PrepareDIPResult{}, prepareErr).Once().NotBefore(parseMetadata)
 		if prepareErr == nil {
@@ -480,7 +480,7 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 		mock.AnythingOfType("*context.timerCtx"),
 		&xmlvalidate.Params{
 			XMLPath: downloadParams.MetadataPath,
-			XSDPath: s.xsdPath,
+			XSDPath: filepath.Join(s.xsdDir, "arelda.xsd"),
 		},
 	).Return(&xmlvalidate.Result{}, nil).Once().NotBefore(downloadExport)
 	metsName := "METS." + aipUUID.String() + ".xml"
@@ -513,7 +513,7 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 		&activities.PrepareDIPParams{
 			DIPPath:      filepath.Join(s.workingDir, s.dip.UUID.String(), "DIP_"+s.dip.UUID.String()),
 			MetadataPath: downloadParams.MetadataPath,
-			XSDDir:       "/schemas",
+			XSDDir:       s.xsdDir,
 		},
 	).Return(&activities.PrepareDIPResult{}, nil).Once().NotBefore(parseMetadata)
 	fetchContent := s.env.OnActivity(
@@ -1068,7 +1068,7 @@ func (s *CreateDIPTestSuite) TestDownloadAIPMETSFails() {
 				mock.AnythingOfType("*context.timerCtx"),
 				&xmlvalidate.Params{
 					XMLPath: filepath.Join(dipWorkingDir, "metadata.xml"),
-					XSDPath: s.xsdPath,
+					XSDPath: filepath.Join(s.xsdDir, "arelda.xsd"),
 				},
 			).Return(&xmlvalidate.Result{}, nil).Once().NotBefore(previous)
 
@@ -1191,7 +1191,7 @@ func (s *CreateDIPTestSuite) TestExportValidationFails() {
 				mock.AnythingOfType("*context.timerCtx"),
 				&xmlvalidate.Params{
 					XMLPath: metadataPath,
-					XSDPath: s.xsdPath,
+					XSDPath: filepath.Join(s.xsdDir, "arelda.xsd"),
 				},
 			).Return(tt.result, tt.err).Once().NotBefore(downloadExport)
 			cleanup := s.env.OnActivity(

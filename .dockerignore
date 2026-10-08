@@ -1,6 +1,6 @@
 **
 !cmd
-!hack/eCH-0160-1.1.xsd
+!hack/eCH-0160-1.1
 !internal
 !go.mod
 !go.sum

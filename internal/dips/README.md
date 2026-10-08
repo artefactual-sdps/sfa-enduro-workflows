@@ -63,8 +63,8 @@ are exhausted, with the aggregation and cleanup exceptions below.
 6. `download-actapro-export`: saves the ACTApro metadata export to the local DIP
    working directory (`<workingDir>/<DIP UUID>/metadata.xml`).
 7. `xml-validate`: validates `metadata.xml` against the XML Schema Definition
-   (XSD) configured at `xsdPath`. Both activity errors and reported validation
-   failures cause the workflow to fail.
+   (XSD) `arelda.xsd` in the configured schema directory (`xsdDir`). Both
+   activity errors and reported validation failures cause the workflow to fail.
 8. `fetch-aip-file` (each AIP): downloads the METS file into the working
    directory. All METS file downloads are attempted before reporting combined
    errors.
@@ -73,8 +73,8 @@ are exhausted, with the aggregation and cleanup exceptions below.
    workflow, without retrying the activity. An empty file list also fails the
    workflow.
 10. `prepare-dip`: creates `<workingDir>/<DIP UUID>/DIP_<DIP UUID>`, copies all
-    `.xsd` files from the configured schema's directory into `header/xsd`, and
-    moves the export into `header/metadata.xml`.
+    `.xsd` files from the configured schema directory (`xsdDir`) into
+    `header/xsd`, and moves the export into `header/metadata.xml`.
 11. `fetch-aip-file` (each content file): downloads from the matched AIP using
     `AIPPath`, which already includes the AIP directory name, into
     `<DIP directory>/<DIPPath>`, creating missing parent directories. A failed
