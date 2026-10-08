@@ -86,6 +86,10 @@ are exhausted, with the aggregation and cleanup exceptions below.
     on failure. Cleanup errors are logged without failing the workflow.
 15. `update-dip`: records completion time and `done` or `failed`, with the
     object key or error message.
+16. After successful DIP creation and the final update, wait for
+    `retentionPeriod`, then run `bucket-delete` to remove the uploaded ZIP using
+    its object key. Negative retention periods skip deletion. Deletion errors
+    are logged without changing the completed DIP's status.
 
 For all ACTApro activities, a potentially transient API error response
 (`409 Conflict`, `423 Locked`, `500 Internal Server Error`) causes the activity
@@ -103,11 +107,12 @@ or recovered, the workflow fails.
 
 Cleanup and the final database update are attempted even after workflow
 cancellation. If the final update fails, the database may retain an earlier
-status.
+status. In that case, any uploaded DIP archive is deleted immediately.
 
 Successful upload sets the DIP's object key to `DIP_<DIP UUID>.zip` and
-completes with `done`. Session cleanup removes the local ZIP; the uploaded
-archive remains in the configured bucket.
+completes with `done`. Session cleanup removes the local ZIP. The uploaded
+archive remains in the configured bucket for the duration set in the
+`retentionPeriod` setting.
 
 ### Metadata parsing and file paths
 

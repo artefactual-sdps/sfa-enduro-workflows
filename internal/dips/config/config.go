@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/spf13/viper"
@@ -101,6 +102,11 @@ type Config struct {
 	// into each DIP's header/xsd directory.
 	XSDDir string
 
+	// RetentionPeriod is the duration to retain completed DIP archives after a
+	// successful DIP creation. Negative values retain them indefinitely (default);
+	// zero deletes them immediately.
+	RetentionPeriod time.Duration
+
 	API         api.Config
 	Persistence persistence.Config
 	Temporal    TemporalConfig
@@ -142,6 +148,7 @@ func Read(config *Config, configFile string) (found bool, configFileUsed string,
 	v.SetDefault("verbosity", 0)
 	v.SetDefault("workingDir", os.TempDir())
 	v.SetDefault("xsdDir", "")
+	v.SetDefault("retentionPeriod", -time.Second)
 	v.SetDefault("api.listen", "127.0.0.1:8080")
 	v.SetDefault("api.corsOrigin", "")
 	v.SetDefault("api.log.path", "")

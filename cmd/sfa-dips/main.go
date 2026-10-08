@@ -14,6 +14,7 @@ import (
 	"ariga.io/sqlcomment"
 	"entgo.io/ent/dialect/sql"
 	"github.com/artefactual-sdps/temporal-activities/archivezip"
+	"github.com/artefactual-sdps/temporal-activities/bucketdelete"
 	"github.com/artefactual-sdps/temporal-activities/bucketupload"
 	"github.com/artefactual-sdps/temporal-activities/removepaths"
 	"github.com/artefactual-sdps/temporal-activities/xmlvalidate"
@@ -217,7 +218,7 @@ func main() {
 
 	// Register workflows and activities.
 	temporalWorker.RegisterWorkflowWithOptions(
-		workflows.NewCreateDIP(cfg.WorkingDir, cfg.XSDDir).Execute,
+		workflows.NewCreateDIP(cfg.WorkingDir, cfg.XSDDir, cfg.RetentionPeriod).Execute,
 		temporalsdk_workflow.RegisterOptions{Name: workflows.CreateDIPName},
 	)
 	temporalWorker.RegisterActivityWithOptions(
@@ -267,6 +268,10 @@ func main() {
 	temporalWorker.RegisterActivityWithOptions(
 		bucketupload.New(dipBucket).Execute,
 		temporalsdk_activity.RegisterOptions{Name: bucketupload.Name},
+	)
+	temporalWorker.RegisterActivityWithOptions(
+		bucketdelete.New(dipBucket).Execute,
+		temporalsdk_activity.RegisterOptions{Name: bucketdelete.Name},
 	)
 	temporalWorker.RegisterActivityWithOptions(
 		removepaths.New().Execute,

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/artefactual-sdps/temporal-activities/archivezip"
+	"github.com/artefactual-sdps/temporal-activities/bucketdelete"
 	"github.com/artefactual-sdps/temporal-activities/bucketupload"
 	"github.com/artefactual-sdps/temporal-activities/removepaths"
 	"github.com/artefactual-sdps/temporal-activities/xmlvalidate"
@@ -37,6 +38,15 @@ type CreateDIPTestSuite struct {
 	workingDir string
 	xsdDir     string
 	dip        datatypes.DIP
+	retention  retentionTestOptions
+}
+
+type retentionTestOptions struct {
+	period           time.Duration
+	finalUpdateDelay time.Duration
+	finalUpdateErr   error
+	deleteErr        error
+	cancelAfter      time.Duration
 }
 
 var createDIPTestTime = time.Date(2024, 6, 6, 15, 8, 39, 0, time.UTC)
@@ -94,12 +104,17 @@ func (s *CreateDIPTestSuite) SetupTest() {
 		temporalsdk_activity.RegisterOptions{Name: bucketupload.Name},
 	)
 	s.env.RegisterActivityWithOptions(
+		bucketdelete.New(nil).Execute,
+		temporalsdk_activity.RegisterOptions{Name: bucketdelete.Name},
+	)
+	s.env.RegisterActivityWithOptions(
 		removepaths.New().Execute,
 		temporalsdk_activity.RegisterOptions{Name: removepaths.Name},
 	)
 	s.workingDir = s.T().TempDir()
 	s.xsdDir = "/schemas/custom"
-	s.workflow = workflows.NewCreateDIP(s.workingDir, s.xsdDir)
+	s.retention = retentionTestOptions{period: -time.Second}
+	s.workflow = workflows.NewCreateDIP(s.workingDir, s.xsdDir, s.retention.period)
 	s.dip = datatypes.DIP{
 		DBID:      1,
 		UUID:      uuid.MustParse("9390594f-84c2-457d-bd6a-618f21f7c954"),
@@ -115,6 +130,93 @@ func TestCreateDIP(t *testing.T) {
 
 func (s *CreateDIPTestSuite) TestSuccess() {
 	s.testSessionResult(nil, 0, nil, nil, nil, nil, nil, nil)
+}
+
+func (s *CreateDIPTestSuite) TestRetention() {
+	for _, tt := range []struct {
+		name string
+		opts retentionTestOptions
+	}{
+		{
+			name: "Waits after the final update",
+			opts: retentionTestOptions{period: 48 * time.Hour, finalUpdateDelay: time.Minute},
+		},
+		{
+			name: "Deletes immediately with zero retention",
+			opts: retentionTestOptions{finalUpdateDelay: time.Minute},
+		},
+		{
+			name: "Retains indefinitely with negative retention",
+			opts: retentionTestOptions{period: -time.Hour},
+		},
+		{
+			name: "Deletes immediately when the final update fails",
+			opts: retentionTestOptions{
+				period:           time.Hour,
+				finalUpdateDelay: time.Minute,
+				finalUpdateErr:   temporalsdk_temporal.NewNonRetryableApplicationError("final update failed", "", nil),
+			},
+		},
+		{
+			name: "Final update failure overrides indefinite retention",
+			opts: retentionTestOptions{
+				period:         -time.Second,
+				finalUpdateErr: temporalsdk_temporal.NewNonRetryableApplicationError("final update failed", "", nil),
+			},
+		},
+		{
+			name: "Final update failure with zero retention deletes only once",
+			opts: retentionTestOptions{
+				finalUpdateErr: temporalsdk_temporal.NewNonRetryableApplicationError("final update failed", "", nil),
+			},
+		},
+		{
+			name: "Returns both final update and deletion errors",
+			opts: retentionTestOptions{
+				period:         time.Hour,
+				finalUpdateErr: temporalsdk_temporal.NewNonRetryableApplicationError("final update failed", "", nil),
+				deleteErr:      temporalsdk_temporal.NewNonRetryableApplicationError("bucket deletion denied", "", nil),
+			},
+		},
+		{
+			name: "Deletion failure preserves the completed DIP",
+			opts: retentionTestOptions{
+				period:    time.Hour,
+				deleteErr: temporalsdk_temporal.NewNonRetryableApplicationError("bucket deletion denied", "", nil),
+			},
+		},
+		{
+			name: "Cancellation during retention skips deletion",
+			opts: retentionTestOptions{period: 48 * time.Hour, cancelAfter: time.Hour},
+		},
+	} {
+		s.Run(tt.name, func() {
+			s.SetupTest()
+			s.retention = tt.opts
+			s.testSessionResult(nil, time.Second, nil, nil, nil, nil, nil, nil)
+		})
+	}
+}
+
+func (s *CreateDIPTestSuite) TestRetentionSkipsFailedDIP() {
+	s.retention.period = time.Hour
+	s.testSessionResult(nil, 0, nil, nil, nil, nil, nil,
+		temporalsdk_temporal.NewNonRetryableApplicationError("bucket upload denied", "", nil),
+	)
+}
+
+func (s *CreateDIPTestSuite) TestFinalUpdateFailureDeletesAfterCancellation() {
+	s.retention.finalUpdateErr = temporalsdk_temporal.NewNonRetryableApplicationError("final update failed", "", nil)
+	s.env.RegisterDelayedCallback(s.env.CancelWorkflow, time.Second)
+	s.testSessionResult(nil, 2*time.Second, nil, nil, nil, nil, nil, nil)
+}
+
+func (s *CreateDIPTestSuite) TestFinalUpdateFailureBeforeUploadSkipsDeletion() {
+	s.retention.finalUpdateErr = temporalsdk_temporal.NewNonRetryableApplicationError("final update failed", "", nil)
+	s.testSessionResult(nil, 0, nil, nil, nil, nil, nil,
+		temporalsdk_temporal.NewNonRetryableApplicationError("bucket upload denied", "", nil),
+	)
+	s.ErrorContains(s.env.GetWorkflowError(), "bucket upload denied")
 }
 
 func (s *CreateDIPTestSuite) TestCleanupFailureDoesNotFailWorkflow() {
@@ -172,6 +274,7 @@ func (s *CreateDIPTestSuite) testSessionResult(
 	uploadErr error,
 ) {
 	s.T().Helper()
+	s.workflow = workflows.NewCreateDIP(s.workingDir, s.xsdDir, s.retention.period)
 
 	wDIP := s.dip
 	wDIP.Status = enums.DIPStatusInProgress
@@ -386,16 +489,54 @@ func (s *CreateDIPTestSuite) testSessionResult(
 		wDIP.ErrorMessage = "DIP upload failed: bucket upload denied"
 	}
 	wDIP.CompletedAt = createDIPTestTime.Add(cleanupDelay)
-	s.env.OnActivity(
+	finalUpdate := s.env.OnActivity(
 		activities.UpdateDIPName,
 		mock.AnythingOfType("*context.timerCtx"),
 		&activities.UpdateDIPParams{DIP: wDIP},
-	).Return(&activities.UpdateDIPResult{}, nil).Once().NotBefore(cleanup)
+	).Return(&activities.UpdateDIPResult{}, s.retention.finalUpdateErr).
+		After(s.retention.finalUpdateDelay).Once().NotBefore(cleanup)
+
+	wantFinish := wDIP.CompletedAt.Add(s.retention.finalUpdateDelay)
+	deleteImmediately := s.retention.finalUpdateErr != nil && wDIP.ObjectKey != ""
+	deleteAfterRetention := wDIP.Status == enums.DIPStatusDone && s.retention.finalUpdateErr == nil &&
+		s.retention.period >= 0
+	if deleteAfterRetention {
+		if s.retention.cancelAfter > 0 {
+			wantFinish = wantFinish.Add(s.retention.cancelAfter)
+			s.env.RegisterDelayedCallback(s.env.CancelWorkflow, wantFinish.Sub(createDIPTestTime))
+			deleteAfterRetention = false
+		} else {
+			wantFinish = wantFinish.Add(s.retention.period)
+		}
+	}
+	if deleteImmediately || deleteAfterRetention {
+		s.env.OnActivity(
+			bucketdelete.Name,
+			mock.AnythingOfType("*context.timerCtx"),
+			&bucketdelete.Params{Key: wDIP.ObjectKey},
+		).Return(&bucketdelete.Result{}, s.retention.deleteErr).Once().NotBefore(finalUpdate).
+			Run(func(mock.Arguments) {
+				s.Equal(wantFinish, s.env.Now().UTC())
+			})
+	}
 
 	s.env.ExecuteWorkflow(s.workflow.Execute, &workflows.CreateDIPParams{DIP: s.dip})
 
 	s.True(s.env.IsWorkflowCompleted())
 	s.env.AssertExpectations(s.T())
+	if !deleteImmediately && !deleteAfterRetention {
+		s.env.AssertNotCalled(s.T(), bucketdelete.Name, mock.Anything, mock.Anything)
+	}
+	if wDIP.Status == enums.DIPStatusDone {
+		s.Equal(wantFinish, s.env.Now().UTC())
+	}
+	if s.retention.finalUpdateErr != nil {
+		s.ErrorContains(s.env.GetWorkflowError(), "final update failed")
+		if s.retention.deleteErr != nil {
+			s.ErrorContains(s.env.GetWorkflowError(), "bucket deletion denied")
+		}
+		return
+	}
 	if parseErr != nil {
 		s.ErrorContains(s.env.GetWorkflowError(), parseErr.Error())
 		return

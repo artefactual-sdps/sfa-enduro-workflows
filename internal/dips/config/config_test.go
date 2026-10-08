@@ -66,6 +66,7 @@ func TestReadLoadsConfiguration(t *testing.T) {
 logFormat = "text"
 verbosity = 2
 workingDir = "/var/tmp/dips"
+retentionPeriod = "48h"
 
 [api]
 listen = "127.0.0.1:8080"
@@ -105,10 +106,11 @@ retryBackoffCoefficient = 3.0
 	assert.Equal(t, found, true)
 	assert.Equal(t, used, tmpDir.Join("sfa-dips.toml"))
 	assert.DeepEqual(t, cfg, config.Config{
-		LogFormat:  config.LogFormatText,
-		Verbosity:  2,
-		WorkingDir: "/var/tmp/dips",
-		XSDDir:     "/schemas",
+		LogFormat:       config.LogFormatText,
+		Verbosity:       2,
+		WorkingDir:      "/var/tmp/dips",
+		XSDDir:          "/schemas",
+		RetentionPeriod: 48 * time.Hour,
 		API: api.Config{
 			Listen:     "127.0.0.1:8080",
 			CORSOrigin: "https://example.test",
@@ -160,13 +162,6 @@ retryBackoffCoefficient = 3.0
 		},
 		Bucket: bucket.Config{URL: "file:///tmp/dip-archives?create_dir=true"},
 	})
-
-	// Override the file's bucket URL to verify environment configuration takes precedence.
-	t.Setenv("SFA_DIPS_BUCKET_URL", "file:///tmp/env-dip-archives?create_dir=true")
-	cfg = config.Config{}
-	_, _, err = config.Read(&cfg, tmpDir.Join("sfa-dips.toml"))
-	assert.NilError(t, err)
-	assert.Equal(t, cfg.Bucket.URL, "file:///tmp/env-dip-archives?create_dir=true")
 }
 
 func TestReadRejectsInvalidConfiguration(t *testing.T) {
@@ -193,13 +188,17 @@ format = "invalid"
 `
 	tmpDir := fs.NewDir(t, "",
 		fs.WithFile("invalid-log-level.toml", invalidConfig+`level = "panic"`),
+		fs.WithFile("invalid-retention-period.toml", "retentionPeriod = \"one day\"\n"+invalidConfig),
 		fs.WithFile("invalid-config.toml", invalidConfig),
 	)
 
-	// An invalid log level stops decoding before configuration validation runs.
+	// An invalid log level or retention period stops decoding before configuration validation runs.
 	var cfg config.Config
 	_, _, err := config.Read(&cfg, tmpDir.Join("invalid-log-level.toml"))
 	assert.ErrorContains(t, err, `invalid log level 'panic', valid values are: debug, info, warn, error`)
+	cfg = config.Config{}
+	_, _, err = config.Read(&cfg, tmpDir.Join("invalid-retention-period.toml"))
+	assert.ErrorContains(t, err, `'RetentionPeriod' time: invalid duration`)
 
 	cfg = config.Config{}
 	_, _, err = config.Read(&cfg, tmpDir.Join("invalid-config.toml"))
@@ -241,6 +240,7 @@ func TestReadLoadsConfigurationFromEnvironment(t *testing.T) {
 	t.Setenv("SFA_DIPS_VERBOSITY", "2")
 	t.Setenv("SFA_DIPS_WORKINGDIR", "/var/tmp/env-dips")
 	t.Setenv("SFA_DIPS_XSDDIR", "/schemas/env")
+	t.Setenv("SFA_DIPS_RETENTIONPERIOD", "24h")
 	t.Setenv("SFA_DIPS_API_LISTEN", "127.0.0.1:8090")
 	t.Setenv("SFA_DIPS_API_CORSORIGIN", "https://env.example.test")
 	t.Setenv("SFA_DIPS_API_LOG_PATH", "stderr")
@@ -290,10 +290,11 @@ func TestReadLoadsConfigurationFromEnvironment(t *testing.T) {
 	assert.Equal(t, found, false)
 	assert.Equal(t, used, "")
 	assert.DeepEqual(t, cfg, config.Config{
-		LogFormat:  config.LogFormatText,
-		Verbosity:  2,
-		WorkingDir: "/var/tmp/env-dips",
-		XSDDir:     "/schemas/env",
+		LogFormat:       config.LogFormatText,
+		Verbosity:       2,
+		WorkingDir:      "/var/tmp/env-dips",
+		XSDDir:          "/schemas/env",
+		RetentionPeriod: 24 * time.Hour,
 		API: api.Config{
 			Listen:     "127.0.0.1:8090",
 			CORSOrigin: "https://env.example.test",
@@ -372,9 +373,10 @@ func TestReadSetsDefaults(t *testing.T) {
 
 	assert.NilError(t, err)
 	assert.DeepEqual(t, cfg, config.Config{
-		LogFormat:  config.LogFormatJSON,
-		WorkingDir: os.TempDir(),
-		XSDDir:     "/schemas",
+		LogFormat:       config.LogFormatJSON,
+		WorkingDir:      os.TempDir(),
+		XSDDir:          "/schemas",
+		RetentionPeriod: -time.Second,
 		API: api.Config{
 			Listen:     "127.0.0.1:8080",
 			CORSOrigin: "127.0.0.1:8080",

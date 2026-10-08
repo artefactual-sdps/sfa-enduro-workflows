@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/artefactual-sdps/temporal-activities/archivezip"
+	"github.com/artefactual-sdps/temporal-activities/bucketdelete"
 	"github.com/artefactual-sdps/temporal-activities/bucketupload"
 	"github.com/artefactual-sdps/temporal-activities/removepaths"
 	"github.com/artefactual-sdps/temporal-activities/xmlvalidate"
@@ -59,12 +60,13 @@ type CreateDIPResult struct {
 }
 
 type CreateDIP struct {
-	workingDir string
-	xsdDir     string
+	workingDir      string
+	xsdDir          string
+	retentionPeriod time.Duration
 }
 
-func NewCreateDIP(workingDir, xsdDir string) *CreateDIP {
-	return &CreateDIP{workingDir: workingDir, xsdDir: xsdDir}
+func NewCreateDIP(workingDir, xsdDir string, retentionPeriod time.Duration) *CreateDIP {
+	return &CreateDIP{workingDir: workingDir, xsdDir: xsdDir, retentionPeriod: retentionPeriod}
 }
 
 func (w *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPParams) (r *CreateDIPResult, e error) {
@@ -77,6 +79,16 @@ func (w *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPP
 	state.logger.Debug("Create DIP workflow running!", "params", params)
 	defer func() {
 		state.logger.Debug("Create DIP workflow finished!", "result", r, "error", e)
+	}()
+
+	// Run retention cleanup after the final DIP update, only on success.
+	defer func() {
+		if e != nil {
+			return
+		}
+		if err := w.deleteDIPAfterRetention(ctx, state.dip.ObjectKey); err != nil {
+			state.logger.Error("Failed to delete DIP", "err", err.Error())
+		}
 	}()
 
 	// Record the final DIP update.
@@ -97,6 +109,11 @@ func (w *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPP
 		).Get(dctx, nil)
 		if err != nil {
 			e = errors.Join(e, err)
+			// Remove the uploaded archive immediately if its final update could
+			// not be persisted, even if the workflow was canceled.
+			if state.dip.ObjectKey != "" {
+				e = errors.Join(e, deleteDIP(dctx, state.dip.ObjectKey))
+			}
 		}
 		if r != nil {
 			// The return expression copies state.dip before this defer runs.
@@ -248,6 +265,38 @@ func (w *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPP
 	// A successful session may follow a failed attempt.
 	state.dip.ErrorMessage = ""
 	return &CreateDIPResult{DIP: state.dip}, nil
+}
+
+func (w *CreateDIP) deleteDIPAfterRetention(ctx temporalsdk_workflow.Context, key string) error {
+	// Record the configured duration so worker configuration changes do not
+	// alter a retention timer if the workflow is replayed.
+	var retentionPeriod time.Duration
+	if err := temporalsdk_workflow.SideEffect(ctx, func(temporalsdk_workflow.Context) any {
+		return w.retentionPeriod
+	}).Get(&retentionPeriod); err != nil {
+		return fmt.Errorf("read retention period: %v", err)
+	}
+	if retentionPeriod < 0 {
+		return nil
+	}
+
+	if err := temporalsdk_workflow.Sleep(ctx, retentionPeriod); err != nil {
+		return fmt.Errorf("retention period timer failed: %v", err)
+	}
+
+	return deleteDIP(ctx, key)
+}
+
+func deleteDIP(ctx temporalsdk_workflow.Context, key string) error {
+	err := temporalsdk_workflow.ExecuteActivity(
+		withOptsForAPIRequest(ctx),
+		bucketdelete.Name,
+		&bucketdelete.Params{Key: key},
+	).Get(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("delete DIP archive: %v", err)
+	}
+	return nil
 }
 
 // sessionHandler runs activities that belong to the same session.
