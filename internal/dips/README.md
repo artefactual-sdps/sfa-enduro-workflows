@@ -88,8 +88,9 @@ are exhausted, with the aggregation and cleanup exceptions below.
     object key or error message.
 16. After successful DIP creation and the final update, wait for
     `retentionPeriod`, then run `bucket-delete` to remove the uploaded ZIP using
-    its object key. Negative retention periods skip deletion. Deletion errors
-    are logged without changing the completed DIP's status.
+    its object key. The retention period must not be negative. Zero (default)
+    skips deletion, retaining the archive indefinitely. Deletion errors are
+    logged without changing the completed DIP's status.
 
 For all ACTApro activities, a potentially transient API error response
 (`409 Conflict`, `423 Locked`, `500 Internal Server Error`) causes the activity

@@ -167,6 +167,7 @@ retryBackoffCoefficient = 3.0
 func TestReadRejectsInvalidConfiguration(t *testing.T) {
 	const invalidConfig = `
 logFormat = "invalid"
+retentionPeriod = "-1s"
 
 [actapro]
 timeout = "-1s"
@@ -188,7 +189,7 @@ format = "invalid"
 `
 	tmpDir := fs.NewDir(t, "",
 		fs.WithFile("invalid-log-level.toml", invalidConfig+`level = "panic"`),
-		fs.WithFile("invalid-retention-period.toml", "retentionPeriod = \"one day\"\n"+invalidConfig),
+		fs.WithFile("invalid-retention-period.toml", `retentionPeriod = "one day"`),
 		fs.WithFile("invalid-config.toml", invalidConfig),
 	)
 
@@ -206,6 +207,7 @@ format = "invalid"
 		t,
 		err,
 		`failed to validate the provided config: XSDDir: missing required value
+RetentionPeriod: must be greater than or equal to 0
 Bucket.URL or Bucket.Endpoint: missing required value
 LogFormat: unsupported value "invalid" (use "json" or "text")
 unsupported log format: "invalid", supported formats are "json", "text"
@@ -376,7 +378,7 @@ func TestReadSetsDefaults(t *testing.T) {
 		LogFormat:       config.LogFormatJSON,
 		WorkingDir:      os.TempDir(),
 		XSDDir:          "/schemas",
-		RetentionPeriod: -time.Second,
+		RetentionPeriod: 0,
 		API: api.Config{
 			Listen:     "127.0.0.1:8080",
 			CORSOrigin: "127.0.0.1:8080",

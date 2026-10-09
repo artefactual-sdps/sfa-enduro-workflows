@@ -113,7 +113,7 @@ func (s *CreateDIPTestSuite) SetupTest() {
 	)
 	s.workingDir = s.T().TempDir()
 	s.xsdDir = "/schemas/custom"
-	s.retention = retentionTestOptions{period: -time.Second}
+	s.retention = retentionTestOptions{}
 	s.workflow = workflows.NewCreateDIP(s.workingDir, s.xsdDir, s.retention.period)
 	s.dip = datatypes.DIP{
 		DBID:      1,
@@ -142,12 +142,12 @@ func (s *CreateDIPTestSuite) TestRetention() {
 			opts: retentionTestOptions{period: 48 * time.Hour, finalUpdateDelay: time.Minute},
 		},
 		{
-			name: "Deletes immediately with zero retention",
+			name: "Retains indefinitely with zero retention",
 			opts: retentionTestOptions{finalUpdateDelay: time.Minute},
 		},
 		{
 			name: "Retains indefinitely with negative retention",
-			opts: retentionTestOptions{period: -time.Hour},
+			opts: retentionTestOptions{period: -24 * time.Hour, finalUpdateDelay: time.Minute},
 		},
 		{
 			name: "Deletes immediately when the final update fails",
@@ -159,13 +159,6 @@ func (s *CreateDIPTestSuite) TestRetention() {
 		},
 		{
 			name: "Final update failure overrides indefinite retention",
-			opts: retentionTestOptions{
-				period:         -time.Second,
-				finalUpdateErr: temporalsdk_temporal.NewNonRetryableApplicationError("final update failed", "", nil),
-			},
-		},
-		{
-			name: "Final update failure with zero retention deletes only once",
 			opts: retentionTestOptions{
 				finalUpdateErr: temporalsdk_temporal.NewNonRetryableApplicationError("final update failed", "", nil),
 			},
@@ -499,7 +492,7 @@ func (s *CreateDIPTestSuite) testSessionResult(
 	wantFinish := wDIP.CompletedAt.Add(s.retention.finalUpdateDelay)
 	deleteImmediately := s.retention.finalUpdateErr != nil && wDIP.ObjectKey != ""
 	deleteAfterRetention := wDIP.Status == enums.DIPStatusDone && s.retention.finalUpdateErr == nil &&
-		s.retention.period >= 0
+		s.retention.period > 0
 	if deleteAfterRetention {
 		if s.retention.cancelAfter > 0 {
 			wantFinish = wantFinish.Add(s.retention.cancelAfter)

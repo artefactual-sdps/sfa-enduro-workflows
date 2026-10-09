@@ -276,7 +276,7 @@ func (w *CreateDIP) deleteDIPAfterRetention(ctx temporalsdk_workflow.Context, ke
 	}).Get(&retentionPeriod); err != nil {
 		return fmt.Errorf("read retention period: %v", err)
 	}
-	if retentionPeriod < 0 {
+	if retentionPeriod <= 0 {
 		return nil
 	}
 

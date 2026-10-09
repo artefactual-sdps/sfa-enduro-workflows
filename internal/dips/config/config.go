@@ -103,8 +103,8 @@ type Config struct {
 	XSDDir string
 
 	// RetentionPeriod is the duration to retain completed DIP archives after a
-	// successful DIP creation. Negative values retain them indefinitely (default);
-	// zero deletes them immediately.
+	// successful DIP creation. Must not be negative. Zero (default) retains
+	// them indefinitely.
 	RetentionPeriod time.Duration
 
 	API         api.Config
@@ -121,6 +121,9 @@ func (c *Config) Validate() error {
 	var err error
 	if c.XSDDir == "" {
 		err = fmt.Errorf("XSDDir: missing required value")
+	}
+	if c.RetentionPeriod < 0 {
+		err = errors.Join(err, fmt.Errorf("RetentionPeriod: must be greater than or equal to 0"))
 	}
 	if c.Bucket.URL == "" && c.Bucket.Endpoint == "" {
 		err = errors.Join(err, fmt.Errorf("Bucket.URL or Bucket.Endpoint: missing required value"))
@@ -148,7 +151,7 @@ func Read(config *Config, configFile string) (found bool, configFileUsed string,
 	v.SetDefault("verbosity", 0)
 	v.SetDefault("workingDir", os.TempDir())
 	v.SetDefault("xsdDir", "")
-	v.SetDefault("retentionPeriod", -time.Second)
+	v.SetDefault("retentionPeriod", time.Duration(0))
 	v.SetDefault("api.listen", "127.0.0.1:8080")
 	v.SetDefault("api.corsOrigin", "")
 	v.SetDefault("api.log.path", "")
