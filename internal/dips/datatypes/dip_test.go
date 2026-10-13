@@ -19,6 +19,8 @@ func TestNewDIP(t *testing.T) {
 	createdAt := time.Date(2026, time.August, 31, 8, 0, 0, 0, time.UTC)
 	startedAt := time.Date(2026, time.August, 31, 8, 30, 0, 0, time.UTC)
 	completedAt := time.Date(2026, time.August, 31, 8, 35, 0, 0, time.UTC)
+	expiresAt := completedAt.Add(time.Hour)
+	workflowID := "create-dip-" + dipUUID.String()
 
 	for _, tt := range []struct {
 		name string
@@ -39,7 +41,9 @@ func TestNewDIP(t *testing.T) {
 				CreatedAt:    createdAt,
 				StartedAt:    startedAt,
 				CompletedAt:  completedAt,
+				ExpiresAt:    expiresAt,
 				ObjectKey:    "dips/CH-000001.zip",
+				WorkflowID:   workflowID,
 			},
 			want: &DIP{
 				DBID:         42,
@@ -50,7 +54,9 @@ func TestNewDIP(t *testing.T) {
 				CreatedAt:    createdAt,
 				StartedAt:    startedAt,
 				CompletedAt:  completedAt,
+				ExpiresAt:    expiresAt,
 				ObjectKey:    "dips/CH-000001.zip",
+				WorkflowID:   workflowID,
 			},
 		},
 	} {
@@ -67,9 +73,10 @@ func TestDIPGoa(t *testing.T) {
 	t.Parallel()
 
 	dipUUID := uuid.MustParse("d61fe7ac-a9a9-42b8-a067-3f43d148f48e")
-	createdAt := time.Date(2026, time.August, 31, 8, 0, 0, 0, time.UTC)
-	startedAt := time.Date(2026, time.August, 31, 8, 30, 0, 0, time.UTC)
-	completedAt := time.Date(2026, time.August, 31, 8, 35, 0, 0, time.UTC)
+	createdAt := time.Date(2026, time.August, 31, 8, 0, 0, 123456789, time.UTC)
+	startedAt := time.Date(2026, time.August, 31, 8, 30, 0, 123456789, time.UTC)
+	completedAt := time.Date(2026, time.August, 31, 8, 35, 0, 123456789, time.UTC)
+	expiresAt := completedAt.Add(time.Hour)
 
 	for _, tt := range []struct {
 		name string
@@ -95,7 +102,32 @@ func TestDIPGoa(t *testing.T) {
 			},
 		},
 		{
-			name: "Converts DIP with all optional fields",
+			name: "Converts completed DIP with expiry",
+			dip: &DIP{
+				DBID:        42,
+				UUID:        dipUUID,
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDone,
+				CreatedAt:   createdAt,
+				StartedAt:   startedAt,
+				CompletedAt: completedAt,
+				ExpiresAt:   expiresAt,
+				ObjectKey:   "dips/CH-000001.zip",
+				WorkflowID:  "create-dip-" + dipUUID.String(),
+			},
+			want: &goadips.ShowResult{
+				ID:          goadips.DIPID("d61fe7ac-a9a9-42b8-a067-3f43d148f48e"),
+				DocKey:      goadips.DocKey("CH-000001"),
+				Status:      goadips.DIPStatus("done"),
+				CreatedAt:   goadips.DateTime("2026-08-31T08:00:00Z"),
+				StartedAt:   new(goadips.DateTime("2026-08-31T08:30:00Z")),
+				CompletedAt: new(goadips.DateTime("2026-08-31T08:35:00Z")),
+				ExpiresAt:   new(goadips.DateTime("2026-08-31T09:35:00Z")),
+				ObjectKey:   new(goadips.ObjectKey("dips/CH-000001.zip")),
+			},
+		},
+		{
+			name: "Converts failed DIP",
 			dip: &DIP{
 				DBID:         42,
 				UUID:         dipUUID,
@@ -105,7 +137,6 @@ func TestDIPGoa(t *testing.T) {
 				CreatedAt:    createdAt,
 				StartedAt:    startedAt,
 				CompletedAt:  completedAt,
-				ObjectKey:    "dips/CH-000001.zip",
 			},
 			want: &goadips.ShowResult{
 				ID:           goadips.DIPID("d61fe7ac-a9a9-42b8-a067-3f43d148f48e"),
@@ -115,7 +146,6 @@ func TestDIPGoa(t *testing.T) {
 				CreatedAt:    goadips.DateTime("2026-08-31T08:00:00Z"),
 				StartedAt:    new(goadips.DateTime("2026-08-31T08:30:00Z")),
 				CompletedAt:  new(goadips.DateTime("2026-08-31T08:35:00Z")),
-				ObjectKey:    new(goadips.ObjectKey("dips/CH-000001.zip")),
 			},
 		},
 	} {

@@ -16,7 +16,6 @@ import (
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/auth"
 	goadips "github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/api/gen/di_ps"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/datatypes"
-	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/enums"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/workflows"
 )
@@ -33,6 +32,7 @@ type svcImpl struct {
 	psvc          persistence.Service
 	tc            temporalsdk_client.Client
 	taskQueue     string
+	retention     time.Duration
 }
 
 var _ Service = (*svcImpl)(nil)
@@ -43,6 +43,7 @@ func NewService(
 	tokenVerifier auth.TokenVerifier,
 	tc temporalsdk_client.Client,
 	taskQueue string,
+	retention time.Duration,
 ) *svcImpl {
 	return &svcImpl{
 		logger:        logger,
@@ -50,6 +51,7 @@ func NewService(
 		psvc:          psvc,
 		tc:            tc,
 		taskQueue:     taskQueue,
+		retention:     retention,
 	}
 }
 
@@ -85,14 +87,20 @@ func (svc *svcImpl) Create(ctx context.Context, p *goadips.CreatePayload) (*goad
 		return nil, goadips.MakeBadRequest(errors.New("docKey exceeds 1024 characters"))
 	}
 
-	d := &datatypes.DIP{
-		UUID:   uuid.New(),
-		DocKey: docKey,
-		Status: enums.DIPStatusQueued,
+	req := persistence.GetOrCreateRequest{
+		UUID:        uuid.New(),
+		DocKey:      docKey,
+		IgnoreCache: p.IgnoreCache,
+		Retention:   svc.retention,
+	}
+	d, err := svc.psvc.GetOrCreateDIP(ctx, req)
+	if err != nil {
+		return nil, goadips.MakeInternalError(fmt.Errorf("get or create DIP: %v", err))
 	}
 
-	if err := svc.psvc.CreateDIP(ctx, d); err != nil {
-		return nil, goadips.MakeInternalError(fmt.Errorf("create DIP: %v", err))
+	// If the returned row has a different UUID, GetOrCreateRequest returned an existing DIP.
+	if d.UUID != req.UUID {
+		return &goadips.CreateResult{ID: goadips.DIPID(d.UUID.String())}, nil
 	}
 
 	if err := svc.startDIPCreationWorkflow(ctx, d); err != nil {
@@ -112,11 +120,8 @@ func (svc *svcImpl) Create(ctx context.Context, p *goadips.CreatePayload) (*goad
 }
 
 func (svc *svcImpl) startDIPCreationWorkflow(ctx context.Context, d *datatypes.DIP) error {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
 	opts := temporalsdk_client.StartWorkflowOptions{
-		ID:                    fmt.Sprintf("%s-%s", workflows.CreateDIPName, d.UUID.String()),
+		ID:                    d.WorkflowID,
 		TaskQueue:             svc.taskQueue,
 		WorkflowIDReusePolicy: temporalapi_enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 	}

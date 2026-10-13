@@ -34,13 +34,17 @@ type ShowResponseBody struct {
 	Status *string `form:"status,omitempty" json:"status,omitempty" xml:"status,omitempty"`
 	// The error_message field contains an error message if the DIP failed.
 	ErrorMessage *string `form:"error_message,omitempty" json:"error_message,omitempty" xml:"error_message,omitempty"`
-	// The created_at field contains the time when the DIP was requested.
+	// The created_at field contains the time when the DIP was first requested.
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
-	// The started_at field contains the time when DIP processing started.
+	// The started_at field contains the time when DIP generation started.
 	StartedAt *string `form:"started_at,omitempty" json:"started_at,omitempty" xml:"started_at,omitempty"`
-	// The completed_at field contains the time when DIP processing completed.
+	// The completed_at field contains the time when DIP generation completed.
 	CompletedAt *string `form:"completed_at,omitempty" json:"completed_at,omitempty" xml:"completed_at,omitempty"`
-	// The object_key field contains the object store key for the completed DIP.
+	// The expires_at field contains the time when the DIP expires. Reusing a
+	// stored DIP may extend or remove it. Omitted when no expiry is set.
+	ExpiresAt *string `form:"expires_at,omitempty" json:"expires_at,omitempty" xml:"expires_at,omitempty"`
+	// The object_key field contains the object store key for a completed DIP.
+	// Omitted before completion or after deletion.
 	ObjectKey *string `form:"object_key,omitempty" json:"object_key,omitempty" xml:"object_key,omitempty"`
 }
 
@@ -275,6 +279,10 @@ func NewShowResultOK(body *ShowResponseBody) *dips.ShowResult {
 		completedAt := dips.DateTime(*body.CompletedAt)
 		v.CompletedAt = &completedAt
 	}
+	if body.ExpiresAt != nil {
+		expiresAt := dips.DateTime(*body.ExpiresAt)
+		v.ExpiresAt = &expiresAt
+	}
 	if body.ObjectKey != nil {
 		objectKey := dips.ObjectKey(*body.ObjectKey)
 		v.ObjectKey = &objectKey
@@ -379,8 +387,8 @@ func ValidateShowResponseBody(body *ShowResponseBody) (err error) {
 		}
 	}
 	if body.Status != nil {
-		if !(*body.Status == "queued" || *body.Status == "in progress" || *body.Status == "done" || *body.Status == "failed") {
-			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.status", *body.Status, []any{"queued", "in progress", "done", "failed"}))
+		if !(*body.Status == "queued" || *body.Status == "in progress" || *body.Status == "done" || *body.Status == "failed" || *body.Status == "deleted") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.status", *body.Status, []any{"queued", "in progress", "done", "failed", "deleted"}))
 		}
 	}
 	if body.CreatedAt != nil {
@@ -391,6 +399,9 @@ func ValidateShowResponseBody(body *ShowResponseBody) (err error) {
 	}
 	if body.CompletedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.completed_at", *body.CompletedAt, goa.FormatDateTime))
+	}
+	if body.ExpiresAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.expires_at", *body.ExpiresAt, goa.FormatDateTime))
 	}
 	if body.ObjectKey != nil {
 		if utf8.RuneCountInString(*body.ObjectKey) < 1 {

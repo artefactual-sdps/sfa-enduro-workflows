@@ -7,6 +7,7 @@ require (
 	ariga.io/sqlcomment v0.1.0
 	chainguard.dev/go-oidctest v0.4.0
 	entgo.io/ent v0.14.6
+	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/antchfx/xmlquery v1.5.0
 	github.com/artefactual-labs/bagit-gython v0.6.1
 	github.com/artefactual-sdps/enduro v0.31.0

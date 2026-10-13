@@ -34,6 +34,7 @@ type state struct {
 	logger     temporalsdk_log.Logger
 	workingDir string
 	dipPath    string
+	objectKey  string
 	dip        datatypes.DIP
 	exportID   string
 	aips       []*aip
@@ -81,59 +82,63 @@ func (w *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPP
 		state.logger.Debug("Create DIP workflow finished!", "result", r, "error", e)
 	}()
 
-	// Run retention cleanup after the final DIP update, only on success.
 	defer func() {
-		if e != nil {
-			return
+		if e == nil && ctx.Err() != nil {
+			e = ctx.Err()
 		}
-		if err := w.deleteDIPAfterRetention(ctx, state.dip.ObjectKey); err != nil {
-			state.logger.Error("Failed to delete DIP", "err", err.Error())
-		}
-	}()
 
-	// Record the final DIP update.
-	defer func() {
-		// The DIP's object key and error message are updated before this.
-		state.dip.CompletedAt = temporalsdk_workflow.Now(ctx)
-		state.dip.Status = enums.DIPStatusDone
-		if e != nil {
-			state.dip.Status = enums.DIPStatusFailed
+		params := activities.UpdateDIPParams{
+			UUID:      state.dip.UUID,
+			Status:    enums.DIPStatusDone,
+			ObjectKey: state.objectKey,
+			Retention: max(0, w.retentionPeriod),
 		}
+		if e != nil {
+			params.Status = enums.DIPStatusFailed
+			params.ObjectKey = ""
+			params.Retention = 0
+			params.ErrorMessage = state.dip.ErrorMessage
+			if params.ErrorMessage == "" {
+				params.ErrorMessage = activityErrorMessage(e)
+			}
+		}
+
 		// Persist the final update even if the workflow was canceled.
 		dctx, cancel := temporalsdk_workflow.NewDisconnectedContext(ctx)
 		defer cancel()
-		err := temporalsdk_workflow.ExecuteActivity(
-			withOptsForPersistenceOperation(dctx),
-			activities.UpdateDIPName,
-			&activities.UpdateDIPParams{DIP: state.dip},
-		).Get(dctx, nil)
+		result, err := updateDIP(dctx, params)
 		if err != nil {
 			e = errors.Join(e, err)
-			// Remove the uploaded archive immediately if its final update could
-			// not be persisted, even if the workflow was canceled.
-			if state.dip.ObjectKey != "" {
-				e = errors.Join(e, deleteDIP(dctx, state.dip.ObjectKey))
+		} else {
+			state.dip = result.DIP
+		}
+
+		// Remove the object if generation or its final update failed, even after cancellation.
+		if err != nil || state.dip.Status == enums.DIPStatusFailed {
+			if state.objectKey != "" {
+				e = errors.Join(e, deleteDIP(dctx, state.objectKey))
 			}
+			r = nil
+			return
 		}
-		if r != nil {
-			// The return expression copies state.dip before this defer runs.
-			// Refresh the result with the final status and completion time.
-			r.DIP = state.dip
+
+		e = w.deleteDIPAfterRetention(ctx, state.dip.UUID, state.objectKey)
+		if e != nil {
+			r = nil
+			return
 		}
+		r = &CreateDIPResult{DIP: state.dip}
 	}()
 
-	// Initial DIP update.
-	state.dip.Status = enums.DIPStatusInProgress
-	state.dip.StartedAt = temporalsdk_workflow.Now(ctx)
-	err := temporalsdk_workflow.ExecuteActivity(
-		withOptsForPersistenceOperation(ctx),
-		activities.UpdateDIPName,
-		&activities.UpdateDIPParams{DIP: state.dip},
-	).Get(ctx, nil)
+	initial, err := updateDIP(ctx, activities.UpdateDIPParams{
+		UUID:   state.dip.UUID,
+		Status: enums.DIPStatusInProgress,
+	})
 	if err != nil {
 		state.dip.ErrorMessage = "DIP persistence update failed."
 		return nil, err
 	}
+	state.dip = initial.DIP
 
 	// Retrieve the document from ACTApro.
 	var document actapro.GetDocumentResult
@@ -267,24 +272,48 @@ func (w *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPP
 	return &CreateDIPResult{DIP: state.dip}, nil
 }
 
-func (w *CreateDIP) deleteDIPAfterRetention(ctx temporalsdk_workflow.Context, key string) error {
-	// Record the configured duration so worker configuration changes do not
-	// alter a retention timer if the workflow is replayed.
-	var retentionPeriod time.Duration
-	if err := temporalsdk_workflow.SideEffect(ctx, func(temporalsdk_workflow.Context) any {
-		return w.retentionPeriod
-	}).Get(&retentionPeriod); err != nil {
-		return fmt.Errorf("read retention period: %v", err)
-	}
-	if retentionPeriod <= 0 {
-		return nil
-	}
+func updateDIP(
+	ctx temporalsdk_workflow.Context,
+	params activities.UpdateDIPParams,
+) (activities.UpdateDIPResult, error) {
+	var result activities.UpdateDIPResult
+	err := temporalsdk_workflow.ExecuteActivity(
+		withOptsForPersistenceOperation(ctx),
+		activities.UpdateDIPName,
+		&params,
+	).Get(ctx, &result)
+	return result, err
+}
 
-	if err := temporalsdk_workflow.Sleep(ctx, retentionPeriod); err != nil {
-		return fmt.Errorf("retention period timer failed: %v", err)
-	}
+func (w *CreateDIP) deleteDIPAfterRetention(ctx temporalsdk_workflow.Context, id uuid.UUID, key string) error {
+	for {
+		// Retry the deletion request after each wait because the API may renew expiry.
+		result, err := updateDIP(ctx, activities.UpdateDIPParams{
+			UUID:   id,
+			Status: enums.DIPStatusDeleted,
+		})
+		if err != nil {
+			return err
+		}
 
-	return deleteDIP(ctx, key)
+		// The activity leaves unexpired DIPs unchanged; use the returned status
+		// to decide whether to delete the object or wait for the stored expiry.
+		switch result.DIP.Status {
+		case enums.DIPStatusDeleted, enums.DIPStatusFailed:
+			return deleteDIP(ctx, key)
+		case enums.DIPStatusDone:
+			if result.DIP.ExpiresAt.IsZero() {
+				return nil
+			}
+			if wait := result.DIP.ExpiresAt.Sub(temporalsdk_workflow.Now(ctx)); wait > 0 {
+				if err := temporalsdk_workflow.Sleep(ctx, wait); err != nil {
+					return err
+				}
+			}
+		default:
+			return fmt.Errorf("unexpected cleanup status: %s", result.DIP.Status)
+		}
+	}
 }
 
 func deleteDIP(ctx temporalsdk_workflow.Context, key string) error {
@@ -464,18 +493,23 @@ func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *stat
 	}
 	state.dipPath = zipResult.Path
 
+	// Track the key before uploading so cleanup also covers an uncertain upload result.
+	state.objectKey = "DIP_" + state.dip.UUID.String() + ".zip"
+
 	// Upload the ZIP before cleaning up the session files.
 	var uploadResult bucketupload.Result
 	err = temporalsdk_workflow.ExecuteActivity(
 		withOptsForFileTransfer(ctx),
 		bucketupload.Name,
-		&bucketupload.Params{Path: state.dipPath},
+		&bucketupload.Params{
+			Path: state.dipPath,
+			Key:  state.objectKey,
+		},
 	).Get(ctx, &uploadResult)
 	if err != nil {
 		state.dip.ErrorMessage = fmt.Sprintf("DIP upload failed: %s", activityErrorMessage(err))
 		return err
 	}
-	state.dip.ObjectKey = uploadResult.Key
 
 	return nil
 }

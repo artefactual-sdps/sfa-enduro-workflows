@@ -204,6 +204,7 @@ func main() {
 		logger.Error(err, "Error creating Temporal client.")
 		os.Exit(1)
 	}
+	defer temporalClient.Close()
 
 	// Set up the Temporal worker.
 	workerOpts := temporalsdk_worker.Options{
@@ -291,7 +292,14 @@ func main() {
 					logger,
 					apiLog.Logger,
 					&cfg.API,
-					dips.NewService(logger, perSvc, tokenVerifier, temporalClient, cfg.Temporal.TaskQueue),
+					dips.NewService(
+						logger,
+						perSvc,
+						tokenVerifier,
+						temporalClient,
+						cfg.Temporal.TaskQueue,
+						cfg.RetentionPeriod,
+					),
 				)
 				logger.Info("DIPs API HTTP server listening.", "addr", srv.Addr)
 				return srv.ListenAndServe()

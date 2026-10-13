@@ -5,9 +5,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
 	"go.artefactual.dev/tools/mockutil"
 	temporalsdk_activity "go.temporal.io/sdk/activity"
+	temporalsdk_temporal "go.temporal.io/sdk/temporal"
 	temporalsdk_testsuite "go.temporal.io/sdk/testsuite"
 	"go.uber.org/mock/gomock"
 	"gotest.tools/v3/assert"
@@ -24,72 +26,478 @@ func TestUpdateDIP(t *testing.T) {
 
 	dipUUID := uuid.New()
 	createdAt := time.Date(2024, 6, 13, 17, 50, 12, 0, time.UTC)
-	startedAt := createdAt.Add(time.Minute)
-	completedAt := startedAt.Add(time.Minute)
+	now := time.Now().UTC()
 	dip := datatypes.DIP{
-		DBID:         1,
-		UUID:         dipUUID,
-		DocKey:       "CH-000001",
-		Status:       enums.DIPStatusInProgress,
-		ErrorMessage: "previous error",
-		CreatedAt:    createdAt,
-		StartedAt:    createdAt.Add(time.Second),
-		CompletedAt:  createdAt.Add(2 * time.Second),
-		ObjectKey:    "previous-object-key",
+		DBID:      1,
+		UUID:      dipUUID,
+		DocKey:    "CH-000001",
+		Status:    enums.DIPStatusInProgress,
+		CreatedAt: createdAt,
+		StartedAt: createdAt.Add(time.Second),
 	}
 
 	for _, tt := range []struct {
-		name    string
-		params  *activities.UpdateDIPParams
-		wantDIP datatypes.DIP
-		err     error
-		wantErr string
+		name         string
+		params       *activities.UpdateDIPParams
+		current      *datatypes.DIP
+		wantDIP      datatypes.DIP
+		err          error
+		wantErr      string
+		nonRetryable bool
 	}{
 		{
 			name: "Updates a DIP",
-			params: &activities.UpdateDIPParams{DIP: datatypes.DIP{
+			params: &activities.UpdateDIPParams{
+				UUID:      dipUUID,
+				Status:    enums.DIPStatusDone,
+				ObjectKey: "archive.zip",
+				Retention: time.Hour,
+			},
+			wantDIP: datatypes.DIP{
+				DBID:        1,
+				UUID:        dipUUID,
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDone,
+				CreatedAt:   createdAt,
+				StartedAt:   createdAt.Add(time.Second),
+				CompletedAt: now,
+				ExpiresAt:   now.Add(time.Hour),
+				ObjectKey:   "archive.zip",
+			},
+		},
+		{
+			name: "Publishes without retention",
+			params: &activities.UpdateDIPParams{
+				UUID:      dipUUID,
+				Status:    enums.DIPStatusDone,
+				ObjectKey: "archive.zip",
+			},
+			wantDIP: datatypes.DIP{
+				DBID:        1,
+				UUID:        dipUUID,
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDone,
+				CreatedAt:   createdAt,
+				StartedAt:   createdAt.Add(time.Second),
+				CompletedAt: now,
+				ObjectKey:   "archive.zip",
+			},
+		},
+		{
+			name: "Marks a DIP failed",
+			params: &activities.UpdateDIPParams{
 				UUID:         dipUUID,
 				Status:       enums.DIPStatusFailed,
-				StartedAt:    startedAt,
-				CompletedAt:  completedAt,
 				ErrorMessage: "DIP creation failed",
-				ObjectKey:    "updated-object-key",
-			}},
+			},
 			wantDIP: datatypes.DIP{
 				DBID:         1,
 				UUID:         dipUUID,
 				DocKey:       "CH-000001",
 				Status:       enums.DIPStatusFailed,
-				ErrorMessage: "DIP creation failed",
 				CreatedAt:    createdAt,
-				StartedAt:    startedAt,
-				CompletedAt:  completedAt,
-				ObjectKey:    "updated-object-key",
+				StartedAt:    createdAt.Add(time.Second),
+				CompletedAt:  now,
+				ErrorMessage: "DIP creation failed",
 			},
 		},
 		{
-			name: "Does not overwrite fields with zero values",
-			params: &activities.UpdateDIPParams{DIP: datatypes.DIP{
-				UUID: dipUUID,
-			}},
-			wantDIP: dip,
+			name: "Updates the start time",
+			params: &activities.UpdateDIPParams{
+				UUID:   dipUUID,
+				Status: enums.DIPStatusInProgress,
+			},
+			wantDIP: datatypes.DIP{
+				DBID:      1,
+				UUID:      dipUUID,
+				DocKey:    "CH-000001",
+				Status:    enums.DIPStatusInProgress,
+				CreatedAt: createdAt,
+				StartedAt: now,
+			},
 		},
 		{
-			name: "Does not overwrite status with an invalid value",
-			params: &activities.UpdateDIPParams{DIP: datatypes.DIP{
+			name: "Sets the start time",
+			params: &activities.UpdateDIPParams{
 				UUID:   dipUUID,
-				Status: "invalid",
-			}},
-			wantDIP: dip,
+				Status: enums.DIPStatusInProgress,
+			},
+			current: &datatypes.DIP{
+				DBID:      1,
+				UUID:      dipUUID,
+				DocKey:    "CH-000001",
+				Status:    enums.DIPStatusQueued,
+				CreatedAt: createdAt,
+				StartedAt: time.Time{},
+			},
+			wantDIP: datatypes.DIP{
+				DBID:      1,
+				UUID:      dipUUID,
+				DocKey:    "CH-000001",
+				Status:    enums.DIPStatusInProgress,
+				CreatedAt: createdAt,
+				StartedAt: now,
+			},
+		},
+		{
+			name: "Preserves renewed publication",
+			params: &activities.UpdateDIPParams{
+				UUID:         dipUUID,
+				Status:       enums.DIPStatusDone,
+				ObjectKey:    "replacement.zip",
+				Retention:    time.Hour,
+				ErrorMessage: "retry failed",
+			},
+			current: &datatypes.DIP{
+				DBID:        1,
+				UUID:        dipUUID,
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDone,
+				CreatedAt:   createdAt,
+				StartedAt:   createdAt.Add(time.Second),
+				CompletedAt: createdAt.Add(time.Minute),
+				ExpiresAt:   now.Add(3 * time.Hour),
+				ObjectKey:   "archive.zip",
+			},
+			wantDIP: datatypes.DIP{
+				DBID:        1,
+				UUID:        dipUUID,
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDone,
+				CreatedAt:   createdAt,
+				StartedAt:   createdAt.Add(time.Second),
+				CompletedAt: createdAt.Add(time.Minute),
+				ExpiresAt:   now.Add(3 * time.Hour),
+				ObjectKey:   "archive.zip",
+			},
+		},
+		{
+			name: "Preserves indefinite publication",
+			params: &activities.UpdateDIPParams{
+				UUID:         dipUUID,
+				Status:       enums.DIPStatusDone,
+				ObjectKey:    "replacement.zip",
+				Retention:    time.Hour,
+				ErrorMessage: "retry failed",
+			},
+			current: &datatypes.DIP{
+				DBID:        1,
+				UUID:        dipUUID,
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDone,
+				CreatedAt:   createdAt,
+				StartedAt:   createdAt.Add(time.Second),
+				CompletedAt: createdAt.Add(time.Minute),
+				ExpiresAt:   time.Time{},
+				ObjectKey:   "archive.zip",
+			},
+			wantDIP: datatypes.DIP{
+				DBID:        1,
+				UUID:        dipUUID,
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDone,
+				CreatedAt:   createdAt,
+				StartedAt:   createdAt.Add(time.Second),
+				CompletedAt: createdAt.Add(time.Minute),
+				ExpiresAt:   time.Time{},
+				ObjectKey:   "archive.zip",
+			},
+		},
+		{
+			name: "Preserves publication after failure",
+			params: &activities.UpdateDIPParams{
+				UUID:         dipUUID,
+				Status:       enums.DIPStatusFailed,
+				ObjectKey:    "replacement.zip",
+				Retention:    time.Hour,
+				ErrorMessage: "retry failed",
+			},
+			current: &datatypes.DIP{
+				DBID:        1,
+				UUID:        dipUUID,
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDone,
+				CreatedAt:   createdAt,
+				StartedAt:   createdAt.Add(time.Second),
+				CompletedAt: createdAt.Add(time.Minute),
+				ExpiresAt:   now.Add(time.Hour),
+				ObjectKey:   "archive.zip",
+			},
+			wantDIP: datatypes.DIP{
+				DBID:        1,
+				UUID:        dipUUID,
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDone,
+				CreatedAt:   createdAt,
+				StartedAt:   createdAt.Add(time.Second),
+				CompletedAt: createdAt.Add(time.Minute),
+				ExpiresAt:   now.Add(time.Hour),
+				ObjectKey:   "archive.zip",
+			},
+		},
+		{
+			name: "Preserves publication after start",
+			params: &activities.UpdateDIPParams{
+				UUID:         dipUUID,
+				Status:       enums.DIPStatusInProgress,
+				ObjectKey:    "replacement.zip",
+				Retention:    time.Hour,
+				ErrorMessage: "retry failed",
+			},
+			current: &datatypes.DIP{
+				DBID:        1,
+				UUID:        dipUUID,
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDone,
+				CreatedAt:   createdAt,
+				StartedAt:   createdAt.Add(time.Second),
+				CompletedAt: createdAt.Add(time.Minute),
+				ExpiresAt:   time.Time{},
+				ObjectKey:   "archive.zip",
+			},
+			wantDIP: datatypes.DIP{
+				DBID:        1,
+				UUID:        dipUUID,
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDone,
+				CreatedAt:   createdAt,
+				StartedAt:   createdAt.Add(time.Second),
+				CompletedAt: createdAt.Add(time.Minute),
+				ExpiresAt:   time.Time{},
+				ObjectKey:   "archive.zip",
+			},
+		},
+		{
+			name: "Preserves failure after publication",
+			params: &activities.UpdateDIPParams{
+				UUID:         dipUUID,
+				Status:       enums.DIPStatusDone,
+				ObjectKey:    "replacement.zip",
+				Retention:    time.Hour,
+				ErrorMessage: "retry failed",
+			},
+			current: &datatypes.DIP{
+				DBID:         1,
+				UUID:         dipUUID,
+				DocKey:       "CH-000001",
+				Status:       enums.DIPStatusFailed,
+				CreatedAt:    createdAt,
+				StartedAt:    createdAt.Add(time.Second),
+				CompletedAt:  createdAt.Add(time.Minute),
+				ExpiresAt:    time.Time{},
+				ErrorMessage: "generation failed",
+			},
+			wantDIP: datatypes.DIP{
+				DBID:         1,
+				UUID:         dipUUID,
+				DocKey:       "CH-000001",
+				Status:       enums.DIPStatusFailed,
+				CreatedAt:    createdAt,
+				StartedAt:    createdAt.Add(time.Second),
+				CompletedAt:  createdAt.Add(time.Minute),
+				ExpiresAt:    time.Time{},
+				ErrorMessage: "generation failed",
+			},
+		},
+		{
+			name: "Preserves deletion after publication",
+			params: &activities.UpdateDIPParams{
+				UUID:         dipUUID,
+				Status:       enums.DIPStatusDone,
+				ObjectKey:    "replacement.zip",
+				Retention:    time.Hour,
+				ErrorMessage: "retry failed",
+			},
+			current: &datatypes.DIP{
+				DBID:        1,
+				UUID:        dipUUID,
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDeleted,
+				CreatedAt:   createdAt,
+				StartedAt:   createdAt.Add(time.Second),
+				CompletedAt: createdAt.Add(time.Minute),
+				ExpiresAt:   now.Add(-time.Hour),
+			},
+			wantDIP: datatypes.DIP{
+				DBID:        1,
+				UUID:        dipUUID,
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDeleted,
+				CreatedAt:   createdAt,
+				StartedAt:   createdAt.Add(time.Second),
+				CompletedAt: createdAt.Add(time.Minute),
+				ExpiresAt:   now.Add(-time.Hour),
+			},
+		},
+		{
+			name: "Preserves deletion after failure",
+			params: &activities.UpdateDIPParams{
+				UUID:         dipUUID,
+				Status:       enums.DIPStatusFailed,
+				ObjectKey:    "replacement.zip",
+				Retention:    time.Hour,
+				ErrorMessage: "retry failed",
+			},
+			current: &datatypes.DIP{
+				DBID:        1,
+				UUID:        dipUUID,
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDeleted,
+				CreatedAt:   createdAt,
+				StartedAt:   createdAt.Add(time.Second),
+				CompletedAt: createdAt.Add(time.Minute),
+				ExpiresAt:   now.Add(-time.Hour),
+			},
+			wantDIP: datatypes.DIP{
+				DBID:        1,
+				UUID:        dipUUID,
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDeleted,
+				CreatedAt:   createdAt,
+				StartedAt:   createdAt.Add(time.Second),
+				CompletedAt: createdAt.Add(time.Minute),
+				ExpiresAt:   now.Add(-time.Hour),
+			},
+		},
+		{
+			name: "Deletes an expired DIP",
+			params: &activities.UpdateDIPParams{
+				UUID:   dipUUID,
+				Status: enums.DIPStatusDeleted,
+			},
+			current: &datatypes.DIP{
+				DBID:        1,
+				UUID:        dipUUID,
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDone,
+				CreatedAt:   createdAt,
+				StartedAt:   createdAt.Add(time.Second),
+				CompletedAt: createdAt.Add(time.Minute),
+				ExpiresAt:   now.Add(-time.Hour),
+				ObjectKey:   "archive.zip",
+			},
+			wantDIP: datatypes.DIP{
+				DBID:        1,
+				UUID:        dipUUID,
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDeleted,
+				CreatedAt:   createdAt,
+				StartedAt:   createdAt.Add(time.Second),
+				CompletedAt: createdAt.Add(time.Minute),
+				ExpiresAt:   now.Add(-time.Hour),
+				ObjectKey:   "",
+			},
+		},
+		{
+			name: "Preserves a renewed DIP",
+			params: &activities.UpdateDIPParams{
+				UUID:   dipUUID,
+				Status: enums.DIPStatusDeleted,
+			},
+			current: &datatypes.DIP{
+				DBID:        1,
+				UUID:        dipUUID,
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDone,
+				CreatedAt:   createdAt,
+				StartedAt:   createdAt.Add(time.Second),
+				CompletedAt: createdAt.Add(time.Minute),
+				ExpiresAt:   now.Add(time.Hour),
+				ObjectKey:   "archive.zip",
+			},
+			wantDIP: datatypes.DIP{
+				DBID:        1,
+				UUID:        dipUUID,
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDone,
+				CreatedAt:   createdAt,
+				StartedAt:   createdAt.Add(time.Second),
+				CompletedAt: createdAt.Add(time.Minute),
+				ExpiresAt:   now.Add(time.Hour),
+				ObjectKey:   "archive.zip",
+			},
+		},
+		{
+			name: "Preserves an indefinite DIP",
+			params: &activities.UpdateDIPParams{
+				UUID:   dipUUID,
+				Status: enums.DIPStatusDeleted,
+			},
+			current: &datatypes.DIP{
+				DBID:        1,
+				UUID:        dipUUID,
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDone,
+				CreatedAt:   createdAt,
+				StartedAt:   createdAt.Add(time.Second),
+				CompletedAt: createdAt.Add(time.Minute),
+				ExpiresAt:   time.Time{},
+				ObjectKey:   "archive.zip",
+			},
+			wantDIP: datatypes.DIP{
+				DBID:        1,
+				UUID:        dipUUID,
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDone,
+				CreatedAt:   createdAt,
+				StartedAt:   createdAt.Add(time.Second),
+				CompletedAt: createdAt.Add(time.Minute),
+				ExpiresAt:   time.Time{},
+				ObjectKey:   "archive.zip",
+			},
 		},
 		{
 			name: "Fails if there is a persistence error",
-			params: &activities.UpdateDIPParams{DIP: datatypes.DIP{
-				UUID: dipUUID,
-			}},
-			wantDIP: dip,
+			params: &activities.UpdateDIPParams{
+				UUID:   dipUUID,
+				Status: enums.DIPStatusInProgress,
+			},
+			wantDIP: datatypes.DIP{
+				DBID:      1,
+				UUID:      dipUUID,
+				DocKey:    "CH-000001",
+				Status:    enums.DIPStatusInProgress,
+				CreatedAt: createdAt,
+				StartedAt: now,
+			},
 			err:     errors.New("persistence error"),
-			wantErr: "failed to update DIP: persistence error",
+			wantErr: "persistence error",
+		},
+		{
+			name: "Fails if the DIP is missing",
+			params: &activities.UpdateDIPParams{
+				UUID:   dipUUID,
+				Status: enums.DIPStatusInProgress,
+			},
+			wantDIP: datatypes.DIP{
+				DBID:      1,
+				UUID:      dipUUID,
+				DocKey:    "CH-000001",
+				Status:    enums.DIPStatusInProgress,
+				CreatedAt: createdAt,
+				StartedAt: now,
+			},
+			err:          persistence.ErrNotFound,
+			wantErr:      "update DIP: not found error",
+			nonRetryable: true,
+		},
+		{
+			name: "Fails if the update is invalid",
+			params: &activities.UpdateDIPParams{
+				UUID:   dipUUID,
+				Status: enums.DIPStatusInProgress,
+			},
+			wantDIP: datatypes.DIP{
+				DBID:      1,
+				UUID:      dipUUID,
+				DocKey:    "CH-000001",
+				Status:    enums.DIPStatusInProgress,
+				CreatedAt: createdAt,
+				StartedAt: now,
+			},
+			err:          persistence.ErrNotValid,
+			wantErr:      "update DIP: invalid data error",
+			nonRetryable: true,
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -104,14 +512,17 @@ func TestUpdateDIP(t *testing.T) {
 						"should update DIP",
 						func(updater persistence.DIPUpdater) error {
 							d := dip
+							if tt.current != nil {
+								d = *tt.current
+							}
 							got, err := updater(&d)
 							assert.NilError(t, err)
-							assert.DeepEqual(t, got, &tt.wantDIP)
+							assert.DeepEqual(t, got, &tt.wantDIP, cmpopts.EquateApproxTime(time.Second))
 							return nil
 						},
 					),
 				).
-				Return(nil, tt.err)
+				Return(&tt.wantDIP, tt.err)
 
 			ts := &temporalsdk_testsuite.WorkflowTestSuite{}
 			env := ts.NewTestActivityEnvironment()
@@ -122,13 +533,16 @@ func TestUpdateDIP(t *testing.T) {
 			enc, err := env.ExecuteActivity(activities.UpdateDIPName, tt.params)
 			if tt.wantErr != "" {
 				assert.ErrorContains(t, err, tt.wantErr)
+				var appErr *temporalsdk_temporal.ApplicationError
+				assert.Assert(t, errors.As(err, &appErr))
+				assert.Equal(t, appErr.NonRetryable(), tt.nonRetryable)
 				return
 			}
 			assert.NilError(t, err)
 
 			var res activities.UpdateDIPResult
 			assert.NilError(t, enc.Get(&res))
-			assert.DeepEqual(t, res, activities.UpdateDIPResult{})
+			assert.DeepEqual(t, res.DIP, tt.wantDIP)
 		})
 	}
 }

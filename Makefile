@@ -78,7 +78,7 @@ gen-enums: tool-go-enum
 gen-ent: # @HELP Generate Ent assets.
 gen-ent: tool-ent
 	ent generate ./internal/dips/persistence/ent/schema \
-		--feature sql/versioned-migration \
+		--feature sql/versioned-migration,sql/lock \
 		--target=./internal/dips/persistence/ent/db
 
 gen-goa: # @HELP Generate Goa assets for the DIP API design.

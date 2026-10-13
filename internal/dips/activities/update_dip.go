@@ -2,19 +2,31 @@ package activities
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
+
+	"github.com/google/uuid"
+	"go.artefactual.dev/tools/temporal"
 
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/datatypes"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/enums"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence"
 )
 
 const UpdateDIPName = "update-dip"
 
 type UpdateDIPParams struct {
-	DIP datatypes.DIP
+	UUID         uuid.UUID
+	Status       enums.DIPStatus
+	ObjectKey    string
+	ErrorMessage string
+	Retention    time.Duration
 }
 
-type UpdateDIPResult struct{}
+type UpdateDIPResult struct {
+	DIP datatypes.DIP
+}
 
 type UpdateDIP struct {
 	perSvc persistence.Service
@@ -26,26 +38,57 @@ func NewUpdateDIP(perSvc persistence.Service) *UpdateDIP {
 
 func (a *UpdateDIP) Execute(ctx context.Context, params *UpdateDIPParams) (*UpdateDIPResult, error) {
 	updater := func(d *datatypes.DIP) (*datatypes.DIP, error) {
-		if params.DIP.Status.IsValid() {
-			d.Status = params.DIP.Status
+		// The database update may succeed even if Temporal does not receive the result.
+		// On retry, leave completed generations unchanged: publishing again would reset
+		// completion and expiry times, possibly overwriting an API renewal. Likewise,
+		// do not overwrite a failed or deleted generation. Deletion is handled below
+		// because it must still check whether a completed generation has expired.
+		if params.Status != enums.DIPStatusDeleted &&
+			(d.Status == enums.DIPStatusDone || d.Status == enums.DIPStatusFailed || d.Status == enums.DIPStatusDeleted) {
+			return d, nil
 		}
-		if !params.DIP.StartedAt.IsZero() {
-			d.StartedAt = params.DIP.StartedAt
+
+		now := time.Now().UTC()
+		switch params.Status {
+		case enums.DIPStatusInProgress:
+			d.Status = params.Status
+			d.StartedAt = now
+		case enums.DIPStatusDone:
+			if params.ObjectKey == "" || params.Retention < 0 {
+				return nil, fmt.Errorf("%w: invalid DIP publication", persistence.ErrNotValid)
+			}
+			d.Status = params.Status
+			d.ObjectKey = params.ObjectKey
+			d.CompletedAt = now
+			if params.Retention > 0 {
+				d.ExpiresAt = now.Add(params.Retention)
+			}
+		case enums.DIPStatusFailed:
+			d.Status = params.Status
+			d.ErrorMessage = params.ErrorMessage
+			d.CompletedAt = now
+		case enums.DIPStatusDeleted:
+			// Check expiry under the row lock to avoid racing with API renewals.
+			// Return the DIP unchanged if it is not eligible for deletion.
+			if d.Status == enums.DIPStatusDone && !d.ExpiresAt.IsZero() && !d.ExpiresAt.After(now) {
+				d.Status = params.Status
+				d.ObjectKey = ""
+			}
+		default:
+			return nil, fmt.Errorf("%w: invalid DIP update status", persistence.ErrNotValid)
 		}
-		if !params.DIP.CompletedAt.IsZero() {
-			d.CompletedAt = params.DIP.CompletedAt
-		}
-		if params.DIP.ErrorMessage != "" {
-			d.ErrorMessage = params.DIP.ErrorMessage
-		}
-		if params.DIP.ObjectKey != "" {
-			d.ObjectKey = params.DIP.ObjectKey
-		}
+
 		return d, nil
 	}
-	_, err := a.perSvc.UpdateDIP(ctx, params.DIP.UUID, updater)
+
+	d, err := a.perSvc.UpdateDIP(ctx, params.UUID, updater)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update DIP: %v", err)
+		if errors.Is(err, persistence.ErrNotValid) || errors.Is(err, persistence.ErrNotFound) {
+			return nil, temporal.NewNonRetryableError(fmt.Errorf("update DIP: %v", err))
+		}
+
+		return nil, err
 	}
-	return &UpdateDIPResult{}, nil
+
+	return &UpdateDIPResult{DIP: *d}, nil
 }
