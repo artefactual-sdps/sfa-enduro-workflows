@@ -43,44 +43,6 @@ func (m *MockService) EXPECT() *MockServiceMockRecorder {
 	return m.recorder
 }
 
-// CreateDIP mocks base method.
-func (m *MockService) CreateDIP(arg0 context.Context, arg1 *datatypes.DIP) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateDIP", arg0, arg1)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// CreateDIP indicates an expected call of CreateDIP.
-func (mr *MockServiceMockRecorder) CreateDIP(arg0, arg1 any) *MockServiceCreateDIPCall {
-	mr.mock.ctrl.T.Helper()
-	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateDIP", reflect.TypeOf((*MockService)(nil).CreateDIP), arg0, arg1)
-	return &MockServiceCreateDIPCall{Call: call}
-}
-
-// MockServiceCreateDIPCall wrap *gomock.Call
-type MockServiceCreateDIPCall struct {
-	*gomock.Call
-}
-
-// Return rewrite *gomock.Call.Return
-func (c *MockServiceCreateDIPCall) Return(arg0 error) *MockServiceCreateDIPCall {
-	c.Call = c.Call.Return(arg0)
-	return c
-}
-
-// Do rewrite *gomock.Call.Do
-func (c *MockServiceCreateDIPCall) Do(f func(context.Context, *datatypes.DIP) error) *MockServiceCreateDIPCall {
-	c.Call = c.Call.Do(f)
-	return c
-}
-
-// DoAndReturn rewrite *gomock.Call.DoAndReturn
-func (c *MockServiceCreateDIPCall) DoAndReturn(f func(context.Context, *datatypes.DIP) error) *MockServiceCreateDIPCall {
-	c.Call = c.Call.DoAndReturn(f)
-	return c
-}
-
 // DeleteDIP mocks base method.
 func (m *MockService) DeleteDIP(arg0 context.Context, arg1 uuid.UUID) error {
 	m.ctrl.T.Helper()
@@ -154,6 +116,45 @@ func (c *MockServiceReadDIPCall) Do(f func(context.Context, uuid.UUID) (*datatyp
 
 // DoAndReturn rewrite *gomock.Call.DoAndReturn
 func (c *MockServiceReadDIPCall) DoAndReturn(f func(context.Context, uuid.UUID) (*datatypes.DIP, error)) *MockServiceReadDIPCall {
+	c.Call = c.Call.DoAndReturn(f)
+	return c
+}
+
+// RequestDIP mocks base method.
+func (m *MockService) RequestDIP(arg0 context.Context, arg1 persistence.RequestDIPParams) (*datatypes.DIP, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RequestDIP", arg0, arg1)
+	ret0, _ := ret[0].(*datatypes.DIP)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RequestDIP indicates an expected call of RequestDIP.
+func (mr *MockServiceMockRecorder) RequestDIP(arg0, arg1 any) *MockServiceRequestDIPCall {
+	mr.mock.ctrl.T.Helper()
+	call := mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestDIP", reflect.TypeOf((*MockService)(nil).RequestDIP), arg0, arg1)
+	return &MockServiceRequestDIPCall{Call: call}
+}
+
+// MockServiceRequestDIPCall wrap *gomock.Call
+type MockServiceRequestDIPCall struct {
+	*gomock.Call
+}
+
+// Return rewrite *gomock.Call.Return
+func (c *MockServiceRequestDIPCall) Return(arg0 *datatypes.DIP, arg1 error) *MockServiceRequestDIPCall {
+	c.Call = c.Call.Return(arg0, arg1)
+	return c
+}
+
+// Do rewrite *gomock.Call.Do
+func (c *MockServiceRequestDIPCall) Do(f func(context.Context, persistence.RequestDIPParams) (*datatypes.DIP, error)) *MockServiceRequestDIPCall {
+	c.Call = c.Call.Do(f)
+	return c
+}
+
+// DoAndReturn rewrite *gomock.Call.DoAndReturn
+func (c *MockServiceRequestDIPCall) DoAndReturn(f func(context.Context, persistence.RequestDIPParams) (*datatypes.DIP, error)) *MockServiceRequestDIPCall {
 	c.Call = c.Call.DoAndReturn(f)
 	return c
 }

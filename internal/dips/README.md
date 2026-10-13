@@ -16,22 +16,32 @@ the initial implementation approach.
 See the [OpenAPI specification](api/gen/http/openapi3.yaml) for request and
 response schemas.
 
-- `POST /dips`: accepts an ACTApro `docKey`, creates a database record for the
-  DIP with status `queued`, starts the DIP creation workflow, then returns the
-  unique DIP ID in the `id` field.
+- `POST /dips`: accepts an ACTApro `docKey` and returns the DIP generation ID
+  in the `id` field. It returns the newest DIP that is queued, in progress, or
+  cached and still available. If no eligible DIP is available a new DIP is
+  generated. Set `ignoreCache: true` to force the creation of a new DIP instead of
+  using a cached DIP. If a DIP generation is queued or in-progress then
+  `ignoreCache: true` is ignored and the previous DIP UUID is returned, to prevent
+  multiple generations of the same DIP over a short time span.
 - `GET /dips/{id}`: returns the recorded DIP creation status, timestamps,
-  error message and object key, when available.
+  error message and object key, when available. The optional `expires_at` field
+  gives the date and time when the cached DIP expires.
 - `GET /livez`: checks that the API server is running and able to respond to
   requests (is "alive").
 
 For `POST /dips`, invalid requests return `400 Bad Request`, authentication
-failures return `401 Unauthorized`, and errors creating the database record or
+failures return `401 Unauthorized`, and errors accessing the database or
 starting the workflow return `500 Internal Server Error`.
 
-A `202 Accepted` response confirms that the workflow start was accepted;
-processing continues asynchronously. Use the returned DIP ID with
-`GET /dips/{id}` to check progress and any subsequent processing failure. The
-returned ID identifies the DIP; the Temporal workflow has a separate ID.
+A `202 Accepted` response returns a DIP UUID, which may identify a cached or new
+DIP; if a new DIP is created processing continues asynchronously. Use the
+returned DIP ID with `GET /dips/{id}` to check progress and any subsequent
+processing failure. The returned ID identifies the DIP; the Temporal workflow
+has a separate ID. Several POST requests can return the same DIP ID.
+
+If a cached DIP ID is returned, the expiry time of the cache may be extended but
+never shortened. A DIP GET request or ZIP file download does not extend the cache
+expiry.
 
 ## Creation workflow
 
@@ -80,17 +90,20 @@ are exhausted, with the aggregation and cleanup exceptions below.
     `<DIP directory>/<DIPPath>`, creating missing parent directories. A failed
     download stops processing once retries are exhausted.
 12. `archive-zip`: creates `DIP_<DIP UUID>.zip` alongside the DIP directory.
-13. `bucket-upload`: uploads the ZIP to the configured bucket under its filename
-    and stores the returned object key. An upload failure fails the workflow.
+13. `bucket-upload`: uploads the ZIP to the configured bucket under its filename,
+    using the object key `DIP_<DIP UUID>.zip`. An upload failure fails the workflow.
 14. `remove-paths`: removes the DIP working directory on session exit, including
     on failure. Cleanup errors are logged without failing the workflow.
 15. `update-dip`: records completion time and `done` or `failed`, with the
-    object key or error message.
-16. After successful DIP creation and the final update, wait for
-    `retentionPeriod`, then run `bucket-delete` to remove the uploaded ZIP using
-    its object key. The retention period must not be negative. Zero (default)
-    skips deletion, retaining the archive indefinitely. Deletion errors are
-    logged without changing the completed DIP's status.
+    object key or error message. A successful DIP generation also records an
+    expiry date when retention is finite.
+16. After successful DIP creation and the final update, wait until the DIP
+    expires. Before deletion, `update-dip` checks the stored expiry date in case
+    a POST request extended retention. If it has changed, the workflow waits
+    until the new expiry date. A DIP without an expiry date is retained
+    indefinitely. Once expired, the DIP is marked `deleted` and its object key
+    is cleared. Then `bucket-delete` removes the uploaded ZIP. Deletion errors
+    fail the workflow without changing the DIP's `deleted` status.
 
 For all ACTApro activities, a potentially transient API error response
 (`409 Conflict`, `423 Locked`, `500 Internal Server Error`) causes the activity
@@ -108,12 +121,14 @@ or recovered, the workflow fails.
 
 Cleanup and the final database update are attempted even after workflow
 cancellation. If the final update fails, the database may retain an earlier
-status. In that case, any uploaded DIP archive is deleted immediately.
+status. In that case, any uploaded DIP archive is deleted immediately. Failed
+DIP generation also triggers deletion if an upload was attempted. Cancellation
+stops the retention wait and deletion for a successfully completed DIP.
 
 Successful upload sets the DIP's object key to `DIP_<DIP UUID>.zip` and
 completes with `done`. Session cleanup removes the local ZIP. The uploaded
-archive remains in the configured bucket for the duration set in the
-`retentionPeriod` setting.
+archive remains in the configured bucket until its expiry date, which later
+POST requests may extend.
 
 ### Metadata parsing and file paths
 

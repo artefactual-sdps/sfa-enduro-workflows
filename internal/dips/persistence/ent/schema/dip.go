@@ -7,6 +7,7 @@ import (
 	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 	"github.com/google/uuid"
 
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/enums"
@@ -41,8 +42,19 @@ func (DIP) Fields() []ent.Field {
 			Optional(),
 		field.Time("completed_at").
 			Optional(),
+		field.Time("expires_at").
+			Optional(),
 		field.String("object_key").
 			Annotations(entsql.Annotation{Size: 1024}).
 			Optional(),
+		field.String("workflow_id").
+			Optional(),
+	}
+}
+
+func (DIP) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("doc_key").
+			Annotations(entsql.Prefix(64)),
 	}
 }

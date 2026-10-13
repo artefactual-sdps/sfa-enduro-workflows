@@ -103,6 +103,26 @@ func (_u *DIPUpdate) ClearCompletedAt() *DIPUpdate {
 	return _u
 }
 
+// SetExpiresAt sets the "expires_at" field.
+func (_u *DIPUpdate) SetExpiresAt(v time.Time) *DIPUpdate {
+	_u.mutation.SetExpiresAt(v)
+	return _u
+}
+
+// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
+func (_u *DIPUpdate) SetNillableExpiresAt(v *time.Time) *DIPUpdate {
+	if v != nil {
+		_u.SetExpiresAt(*v)
+	}
+	return _u
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (_u *DIPUpdate) ClearExpiresAt() *DIPUpdate {
+	_u.mutation.ClearExpiresAt()
+	return _u
+}
+
 // SetObjectKey sets the "object_key" field.
 func (_u *DIPUpdate) SetObjectKey(v string) *DIPUpdate {
 	_u.mutation.SetObjectKey(v)
@@ -120,6 +140,26 @@ func (_u *DIPUpdate) SetNillableObjectKey(v *string) *DIPUpdate {
 // ClearObjectKey clears the value of the "object_key" field.
 func (_u *DIPUpdate) ClearObjectKey() *DIPUpdate {
 	_u.mutation.ClearObjectKey()
+	return _u
+}
+
+// SetWorkflowID sets the "workflow_id" field.
+func (_u *DIPUpdate) SetWorkflowID(v string) *DIPUpdate {
+	_u.mutation.SetWorkflowID(v)
+	return _u
+}
+
+// SetNillableWorkflowID sets the "workflow_id" field if the given value is not nil.
+func (_u *DIPUpdate) SetNillableWorkflowID(v *string) *DIPUpdate {
+	if v != nil {
+		_u.SetWorkflowID(*v)
+	}
+	return _u
+}
+
+// ClearWorkflowID clears the value of the "workflow_id" field.
+func (_u *DIPUpdate) ClearWorkflowID() *DIPUpdate {
+	_u.mutation.ClearWorkflowID()
 	return _u
 }
 
@@ -198,11 +238,23 @@ func (_u *DIPUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.CompletedAtCleared() {
 		_spec.ClearField(dip.FieldCompletedAt, field.TypeTime)
 	}
+	if value, ok := _u.mutation.ExpiresAt(); ok {
+		_spec.SetField(dip.FieldExpiresAt, field.TypeTime, value)
+	}
+	if _u.mutation.ExpiresAtCleared() {
+		_spec.ClearField(dip.FieldExpiresAt, field.TypeTime)
+	}
 	if value, ok := _u.mutation.ObjectKey(); ok {
 		_spec.SetField(dip.FieldObjectKey, field.TypeString, value)
 	}
 	if _u.mutation.ObjectKeyCleared() {
 		_spec.ClearField(dip.FieldObjectKey, field.TypeString)
+	}
+	if value, ok := _u.mutation.WorkflowID(); ok {
+		_spec.SetField(dip.FieldWorkflowID, field.TypeString, value)
+	}
+	if _u.mutation.WorkflowIDCleared() {
+		_spec.ClearField(dip.FieldWorkflowID, field.TypeString)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -298,6 +350,26 @@ func (_u *DIPUpdateOne) ClearCompletedAt() *DIPUpdateOne {
 	return _u
 }
 
+// SetExpiresAt sets the "expires_at" field.
+func (_u *DIPUpdateOne) SetExpiresAt(v time.Time) *DIPUpdateOne {
+	_u.mutation.SetExpiresAt(v)
+	return _u
+}
+
+// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
+func (_u *DIPUpdateOne) SetNillableExpiresAt(v *time.Time) *DIPUpdateOne {
+	if v != nil {
+		_u.SetExpiresAt(*v)
+	}
+	return _u
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (_u *DIPUpdateOne) ClearExpiresAt() *DIPUpdateOne {
+	_u.mutation.ClearExpiresAt()
+	return _u
+}
+
 // SetObjectKey sets the "object_key" field.
 func (_u *DIPUpdateOne) SetObjectKey(v string) *DIPUpdateOne {
 	_u.mutation.SetObjectKey(v)
@@ -315,6 +387,26 @@ func (_u *DIPUpdateOne) SetNillableObjectKey(v *string) *DIPUpdateOne {
 // ClearObjectKey clears the value of the "object_key" field.
 func (_u *DIPUpdateOne) ClearObjectKey() *DIPUpdateOne {
 	_u.mutation.ClearObjectKey()
+	return _u
+}
+
+// SetWorkflowID sets the "workflow_id" field.
+func (_u *DIPUpdateOne) SetWorkflowID(v string) *DIPUpdateOne {
+	_u.mutation.SetWorkflowID(v)
+	return _u
+}
+
+// SetNillableWorkflowID sets the "workflow_id" field if the given value is not nil.
+func (_u *DIPUpdateOne) SetNillableWorkflowID(v *string) *DIPUpdateOne {
+	if v != nil {
+		_u.SetWorkflowID(*v)
+	}
+	return _u
+}
+
+// ClearWorkflowID clears the value of the "workflow_id" field.
+func (_u *DIPUpdateOne) ClearWorkflowID() *DIPUpdateOne {
+	_u.mutation.ClearWorkflowID()
 	return _u
 }
 
@@ -423,11 +515,23 @@ func (_u *DIPUpdateOne) sqlSave(ctx context.Context) (_node *DIP, err error) {
 	if _u.mutation.CompletedAtCleared() {
 		_spec.ClearField(dip.FieldCompletedAt, field.TypeTime)
 	}
+	if value, ok := _u.mutation.ExpiresAt(); ok {
+		_spec.SetField(dip.FieldExpiresAt, field.TypeTime, value)
+	}
+	if _u.mutation.ExpiresAtCleared() {
+		_spec.ClearField(dip.FieldExpiresAt, field.TypeTime)
+	}
 	if value, ok := _u.mutation.ObjectKey(); ok {
 		_spec.SetField(dip.FieldObjectKey, field.TypeString, value)
 	}
 	if _u.mutation.ObjectKeyCleared() {
 		_spec.ClearField(dip.FieldObjectKey, field.TypeString)
+	}
+	if value, ok := _u.mutation.WorkflowID(); ok {
+		_spec.SetField(dip.FieldWorkflowID, field.TypeString, value)
+	}
+	if _u.mutation.WorkflowIDCleared() {
+		_spec.ClearField(dip.FieldWorkflowID, field.TypeString)
 	}
 	_node = &DIP{config: _u.config}
 	_spec.Assign = _node.assignValues

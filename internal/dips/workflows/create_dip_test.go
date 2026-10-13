@@ -38,15 +38,22 @@ type CreateDIPTestSuite struct {
 	workingDir string
 	xsdDir     string
 	dip        datatypes.DIP
+	objectKey  string
 	retention  retentionTestOptions
 }
 
 type retentionTestOptions struct {
-	period           time.Duration
-	finalUpdateDelay time.Duration
-	finalUpdateErr   error
-	deleteErr        error
-	cancelAfter      time.Duration
+	period                 time.Duration
+	finalUpdateDelay       time.Duration
+	finalUpdateErr         error
+	deleteErr              error
+	cancelAfter            time.Duration
+	renewBy                time.Duration
+	makeIndefinite         bool
+	lostClaimResult        bool
+	retryDelete            bool
+	cancelDuringCleanup    bool
+	cancelAfterPublication bool
 }
 
 var createDIPTestTime = time.Date(2024, 6, 6, 15, 8, 39, 0, time.UTC)
@@ -122,6 +129,7 @@ func (s *CreateDIPTestSuite) SetupTest() {
 		Status:    enums.DIPStatusQueued,
 		CreatedAt: createDIPTestTime.Add(-time.Second),
 	}
+	s.objectKey = "DIP_9390594f-84c2-457d-bd6a-618f21f7c954.zip"
 }
 
 func TestCreateDIP(t *testing.T) {
@@ -134,23 +142,86 @@ func (s *CreateDIPTestSuite) TestSuccess() {
 
 func (s *CreateDIPTestSuite) TestRetention() {
 	for _, tt := range []struct {
-		name string
-		opts retentionTestOptions
+		name         string
+		opts         retentionTestOptions
+		cleanupErr   error
+		cleanupDelay time.Duration
+		uploadErr    error
+		cancelAfter  time.Duration
+		wantErr      string
+		wantFinish   time.Time
 	}{
 		{
-			name: "Waits after the final update",
-			opts: retentionTestOptions{period: 48 * time.Hour, finalUpdateDelay: time.Minute},
+			name:         "Waits for the renewed expiry before deleting",
+			cleanupDelay: time.Second,
+			opts: retentionTestOptions{
+				period:  10 * time.Millisecond,
+				renewBy: 20 * time.Millisecond,
+			},
 		},
 		{
-			name: "Retains indefinitely with zero retention",
-			opts: retentionTestOptions{finalUpdateDelay: time.Minute},
+			name:         "Skips deletion when retention becomes indefinite",
+			cleanupDelay: time.Second,
+			opts: retentionTestOptions{
+				period:         10 * time.Millisecond,
+				makeIndefinite: true,
+			},
 		},
 		{
-			name: "Retains indefinitely with negative retention",
-			opts: retentionTestOptions{period: -24 * time.Hour, finalUpdateDelay: time.Minute},
+			name:         "Retries marking the DIP deleted after a lost activity result",
+			cleanupDelay: time.Second,
+			opts: retentionTestOptions{
+				period:          10 * time.Millisecond,
+				lostClaimResult: true,
+			},
 		},
 		{
-			name: "Deletes immediately when the final update fails",
+			name:         "Deletion retries with key retained in workflow",
+			cleanupDelay: time.Second,
+			opts: retentionTestOptions{
+				period:      10 * time.Millisecond,
+				retryDelete: true,
+			},
+		},
+		{
+			name:         "Final update failure cleans up an indefinite DIP",
+			cleanupDelay: time.Second,
+			opts: retentionTestOptions{
+				finalUpdateErr: temporalsdk_temporal.NewNonRetryableApplicationError("final update failed", "", nil),
+			},
+		},
+		{
+			name:         "Final update failure cleans up a finite DIP",
+			cleanupDelay: time.Second,
+			opts: retentionTestOptions{
+				period:         10 * time.Millisecond,
+				finalUpdateErr: temporalsdk_temporal.NewNonRetryableApplicationError("final update failed", "", nil),
+			},
+		},
+		{
+			name:         "Waits after the final update",
+			cleanupDelay: time.Second,
+			opts: retentionTestOptions{
+				period:           48 * time.Hour,
+				finalUpdateDelay: time.Minute,
+			},
+		},
+		{
+			name:         "Retains indefinitely with zero retention",
+			cleanupDelay: time.Second,
+			opts:         retentionTestOptions{finalUpdateDelay: time.Minute},
+		},
+		{
+			name:         "Retains indefinitely with negative retention",
+			cleanupDelay: time.Second,
+			opts: retentionTestOptions{
+				period:           -24 * time.Hour,
+				finalUpdateDelay: time.Minute,
+			},
+		},
+		{
+			name:         "Deletes immediately when the final update fails",
+			cleanupDelay: time.Second,
 			opts: retentionTestOptions{
 				period:           time.Hour,
 				finalUpdateDelay: time.Minute,
@@ -158,13 +229,15 @@ func (s *CreateDIPTestSuite) TestRetention() {
 			},
 		},
 		{
-			name: "Final update failure overrides indefinite retention",
+			name:         "Final update failure overrides indefinite retention",
+			cleanupDelay: time.Second,
 			opts: retentionTestOptions{
 				finalUpdateErr: temporalsdk_temporal.NewNonRetryableApplicationError("final update failed", "", nil),
 			},
 		},
 		{
-			name: "Returns both final update and deletion errors",
+			name:         "Returns both final update and deletion errors",
+			cleanupDelay: time.Second,
 			opts: retentionTestOptions{
 				period:         time.Hour,
 				finalUpdateErr: temporalsdk_temporal.NewNonRetryableApplicationError("final update failed", "", nil),
@@ -172,54 +245,81 @@ func (s *CreateDIPTestSuite) TestRetention() {
 			},
 		},
 		{
-			name: "Deletion failure preserves the completed DIP",
+			name:         "Object deletion failure leaves the DIP marked deleted",
+			cleanupDelay: time.Second,
 			opts: retentionTestOptions{
 				period:    time.Hour,
 				deleteErr: temporalsdk_temporal.NewNonRetryableApplicationError("bucket deletion denied", "", nil),
 			},
 		},
 		{
-			name: "Cancellation during retention skips deletion",
-			opts: retentionTestOptions{period: 48 * time.Hour, cancelAfter: time.Hour},
+			name:         "Cancellation during retention skips deletion",
+			cleanupDelay: time.Second,
+			opts: retentionTestOptions{
+				period:      48 * time.Hour,
+				cancelAfter: time.Hour,
+			},
+		},
+		{
+			name: "Upload failure deletes the object",
+			opts: retentionTestOptions{
+				period: time.Hour,
+			},
+			uploadErr: temporalsdk_temporal.NewNonRetryableApplicationError("bucket upload denied", "", nil),
+			wantErr:   "bucket upload denied",
+		},
+		{
+			name: "Failure recording error after cancellation deletes object",
+			opts: retentionTestOptions{
+				finalUpdateErr:      temporalsdk_temporal.NewNonRetryableApplicationError("final update failed", "", nil),
+				cancelDuringCleanup: true,
+			},
+			cancelAfter:  time.Second,
+			cleanupDelay: 2 * time.Second,
+		},
+		{
+			name: "Final update failure after upload error deletes object",
+			opts: retentionTestOptions{
+				finalUpdateErr: temporalsdk_temporal.NewNonRetryableApplicationError("final update failed", "", nil),
+			},
+			uploadErr: temporalsdk_temporal.NewNonRetryableApplicationError("bucket upload denied", "", nil),
+			wantErr:   "bucket upload denied",
+		},
+		{
+			name:       "Cleanup failure does not fail workflow",
+			cleanupErr: errors.New("remove paths failed"),
+		},
+		{
+			name: "Cleanup completes after cancellation",
+			opts: retentionTestOptions{
+				cancelDuringCleanup: true,
+			},
+			cancelAfter:  time.Second,
+			cleanupDelay: 2 * time.Second,
+			wantFinish:   createDIPTestTime.Add(2 * time.Second),
+		},
+		{
+			name: "Cancellation after publication skips marking DIP deleted",
+			opts: retentionTestOptions{
+				cancelAfterPublication: true,
+			},
 		},
 	} {
 		s.Run(tt.name, func() {
 			s.SetupTest()
 			s.retention = tt.opts
-			s.testSessionResult(nil, time.Second, nil, nil, nil, nil, nil, nil)
+			if tt.cancelAfter > 0 {
+				s.env.RegisterDelayedCallback(s.env.CancelWorkflow, tt.cancelAfter)
+			}
+			s.testSessionResult(tt.cleanupErr, tt.cleanupDelay, nil, nil, nil, nil, nil, tt.uploadErr)
+			if tt.wantErr != "" {
+				s.ErrorContains(s.env.GetWorkflowError(), tt.wantErr)
+			}
+			if !tt.wantFinish.IsZero() {
+				s.Equal(tt.wantFinish, s.env.Now().UTC())
+			}
 		})
 	}
-}
-
-func (s *CreateDIPTestSuite) TestRetentionSkipsFailedDIP() {
-	s.retention.period = time.Hour
-	s.testSessionResult(nil, 0, nil, nil, nil, nil, nil,
-		temporalsdk_temporal.NewNonRetryableApplicationError("bucket upload denied", "", nil),
-	)
-}
-
-func (s *CreateDIPTestSuite) TestFinalUpdateFailureDeletesAfterCancellation() {
-	s.retention.finalUpdateErr = temporalsdk_temporal.NewNonRetryableApplicationError("final update failed", "", nil)
-	s.env.RegisterDelayedCallback(s.env.CancelWorkflow, time.Second)
-	s.testSessionResult(nil, 2*time.Second, nil, nil, nil, nil, nil, nil)
-}
-
-func (s *CreateDIPTestSuite) TestFinalUpdateFailureBeforeUploadSkipsDeletion() {
-	s.retention.finalUpdateErr = temporalsdk_temporal.NewNonRetryableApplicationError("final update failed", "", nil)
-	s.testSessionResult(nil, 0, nil, nil, nil, nil, nil,
-		temporalsdk_temporal.NewNonRetryableApplicationError("bucket upload denied", "", nil),
-	)
-	s.ErrorContains(s.env.GetWorkflowError(), "bucket upload denied")
-}
-
-func (s *CreateDIPTestSuite) TestCleanupFailureDoesNotFailWorkflow() {
-	s.testSessionResult(errors.New("remove paths failed"), 0, nil, nil, nil, nil, nil, nil)
-}
-
-func (s *CreateDIPTestSuite) TestCleanupCompletesAfterCancellation() {
-	s.env.RegisterDelayedCallback(s.env.CancelWorkflow, time.Second)
-	s.testSessionResult(nil, 2*time.Second, nil, nil, nil, nil, nil, nil)
-	s.Equal(createDIPTestTime.Add(2*time.Second), s.env.Now().UTC())
 }
 
 func (s *CreateDIPTestSuite) TestParseMetadataFails() {
@@ -275,8 +375,8 @@ func (s *CreateDIPTestSuite) testSessionResult(
 	initialUpdate := s.env.OnActivity(
 		activities.UpdateDIPName,
 		mock.AnythingOfType("*context.timerCtx"),
-		&activities.UpdateDIPParams{DIP: wDIP},
-	).Return(&activities.UpdateDIPResult{}, nil).Once()
+		updateParams(wDIP),
+	).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).Once()
 	aipUUIDs := []uuid.UUID{
 		uuid.MustParse("28c1a3e2-abd3-4b9b-9214-ae851c87b1a6"),
 		uuid.MustParse("1231e569-a94e-4ac1-873e-65e1f524b1c8"),
@@ -436,13 +536,16 @@ func (s *CreateDIPTestSuite) testSessionResult(
 					&archivezip.Params{SourceDir: dipPath},
 				).Return(&archivezip.Result{Path: dipPath + ".zip"}, archiveErr).Once().NotBefore(previousActivity)
 				if archiveErr == nil {
-					// Use a distinct key to verify the workflow stores the upload result.
+					// Upload uses the key held in workflow state before the DIP is marked done.
 					previousActivity = s.env.OnActivity(
 						bucketupload.Name,
 						mock.AnythingOfType("*context.timerCtx"),
-						&bucketupload.Params{Path: dipPath + ".zip"},
+						&bucketupload.Params{
+							Path: dipPath + ".zip",
+							Key:  s.objectKey,
+						},
 					).Return(&bucketupload.Result{
-						Key: "uploads/DIP_9390594f-84c2-457d-bd6a-618f21f7c954.zip",
+						Key: "DIP_9390594f-84c2-457d-bd6a-618f21f7c954.zip",
 					}, uploadErr).Once().NotBefore(previousActivity)
 				}
 			}
@@ -454,70 +557,149 @@ func (s *CreateDIPTestSuite) testSessionResult(
 		&removepaths.Params{Paths: []string{filepath.Join(s.workingDir, s.dip.UUID.String())}},
 	).Return(&removepaths.Result{}, cleanupErr).After(cleanupDelay).Once().NotBefore(previousActivity)
 
-	wDIP.ObjectKey = "uploads/DIP_9390594f-84c2-457d-bd6a-618f21f7c954.zip"
 	wDIP.Status = enums.DIPStatusDone
 	if parseErr != nil {
-		wDIP.ObjectKey = ""
 		wDIP.Status = enums.DIPStatusFailed
 		wDIP.ErrorMessage = "DIP metadata parsing failed: " + parseErr.Error()
 	} else if len(parseResult.Files) == 0 {
-		wDIP.ObjectKey = ""
 		wDIP.Status = enums.DIPStatusFailed
 		wDIP.ErrorMessage = "DIP metadata contains no files."
 	} else if prepareErr != nil {
-		wDIP.ObjectKey = ""
 		wDIP.Status = enums.DIPStatusFailed
 		wDIP.ErrorMessage = "DIP preparation failed: " + prepareErr.Error()
 	} else if contentErr != nil {
-		wDIP.ObjectKey = ""
 		wDIP.Status = enums.DIPStatusFailed
 		wDIP.ErrorMessage = contentErrorMessage
 	} else if archiveErr != nil {
-		wDIP.ObjectKey = ""
 		wDIP.Status = enums.DIPStatusFailed
 		wDIP.ErrorMessage = "DIP ZIP creation failed: " + archiveErr.Error()
 	} else if uploadErr != nil {
-		wDIP.ObjectKey = ""
 		wDIP.Status = enums.DIPStatusFailed
 		wDIP.ErrorMessage = "DIP upload failed: bucket upload denied"
+	} else if s.retention.cancelDuringCleanup {
+		wDIP.Status = enums.DIPStatusFailed
+		wDIP.ErrorMessage = "canceled"
+	}
+	uploadAttempted := parseErr == nil && len(parseResult.Files) > 0 && prepareErr == nil && contentErr == nil &&
+		archiveErr == nil
+	if uploadAttempted {
+		wDIP.ObjectKey = s.objectKey
 	}
 	wDIP.CompletedAt = createDIPTestTime.Add(cleanupDelay)
-	finalUpdate := s.env.OnActivity(
-		activities.UpdateDIPName,
-		mock.AnythingOfType("*context.timerCtx"),
-		&activities.UpdateDIPParams{DIP: wDIP},
-	).Return(&activities.UpdateDIPResult{}, s.retention.finalUpdateErr).
+	if wDIP.Status == enums.DIPStatusDone && s.retention.period > 0 {
+		wDIP.ExpiresAt = wDIP.CompletedAt.Add(s.retention.period)
+	}
+	finalParams := updateParams(wDIP)
+	if finalParams.Status == enums.DIPStatusDone {
+		finalParams.Retention = max(0, s.retention.period)
+	}
+	finalUpdate := s.env.OnActivity(activities.UpdateDIPName, mock.Anything, finalParams).
+		Return(&activities.UpdateDIPResult{DIP: wDIP}, s.retention.finalUpdateErr).
 		After(s.retention.finalUpdateDelay).Once().NotBefore(cleanup)
-
 	wantFinish := wDIP.CompletedAt.Add(s.retention.finalUpdateDelay)
-	deleteImmediately := s.retention.finalUpdateErr != nil && wDIP.ObjectKey != ""
-	deleteAfterRetention := wDIP.Status == enums.DIPStatusDone && s.retention.finalUpdateErr == nil &&
-		s.retention.period > 0
-	if deleteAfterRetention {
-		if s.retention.cancelAfter > 0 {
-			wantFinish = wantFinish.Add(s.retention.cancelAfter)
-			s.env.RegisterDelayedCallback(s.env.CancelWorkflow, wantFinish.Sub(createDIPTestTime))
-			deleteAfterRetention = false
-		} else {
-			wantFinish = wantFinish.Add(s.retention.period)
+	shouldDelete := uploadAttempted &&
+		(uploadErr != nil || s.retention.cancelDuringCleanup || s.retention.finalUpdateErr != nil)
+
+	if s.retention.finalUpdateErr == nil &&
+		wDIP.Status == enums.DIPStatusDone && !s.retention.cancelAfterPublication {
+		claim := &activities.UpdateDIPParams{
+			UUID:   wDIP.UUID,
+			Status: enums.DIPStatusDeleted,
+		}
+		s.env.OnActivity(activities.UpdateDIPName, mock.Anything, claim).
+			Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).
+			Once().NotBefore(finalUpdate)
+		if s.retention.period > 0 {
+			if s.retention.cancelAfter > 0 {
+				wantFinish = wantFinish.Add(s.retention.cancelAfter)
+				s.env.RegisterDelayedCallback(s.env.CancelWorkflow, wantFinish.Sub(createDIPTestTime))
+			} else {
+				wantFinish = wDIP.ExpiresAt
+				current := wDIP
+				if s.retention.renewBy > 0 {
+					current.ExpiresAt = current.ExpiresAt.Add(s.retention.renewBy)
+					s.env.OnActivity(activities.UpdateDIPName, mock.Anything, claim).
+						Return(&activities.UpdateDIPResult{DIP: current}, nil).Once()
+					wantFinish = wantFinish.Add(s.retention.renewBy)
+				}
+				if s.retention.makeIndefinite {
+					current.ExpiresAt = time.Time{}
+					s.env.OnActivity(activities.UpdateDIPName, mock.Anything, claim).
+						Return(&activities.UpdateDIPResult{DIP: current}, nil).Once()
+				} else {
+					current.Status = enums.DIPStatusDeleted
+					if s.retention.lostClaimResult {
+						s.env.OnActivity(activities.UpdateDIPName, mock.Anything, claim).
+							Return(nil, errors.New("lost claim result")).
+							Once()
+						wantFinish = wantFinish.Add(time.Second)
+					}
+					s.env.OnActivity(activities.UpdateDIPName, mock.Anything, claim).
+						Return(&activities.UpdateDIPResult{DIP: current}, nil).Once()
+					shouldDelete = true
+				}
+			}
 		}
 	}
-	if deleteImmediately || deleteAfterRetention {
-		s.env.OnActivity(
-			bucketdelete.Name,
-			mock.AnythingOfType("*context.timerCtx"),
-			&bucketdelete.Params{Key: wDIP.ObjectKey},
-		).Return(&bucketdelete.Result{}, s.retention.deleteErr).Once().NotBefore(finalUpdate).
-			Run(func(mock.Arguments) {
-				s.Equal(wantFinish, s.env.Now().UTC())
-			})
+	if shouldDelete {
+		if s.retention.retryDelete {
+			s.env.OnActivity(bucketdelete.Name, mock.Anything, &bucketdelete.Params{Key: s.objectKey}).
+				Return(nil, errors.New("temporary deletion failure")).Once().NotBefore(finalUpdate)
+			wantFinish = wantFinish.Add(5 * time.Second)
+		}
+		deletion := s.env.OnActivity(bucketdelete.Name, mock.Anything, &bucketdelete.Params{Key: s.objectKey}).
+			Return(&bucketdelete.Result{}, s.retention.deleteErr).Once().NotBefore(finalUpdate)
+		if s.retention.deleteErr == nil {
+			s.env.OnActivity(activities.UpdateDIPName, mock.Anything, &activities.UpdateDIPParams{
+				UUID:           wDIP.UUID,
+				ClearObjectKey: true,
+			}).Return(&activities.UpdateDIPResult{}, nil).Once().NotBefore(deletion)
+		}
 	}
-
-	s.env.ExecuteWorkflow(s.workflow.Execute, &workflows.CreateDIPParams{DIP: s.dip})
-
+	var cancel temporalsdk_workflow.CancelFunc
+	if s.retention.cancelAfterPublication {
+		s.env.SetOnActivityCompletedListener(func(
+			info *temporalsdk_activity.Info,
+			value temporalsdk_converter.EncodedValue,
+			err error,
+		) {
+			if info.ActivityType.Name != activities.UpdateDIPName || err != nil {
+				return
+			}
+			var result activities.UpdateDIPResult
+			s.Require().NoError(value.Get(&result))
+			if result.DIP.Status == enums.DIPStatusDone {
+				// Cancel after publication commits, before retention can claim deletion.
+				cancel()
+			}
+		})
+	}
+	s.env.ExecuteWorkflow(func(
+		ctx temporalsdk_workflow.Context,
+		params *workflows.CreateDIPParams,
+	) (*workflows.CreateDIPResult, error) {
+		ctx, cancel = temporalsdk_workflow.WithCancel(ctx)
+		defer cancel()
+		return s.workflow.Execute(ctx, params)
+	}, &workflows.CreateDIPParams{DIP: s.dip})
 	s.True(s.env.IsWorkflowCompleted())
 	s.env.AssertExpectations(s.T())
-	if !deleteImmediately && !deleteAfterRetention {
+	if s.retention.cancelDuringCleanup || s.retention.cancelAfterPublication {
+		s.env.AssertNotCalled(s.T(), activities.UpdateDIPName, mock.Anything,
+			&activities.UpdateDIPParams{
+				UUID:   wDIP.UUID,
+				Status: enums.DIPStatusDeleted,
+			})
+	}
+	if s.retention.cancelDuringCleanup {
+		s.env.AssertNotCalled(s.T(), activities.UpdateDIPName, mock.Anything,
+			&activities.UpdateDIPParams{
+				UUID:      wDIP.UUID,
+				Status:    enums.DIPStatusDone,
+				ObjectKey: s.objectKey,
+			})
+	}
+	if !shouldDelete {
 		s.env.AssertNotCalled(s.T(), bucketdelete.Name, mock.Anything, mock.Anything)
 	}
 	if wDIP.Status == enums.DIPStatusDone {
@@ -530,6 +712,15 @@ func (s *CreateDIPTestSuite) testSessionResult(
 		}
 		return
 	}
+	if s.retention.deleteErr != nil {
+		s.ErrorContains(s.env.GetWorkflowError(), "bucket deletion denied")
+		return
+	}
+	if s.retention.cancelAfter > 0 || s.retention.cancelDuringCleanup || s.retention.cancelAfterPublication {
+		s.True(temporalsdk_temporal.IsCanceledError(s.env.GetWorkflowError()))
+		return
+	}
+
 	if parseErr != nil {
 		s.ErrorContains(s.env.GetWorkflowError(), parseErr.Error())
 		return
@@ -571,8 +762,8 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 	s.env.OnActivity(
 		activities.UpdateDIPName,
 		mock.AnythingOfType("*context.timerCtx"),
-		&activities.UpdateDIPParams{DIP: wDIP},
-	).Return(&activities.UpdateDIPResult{}, nil).Once()
+		updateParams(wDIP),
+	).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).Once()
 	s.env.OnActivity(
 		actapro.GetDocumentActivityName,
 		mock.AnythingOfType("*context.timerCtx"),
@@ -674,7 +865,10 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 	s.env.OnActivity(
 		bucketupload.Name,
 		mock.AnythingOfType("*context.timerCtx"),
-		&bucketupload.Params{Path: dipPath + ".zip"},
+		&bucketupload.Params{
+			Path: dipPath + ".zip",
+			Key:  s.objectKey,
+		},
 	).Return(&bucketupload.Result{Key: filepath.Base(dipPath) + ".zip"}, nil).Once().NotBefore(archiveDIP)
 	cleanup := s.env.OnActivity(
 		removepaths.Name,
@@ -688,8 +882,9 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 	s.env.OnActivity(
 		activities.UpdateDIPName,
 		mock.AnythingOfType("*context.timerCtx"),
-		&activities.UpdateDIPParams{DIP: wDIP},
-	).Return(&activities.UpdateDIPResult{}, nil).Once().NotBefore(cleanup)
+		updateParams(wDIP),
+	).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).Once().NotBefore(cleanup)
+	s.expectDIPCleanup(wDIP)
 
 	s.env.ExecuteWorkflow(s.workflow.Execute, &workflows.CreateDIPParams{DIP: s.dip})
 
@@ -735,8 +930,8 @@ func (s *CreateDIPTestSuite) testExportFailed(logs, wantMessage string) {
 	s.env.OnActivity(
 		activities.UpdateDIPName,
 		mock.AnythingOfType("*context.timerCtx"),
-		&activities.UpdateDIPParams{DIP: wDIP},
-	).Return(&activities.UpdateDIPResult{}, nil).Once()
+		updateParams(wDIP),
+	).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).Once()
 	s.env.OnActivity(
 		actapro.GetDocumentActivityName,
 		mock.AnythingOfType("*context.timerCtx"),
@@ -767,8 +962,8 @@ func (s *CreateDIPTestSuite) testExportFailed(logs, wantMessage string) {
 	s.env.OnActivity(
 		activities.UpdateDIPName,
 		mock.AnythingOfType("*context.timerCtx"),
-		&activities.UpdateDIPParams{DIP: wDIP},
-	).Return(&activities.UpdateDIPResult{}, nil).Once()
+		updateParams(wDIP),
+	).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).Once()
 
 	s.env.ExecuteWorkflow(s.workflow.Execute, &workflows.CreateDIPParams{DIP: s.dip})
 
@@ -808,8 +1003,8 @@ func (s *CreateDIPTestSuite) TestGetDocumentFails() {
 			s.env.OnActivity(
 				activities.UpdateDIPName,
 				mock.AnythingOfType("*context.timerCtx"),
-				&activities.UpdateDIPParams{DIP: wDIP},
-			).Return(&activities.UpdateDIPResult{}, nil).Once()
+				updateParams(wDIP),
+			).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).Once()
 			s.env.OnActivity(
 				actapro.GetDocumentActivityName,
 				mock.AnythingOfType("*context.timerCtx"),
@@ -822,8 +1017,8 @@ func (s *CreateDIPTestSuite) TestGetDocumentFails() {
 			s.env.OnActivity(
 				activities.UpdateDIPName,
 				mock.AnythingOfType("*context.timerCtx"),
-				&activities.UpdateDIPParams{DIP: wDIP},
-			).Return(&activities.UpdateDIPResult{}, nil).Once()
+				updateParams(wDIP),
+			).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).Once()
 
 			s.env.ExecuteWorkflow(s.workflow.Execute, &workflows.CreateDIPParams{DIP: s.dip})
 
@@ -851,8 +1046,8 @@ func (s *CreateDIPTestSuite) TestDocumentContainsNoAIPs() {
 			initialUpdate := s.env.OnActivity(
 				activities.UpdateDIPName,
 				mock.AnythingOfType("*context.timerCtx"),
-				&activities.UpdateDIPParams{DIP: wDIP},
-			).Return(&activities.UpdateDIPResult{}, nil).Once()
+				updateParams(wDIP),
+			).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).Once()
 			getDocument := s.env.OnActivity(
 				actapro.GetDocumentActivityName,
 				mock.AnythingOfType("*context.timerCtx"),
@@ -865,8 +1060,8 @@ func (s *CreateDIPTestSuite) TestDocumentContainsNoAIPs() {
 			s.env.OnActivity(
 				activities.UpdateDIPName,
 				mock.AnythingOfType("*context.timerCtx"),
-				&activities.UpdateDIPParams{DIP: wDIP},
-			).Return(&activities.UpdateDIPResult{}, nil).Once().NotBefore(getDocument)
+				updateParams(wDIP),
+			).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).Once().NotBefore(getDocument)
 
 			s.env.ExecuteWorkflow(s.workflow.Execute, &workflows.CreateDIPParams{DIP: s.dip})
 
@@ -938,8 +1133,8 @@ func (s *CreateDIPTestSuite) TestGetAIPPathsFails() {
 			initialUpdate := s.env.OnActivity(
 				activities.UpdateDIPName,
 				mock.AnythingOfType("*context.timerCtx"),
-				&activities.UpdateDIPParams{DIP: wDIP},
-			).Return(&activities.UpdateDIPResult{}, nil).Once()
+				updateParams(wDIP),
+			).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).Once()
 			previous := s.env.OnActivity(
 				actapro.GetDocumentActivityName,
 				mock.AnythingOfType("*context.timerCtx"),
@@ -968,8 +1163,8 @@ func (s *CreateDIPTestSuite) TestGetAIPPathsFails() {
 			s.env.OnActivity(
 				activities.UpdateDIPName,
 				mock.AnythingOfType("*context.timerCtx"),
-				&activities.UpdateDIPParams{DIP: wDIP},
-			).Return(&activities.UpdateDIPResult{}, nil).Once().NotBefore(previous)
+				updateParams(wDIP),
+			).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).Once().NotBefore(previous)
 
 			s.env.ExecuteWorkflow(s.workflow.Execute, &workflows.CreateDIPParams{DIP: s.dip})
 
@@ -1042,8 +1237,8 @@ func (s *CreateDIPTestSuite) TestExportActivityFails() {
 			s.env.OnActivity(
 				activities.UpdateDIPName,
 				mock.AnythingOfType("*context.timerCtx"),
-				&activities.UpdateDIPParams{DIP: wDIP},
-			).Return(&activities.UpdateDIPResult{}, nil).Once()
+				updateParams(wDIP),
+			).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).Once()
 			s.env.OnActivity(
 				actapro.GetDocumentActivityName,
 				mock.AnythingOfType("*context.timerCtx"),
@@ -1095,8 +1290,8 @@ func (s *CreateDIPTestSuite) TestExportActivityFails() {
 			s.env.OnActivity(
 				activities.UpdateDIPName,
 				mock.AnythingOfType("*context.timerCtx"),
-				&activities.UpdateDIPParams{DIP: wDIP},
-			).Return(&activities.UpdateDIPResult{}, nil).Once()
+				updateParams(wDIP),
+			).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).Once()
 
 			s.env.ExecuteWorkflow(s.workflow.Execute, &workflows.CreateDIPParams{DIP: s.dip})
 
@@ -1164,8 +1359,8 @@ func (s *CreateDIPTestSuite) TestDownloadAIPMETSFails() {
 			s.env.OnActivity(
 				activities.UpdateDIPName,
 				mock.AnythingOfType("*context.timerCtx"),
-				&activities.UpdateDIPParams{DIP: wDIP},
-			).Return(&activities.UpdateDIPResult{}, nil).Once()
+				updateParams(wDIP),
+			).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).Once()
 			s.env.OnActivity(
 				actapro.GetDocumentActivityName,
 				mock.AnythingOfType("*context.timerCtx"),
@@ -1238,8 +1433,8 @@ func (s *CreateDIPTestSuite) TestDownloadAIPMETSFails() {
 			s.env.OnActivity(
 				activities.UpdateDIPName,
 				mock.AnythingOfType("*context.timerCtx"),
-				&activities.UpdateDIPParams{DIP: wDIP},
-			).Return(&activities.UpdateDIPResult{}, nil).Once().NotBefore(cleanup)
+				updateParams(wDIP),
+			).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).Once().NotBefore(cleanup)
 
 			s.env.ExecuteWorkflow(s.workflow.Execute, &workflows.CreateDIPParams{DIP: s.dip})
 
@@ -1289,8 +1484,8 @@ func (s *CreateDIPTestSuite) TestExportValidationFails() {
 			s.env.OnActivity(
 				activities.UpdateDIPName,
 				mock.AnythingOfType("*context.timerCtx"),
-				&activities.UpdateDIPParams{DIP: wDIP},
-			).Return(&activities.UpdateDIPResult{}, nil).Once()
+				updateParams(wDIP),
+			).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).Once()
 			s.env.OnActivity(
 				actapro.GetDocumentActivityName,
 				mock.AnythingOfType("*context.timerCtx"),
@@ -1340,8 +1535,8 @@ func (s *CreateDIPTestSuite) TestExportValidationFails() {
 			s.env.OnActivity(
 				activities.UpdateDIPName,
 				mock.AnythingOfType("*context.timerCtx"),
-				&activities.UpdateDIPParams{DIP: wDIP},
-			).Return(&activities.UpdateDIPResult{}, nil).Once().NotBefore(cleanup)
+				updateParams(wDIP),
+			).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).Once().NotBefore(cleanup)
 
 			s.env.ExecuteWorkflow(s.workflow.Execute, &workflows.CreateDIPParams{DIP: s.dip})
 
@@ -1366,7 +1561,7 @@ func (s *CreateDIPTestSuite) TestBothUpdatesFail() {
 	s.env.OnActivity(
 		activities.UpdateDIPName,
 		mock.AnythingOfType("*context.timerCtx"),
-		&activities.UpdateDIPParams{DIP: wDIP},
+		updateParams(wDIP),
 	).Return(nil, errors.New("initial update failed")).Times(3)
 
 	wDIP.Status = enums.DIPStatusFailed
@@ -1375,7 +1570,7 @@ func (s *CreateDIPTestSuite) TestBothUpdatesFail() {
 	s.env.OnActivity(
 		activities.UpdateDIPName,
 		mock.AnythingOfType("*context.timerCtx"),
-		&activities.UpdateDIPParams{DIP: wDIP},
+		updateParams(wDIP),
 	).Return(nil, errors.New("final update failed")).Times(3)
 
 	s.env.ExecuteWorkflow(s.workflow.Execute, &workflows.CreateDIPParams{DIP: s.dip})
@@ -1445,8 +1640,8 @@ func (s *CreateDIPTestSuite) TestCancellationPersistsFinalStatus() {
 			s.env.OnActivity(
 				activities.UpdateDIPName,
 				mock.AnythingOfType("*context.timerCtx"),
-				&activities.UpdateDIPParams{DIP: wDIP},
-			).Return(&activities.UpdateDIPResult{}, nil).After(initialUpdateDelay).Once()
+				updateParams(wDIP),
+			).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).After(initialUpdateDelay).Once()
 
 			wDIP.Status = tt.wantStatus
 			wDIP.CompletedAt = createDIPTestTime.Add(time.Second)
@@ -1457,9 +1652,32 @@ func (s *CreateDIPTestSuite) TestCancellationPersistsFinalStatus() {
 			s.env.OnActivity(
 				activities.UpdateDIPName,
 				mock.AnythingOfType("*context.timerCtx"),
-				&activities.UpdateDIPParams{DIP: wDIP},
-			).Return(&activities.UpdateDIPResult{}, nil).After(2 * time.Second).Once()
+				updateParams(wDIP),
+			).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).After(2 * time.Second).Once()
+			if wDIP.Status == enums.DIPStatusDone {
+				s.expectDIPCleanup(wDIP)
+			}
 
+			if wDIP.Status == enums.DIPStatusDone && s.retention.finalUpdateErr == nil &&
+				(s.retention.deleteErr != nil || s.retention.cancelAfter > 0 || s.retention.cancelAfterPublication) {
+				stored := wDIP
+				if s.retention.deleteErr != nil {
+					stored.Status = enums.DIPStatusDeleted
+					stored.ObjectKey = ""
+				}
+				s.env.OnActivity(activities.UpdateDIPName, mock.Anything,
+					mock.MatchedBy(func(params *activities.UpdateDIPParams) bool {
+						return params.UUID == wDIP.UUID && params.Status == enums.DIPStatusFailed
+					})).Return(&activities.UpdateDIPResult{DIP: stored}, nil).Once()
+				if s.retention.deleteErr != nil {
+					s.env.OnActivity(activities.UpdateDIPName, mock.Anything, &activities.UpdateDIPParams{
+						UUID:   wDIP.UUID,
+						Status: enums.DIPStatusDeleted,
+					}).Return(&activities.UpdateDIPResult{DIP: stored}, nil).Once()
+					s.env.OnActivity(bucketdelete.Name, mock.Anything, &bucketdelete.Params{Key: s.objectKey}).
+						Return(nil, s.retention.deleteErr).Once()
+				}
+			}
 			var cancel temporalsdk_workflow.CancelFunc
 			if tt.cancelAfterCompletion {
 				activityName := activities.UpdateDIPName
@@ -1503,5 +1721,30 @@ func (s *CreateDIPTestSuite) TestCancellationPersistsFinalStatus() {
 			}
 			s.Equal(createDIPTestTime.Add(3*time.Second), s.env.Now().UTC())
 		})
+	}
+}
+
+func (s *CreateDIPTestSuite) expectDIPCleanup(d datatypes.DIP) {
+	s.T().Helper()
+
+	s.env.OnActivity(activities.UpdateDIPName, mock.Anything, &activities.UpdateDIPParams{
+		UUID:   d.UUID,
+		Status: enums.DIPStatusDeleted,
+	}).
+		Return(&activities.UpdateDIPResult{DIP: d}, nil).
+		Once()
+}
+
+func updateParams(d datatypes.DIP) *activities.UpdateDIPParams {
+	var workflowID string
+	if d.Status == enums.DIPStatusInProgress {
+		workflowID = "default-test-workflow-id"
+	}
+	return &activities.UpdateDIPParams{
+		UUID:         d.UUID,
+		Status:       d.Status,
+		ObjectKey:    d.ObjectKey,
+		ErrorMessage: d.ErrorMessage,
+		WorkflowID:   workflowID,
 	}
 }
