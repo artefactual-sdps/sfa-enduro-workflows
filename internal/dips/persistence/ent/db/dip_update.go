@@ -103,6 +103,26 @@ func (_u *DIPUpdate) ClearCompletedAt() *DIPUpdate {
 	return _u
 }
 
+// SetExpiresAt sets the "expires_at" field.
+func (_u *DIPUpdate) SetExpiresAt(v time.Time) *DIPUpdate {
+	_u.mutation.SetExpiresAt(v)
+	return _u
+}
+
+// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
+func (_u *DIPUpdate) SetNillableExpiresAt(v *time.Time) *DIPUpdate {
+	if v != nil {
+		_u.SetExpiresAt(*v)
+	}
+	return _u
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (_u *DIPUpdate) ClearExpiresAt() *DIPUpdate {
+	_u.mutation.ClearExpiresAt()
+	return _u
+}
+
 // SetObjectKey sets the "object_key" field.
 func (_u *DIPUpdate) SetObjectKey(v string) *DIPUpdate {
 	_u.mutation.SetObjectKey(v)
@@ -197,6 +217,12 @@ func (_u *DIPUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.CompletedAtCleared() {
 		_spec.ClearField(dip.FieldCompletedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ExpiresAt(); ok {
+		_spec.SetField(dip.FieldExpiresAt, field.TypeTime, value)
+	}
+	if _u.mutation.ExpiresAtCleared() {
+		_spec.ClearField(dip.FieldExpiresAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.ObjectKey(); ok {
 		_spec.SetField(dip.FieldObjectKey, field.TypeString, value)
@@ -295,6 +321,26 @@ func (_u *DIPUpdateOne) SetNillableCompletedAt(v *time.Time) *DIPUpdateOne {
 // ClearCompletedAt clears the value of the "completed_at" field.
 func (_u *DIPUpdateOne) ClearCompletedAt() *DIPUpdateOne {
 	_u.mutation.ClearCompletedAt()
+	return _u
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (_u *DIPUpdateOne) SetExpiresAt(v time.Time) *DIPUpdateOne {
+	_u.mutation.SetExpiresAt(v)
+	return _u
+}
+
+// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
+func (_u *DIPUpdateOne) SetNillableExpiresAt(v *time.Time) *DIPUpdateOne {
+	if v != nil {
+		_u.SetExpiresAt(*v)
+	}
+	return _u
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (_u *DIPUpdateOne) ClearExpiresAt() *DIPUpdateOne {
+	_u.mutation.ClearExpiresAt()
 	return _u
 }
 
@@ -422,6 +468,12 @@ func (_u *DIPUpdateOne) sqlSave(ctx context.Context) (_node *DIP, err error) {
 	}
 	if _u.mutation.CompletedAtCleared() {
 		_spec.ClearField(dip.FieldCompletedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ExpiresAt(); ok {
+		_spec.SetField(dip.FieldExpiresAt, field.TypeTime, value)
+	}
+	if _u.mutation.ExpiresAtCleared() {
+		_spec.ClearField(dip.FieldExpiresAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.ObjectKey(); ok {
 		_spec.SetField(dip.FieldObjectKey, field.TypeString, value)

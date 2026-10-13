@@ -18,7 +18,7 @@
           "DIPs"
         ],
         "summary": "create DIPs",
-        "description": "The create method requests DIP creation for the given document key.",
+        "description": "The create method requests DIP creation. It may return a new ID or an existing one from the cache.",
         "operationId": "DIPs#create",
         "requestBody": {
           "description": "Request body for create.",
@@ -33,7 +33,7 @@
                   },
                   "ignoreCache": {
                     "type": "boolean",
-                    "description": "The ignoreCache field indicates whether to ignore a cached DIP previously created for this docKey. When ignoreCache is true, a new DIP is created for the given docKey even if a cached DIP exists. When ignoreCache is false or omitted, the ID of a cached DIP may be returned.",
+                    "description": "When true, creates a new DIP unless one is already queued or in progress.",
                     "default": false,
                     "example": true
                   }
@@ -138,8 +138,9 @@
                   "created_at": "2026-05-27T15:04:05Z",
                   "docKey": "CH-000001",
                   "error_message": "ACTAPro returned: 404 Not Found; Document not found",
+                  "expires_at": "2026-05-27T15:04:05Z",
                   "id": "3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb",
-                  "object_key": "dips/3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb.zip",
+                  "object_key": "DIP_3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb.zip",
                   "started_at": "2026-05-27T15:04:05Z",
                   "status": "done"
                 }
@@ -251,7 +252,8 @@
           "queued",
           "in progress",
           "done",
-          "failed"
+          "failed",
+          "deleted"
         ]
       },
       "DateTime": {
@@ -322,7 +324,7 @@
       "ObjectKey": {
         "type": "string",
         "description": "ObjectKey represents the object store key for a DIP.",
-        "example": "dips/3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb.zip",
+        "example": "DIP_3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb.zip",
         "minLength": 1
       },
       "ShowResponseBody": {
@@ -342,6 +344,9 @@
             "description": "The error_message field contains an error message if the DIP failed.",
             "example": "ACTAPro returned: 404 Not Found; Document not found"
           },
+          "expires_at": {
+            "$ref": "#/components/schemas/DateTime"
+          },
           "id": {
             "$ref": "#/components/schemas/DIPID"
           },
@@ -360,8 +365,9 @@
           "created_at": "2026-05-27T15:04:05Z",
           "docKey": "CH-000001",
           "error_message": "ACTAPro returned: 404 Not Found; Document not found",
+          "expires_at": "2026-05-27T15:04:05Z",
           "id": "3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb",
-          "object_key": "dips/3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb.zip",
+          "object_key": "DIP_3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb.zip",
           "started_at": "2026-05-27T15:04:05Z",
           "status": "done"
         },

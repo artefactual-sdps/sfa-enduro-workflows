@@ -154,7 +154,7 @@ func dIPsUsage() {
 	fmt.Fprintf(os.Stderr, "Usage:\n    %s [globalflags] di-ps COMMAND [flags]\n\n", os.Args[0])
 	fmt.Fprintln(os.Stderr, "COMMAND:")
 	fmt.Fprintln(os.Stderr, `    livez: The livez method provides a simple check that the DIPs service is running and able to respond to requests. A successful response indicates that the service is running, but does not guarantee that it is able to process requests successfully.`)
-	fmt.Fprintln(os.Stderr, `    create: The create method requests DIP creation for the given document key.`)
+	fmt.Fprintln(os.Stderr, `    create: The create method requests DIP creation. It may return a new ID or an existing one from the cache.`)
 	fmt.Fprintln(os.Stderr, `    show: The show method retrieves DIP details.`)
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Additional help:")
@@ -185,7 +185,7 @@ func dIPsCreateUsage() {
 
 	// Description
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, `The create method requests DIP creation for the given document key.`)
+	fmt.Fprintln(os.Stderr, `The create method requests DIP creation. It may return a new ID or an existing one from the cache.`)
 
 	// Flags list
 	fmt.Fprintln(os.Stderr, `    -body JSON: `)

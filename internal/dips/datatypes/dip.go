@@ -20,7 +20,9 @@ type DIP struct {
 	CreatedAt    time.Time
 	StartedAt    time.Time
 	CompletedAt  time.Time
+	ExpiresAt    time.Time
 	ObjectKey    string
+	WorkflowID   string
 }
 
 // NewDIP returns a new DIP instance from the given database DIP.
@@ -38,7 +40,9 @@ func NewDIP(d *db.DIP) *DIP {
 		CreatedAt:    d.CreatedAt,
 		StartedAt:    d.StartedAt,
 		CompletedAt:  d.CompletedAt,
+		ExpiresAt:    d.ExpiresAt,
 		ObjectKey:    d.ObjectKey,
+		WorkflowID:   d.WorkflowID,
 	}
 }
 
@@ -63,6 +67,9 @@ func (d *DIP) Goa() *goadips.ShowResult {
 	}
 	if !d.CompletedAt.IsZero() {
 		re.CompletedAt = new(goadips.DateTime(d.CompletedAt.Format(time.RFC3339)))
+	}
+	if !d.ExpiresAt.IsZero() {
+		re.ExpiresAt = new(goadips.DateTime(d.ExpiresAt.Format(time.RFC3339)))
 	}
 	if d.ObjectKey != "" {
 		re.ObjectKey = new(goadips.ObjectKey(d.ObjectKey))

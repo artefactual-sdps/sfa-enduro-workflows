@@ -96,6 +96,20 @@ func (_c *DIPCreate) SetNillableCompletedAt(v *time.Time) *DIPCreate {
 	return _c
 }
 
+// SetExpiresAt sets the "expires_at" field.
+func (_c *DIPCreate) SetExpiresAt(v time.Time) *DIPCreate {
+	_c.mutation.SetExpiresAt(v)
+	return _c
+}
+
+// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
+func (_c *DIPCreate) SetNillableExpiresAt(v *time.Time) *DIPCreate {
+	if v != nil {
+		_c.SetExpiresAt(*v)
+	}
+	return _c
+}
+
 // SetObjectKey sets the "object_key" field.
 func (_c *DIPCreate) SetObjectKey(v string) *DIPCreate {
 	_c.mutation.SetObjectKey(v)
@@ -107,6 +121,12 @@ func (_c *DIPCreate) SetNillableObjectKey(v *string) *DIPCreate {
 	if v != nil {
 		_c.SetObjectKey(*v)
 	}
+	return _c
+}
+
+// SetWorkflowID sets the "workflow_id" field.
+func (_c *DIPCreate) SetWorkflowID(v string) *DIPCreate {
+	_c.mutation.SetWorkflowID(v)
 	return _c
 }
 
@@ -170,6 +190,9 @@ func (_c *DIPCreate) check() error {
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`db: missing required field "DIP.created_at"`)}
 	}
+	if _, ok := _c.mutation.WorkflowID(); !ok {
+		return &ValidationError{Name: "workflow_id", err: errors.New(`db: missing required field "DIP.workflow_id"`)}
+	}
 	return nil
 }
 
@@ -224,9 +247,17 @@ func (_c *DIPCreate) createSpec() (*DIP, *sqlgraph.CreateSpec) {
 		_spec.SetField(dip.FieldCompletedAt, field.TypeTime, value)
 		_node.CompletedAt = value
 	}
+	if value, ok := _c.mutation.ExpiresAt(); ok {
+		_spec.SetField(dip.FieldExpiresAt, field.TypeTime, value)
+		_node.ExpiresAt = value
+	}
 	if value, ok := _c.mutation.ObjectKey(); ok {
 		_spec.SetField(dip.FieldObjectKey, field.TypeString, value)
 		_node.ObjectKey = value
+	}
+	if value, ok := _c.mutation.WorkflowID(); ok {
+		_spec.SetField(dip.FieldWorkflowID, field.TypeString, value)
+		_node.WorkflowID = value
 	}
 	return _node, _spec
 }

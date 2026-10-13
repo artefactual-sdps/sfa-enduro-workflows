@@ -42,7 +42,9 @@ type DIPMutation struct {
 	created_at    *time.Time
 	started_at    *time.Time
 	completed_at  *time.Time
+	expires_at    *time.Time
 	object_key    *string
+	workflow_id   *string
 	clearedFields map[string]struct{}
 	done          bool
 	oldValue      func(context.Context) (*DIP, error)
@@ -438,6 +440,55 @@ func (m *DIPMutation) ResetCompletedAt() {
 	delete(m.clearedFields, dip.FieldCompletedAt)
 }
 
+// SetExpiresAt sets the "expires_at" field.
+func (m *DIPMutation) SetExpiresAt(t time.Time) {
+	m.expires_at = &t
+}
+
+// ExpiresAt returns the value of the "expires_at" field in the mutation.
+func (m *DIPMutation) ExpiresAt() (r time.Time, exists bool) {
+	v := m.expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAt returns the old "expires_at" field's value of the DIP entity.
+// If the DIP object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DIPMutation) OldExpiresAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAt: %w", err)
+	}
+	return oldValue.ExpiresAt, nil
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (m *DIPMutation) ClearExpiresAt() {
+	m.expires_at = nil
+	m.clearedFields[dip.FieldExpiresAt] = struct{}{}
+}
+
+// ExpiresAtCleared returns if the "expires_at" field was cleared in this mutation.
+func (m *DIPMutation) ExpiresAtCleared() bool {
+	_, ok := m.clearedFields[dip.FieldExpiresAt]
+	return ok
+}
+
+// ResetExpiresAt resets all changes to the "expires_at" field.
+func (m *DIPMutation) ResetExpiresAt() {
+	m.expires_at = nil
+	delete(m.clearedFields, dip.FieldExpiresAt)
+}
+
 // SetObjectKey sets the "object_key" field.
 func (m *DIPMutation) SetObjectKey(s string) {
 	m.object_key = &s
@@ -487,6 +538,42 @@ func (m *DIPMutation) ResetObjectKey() {
 	delete(m.clearedFields, dip.FieldObjectKey)
 }
 
+// SetWorkflowID sets the "workflow_id" field.
+func (m *DIPMutation) SetWorkflowID(s string) {
+	m.workflow_id = &s
+}
+
+// WorkflowID returns the value of the "workflow_id" field in the mutation.
+func (m *DIPMutation) WorkflowID() (r string, exists bool) {
+	v := m.workflow_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWorkflowID returns the old "workflow_id" field's value of the DIP entity.
+// If the DIP object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DIPMutation) OldWorkflowID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWorkflowID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWorkflowID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWorkflowID: %w", err)
+	}
+	return oldValue.WorkflowID, nil
+}
+
+// ResetWorkflowID resets all changes to the "workflow_id" field.
+func (m *DIPMutation) ResetWorkflowID() {
+	m.workflow_id = nil
+}
+
 // Where appends a list predicates to the DIPMutation builder.
 func (m *DIPMutation) Where(ps ...predicate.DIP) {
 	m.predicates = append(m.predicates, ps...)
@@ -521,7 +608,7 @@ func (m *DIPMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *DIPMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 10)
 	if m.uuid != nil {
 		fields = append(fields, dip.FieldUUID)
 	}
@@ -543,8 +630,14 @@ func (m *DIPMutation) Fields() []string {
 	if m.completed_at != nil {
 		fields = append(fields, dip.FieldCompletedAt)
 	}
+	if m.expires_at != nil {
+		fields = append(fields, dip.FieldExpiresAt)
+	}
 	if m.object_key != nil {
 		fields = append(fields, dip.FieldObjectKey)
+	}
+	if m.workflow_id != nil {
+		fields = append(fields, dip.FieldWorkflowID)
 	}
 	return fields
 }
@@ -568,8 +661,12 @@ func (m *DIPMutation) Field(name string) (ent.Value, bool) {
 		return m.StartedAt()
 	case dip.FieldCompletedAt:
 		return m.CompletedAt()
+	case dip.FieldExpiresAt:
+		return m.ExpiresAt()
 	case dip.FieldObjectKey:
 		return m.ObjectKey()
+	case dip.FieldWorkflowID:
+		return m.WorkflowID()
 	}
 	return nil, false
 }
@@ -593,8 +690,12 @@ func (m *DIPMutation) OldField(ctx context.Context, name string) (ent.Value, err
 		return m.OldStartedAt(ctx)
 	case dip.FieldCompletedAt:
 		return m.OldCompletedAt(ctx)
+	case dip.FieldExpiresAt:
+		return m.OldExpiresAt(ctx)
 	case dip.FieldObjectKey:
 		return m.OldObjectKey(ctx)
+	case dip.FieldWorkflowID:
+		return m.OldWorkflowID(ctx)
 	}
 	return nil, fmt.Errorf("unknown DIP field %s", name)
 }
@@ -653,12 +754,26 @@ func (m *DIPMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetCompletedAt(v)
 		return nil
+	case dip.FieldExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAt(v)
+		return nil
 	case dip.FieldObjectKey:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetObjectKey(v)
+		return nil
+	case dip.FieldWorkflowID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWorkflowID(v)
 		return nil
 	}
 	return fmt.Errorf("unknown DIP field %s", name)
@@ -699,6 +814,9 @@ func (m *DIPMutation) ClearedFields() []string {
 	if m.FieldCleared(dip.FieldCompletedAt) {
 		fields = append(fields, dip.FieldCompletedAt)
 	}
+	if m.FieldCleared(dip.FieldExpiresAt) {
+		fields = append(fields, dip.FieldExpiresAt)
+	}
 	if m.FieldCleared(dip.FieldObjectKey) {
 		fields = append(fields, dip.FieldObjectKey)
 	}
@@ -724,6 +842,9 @@ func (m *DIPMutation) ClearField(name string) error {
 		return nil
 	case dip.FieldCompletedAt:
 		m.ClearCompletedAt()
+		return nil
+	case dip.FieldExpiresAt:
+		m.ClearExpiresAt()
 		return nil
 	case dip.FieldObjectKey:
 		m.ClearObjectKey()
@@ -757,8 +878,14 @@ func (m *DIPMutation) ResetField(name string) error {
 	case dip.FieldCompletedAt:
 		m.ResetCompletedAt()
 		return nil
+	case dip.FieldExpiresAt:
+		m.ResetExpiresAt()
+		return nil
 	case dip.FieldObjectKey:
 		m.ResetObjectKey()
+		return nil
+	case dip.FieldWorkflowID:
+		m.ResetWorkflowID()
 		return nil
 	}
 	return fmt.Errorf("unknown DIP field %s", name)

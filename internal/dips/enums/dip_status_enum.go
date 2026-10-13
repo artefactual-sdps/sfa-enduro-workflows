@@ -16,6 +16,7 @@ const (
 	DIPStatusInProgress DIPStatus = "in progress"
 	DIPStatusDone       DIPStatus = "done"
 	DIPStatusFailed     DIPStatus = "failed"
+	DIPStatusDeleted    DIPStatus = "deleted"
 )
 
 var ErrInvalidDIPStatus = fmt.Errorf("not a valid DIPStatus, try [%s]", strings.Join(_DIPStatusNames, ", "))
@@ -25,6 +26,7 @@ var _DIPStatusNames = []string{
 	string(DIPStatusInProgress),
 	string(DIPStatusDone),
 	string(DIPStatusFailed),
+	string(DIPStatusDeleted),
 }
 
 // DIPStatusNames returns a list of possible string values of DIPStatus.
@@ -51,6 +53,7 @@ var _DIPStatusValue = map[string]DIPStatus{
 	"in progress": DIPStatusInProgress,
 	"done":        DIPStatusDone,
 	"failed":      DIPStatusFailed,
+	"deleted":     DIPStatusDeleted,
 }
 
 // ParseDIPStatus attempts to convert a string to a DIPStatus.

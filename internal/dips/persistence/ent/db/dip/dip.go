@@ -29,8 +29,12 @@ const (
 	FieldStartedAt = "started_at"
 	// FieldCompletedAt holds the string denoting the completed_at field in the database.
 	FieldCompletedAt = "completed_at"
+	// FieldExpiresAt holds the string denoting the expires_at field in the database.
+	FieldExpiresAt = "expires_at"
 	// FieldObjectKey holds the string denoting the object_key field in the database.
 	FieldObjectKey = "object_key"
+	// FieldWorkflowID holds the string denoting the workflow_id field in the database.
+	FieldWorkflowID = "workflow_id"
 	// Table holds the table name of the dip in the database.
 	Table = "dip"
 )
@@ -45,7 +49,9 @@ var Columns = []string{
 	FieldCreatedAt,
 	FieldStartedAt,
 	FieldCompletedAt,
+	FieldExpiresAt,
 	FieldObjectKey,
+	FieldWorkflowID,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -66,7 +72,7 @@ var (
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
 func StatusValidator(s enums.DIPStatus) error {
 	switch s.String() {
-	case "queued", "in progress", "done", "failed":
+	case "queued", "in progress", "done", "failed", "deleted":
 		return nil
 	default:
 		return fmt.Errorf("dip: invalid enum value for status field: %q", s)
@@ -116,7 +122,17 @@ func ByCompletedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCompletedAt, opts...).ToFunc()
 }
 
+// ByExpiresAt orders the results by the expires_at field.
+func ByExpiresAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExpiresAt, opts...).ToFunc()
+}
+
 // ByObjectKey orders the results by the object_key field.
 func ByObjectKey(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldObjectKey, opts...).ToFunc()
+}
+
+// ByWorkflowID orders the results by the workflow_id field.
+func ByWorkflowID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldWorkflowID, opts...).ToFunc()
 }

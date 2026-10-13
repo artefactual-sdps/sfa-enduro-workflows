@@ -14,18 +14,30 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "uuid", Type: field.TypeUUID, Unique: true},
 		{Name: "doc_key", Type: field.TypeString, Size: 1024},
-		{Name: "status", Type: field.TypeEnum, Enums: []string{"queued", "in progress", "done", "failed"}},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"queued", "in progress", "done", "failed", "deleted"}},
 		{Name: "error_message", Type: field.TypeString, Nullable: true, Size: 2147483647},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "started_at", Type: field.TypeTime, Nullable: true},
 		{Name: "completed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "expires_at", Type: field.TypeTime, Nullable: true},
 		{Name: "object_key", Type: field.TypeString, Nullable: true, Size: 1024},
+		{Name: "workflow_id", Type: field.TypeString},
 	}
 	// DipTable holds the schema information for the "dip" table.
 	DipTable = &schema.Table{
 		Name:       "dip",
 		Columns:    DipColumns,
 		PrimaryKey: []*schema.Column{DipColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "dip_doc_key",
+				Unique:  false,
+				Columns: []*schema.Column{DipColumns[2]},
+				Annotation: &entsql.IndexAnnotation{
+					Prefix: 64,
+				},
+			},
+		},
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
