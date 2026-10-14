@@ -324,12 +324,28 @@ func (s *CreateDIPTestSuite) TestRetention() {
 
 func (s *CreateDIPTestSuite) TestParseMetadataFails() {
 	s.testSessionResult(nil, 0, nil, errors.New(
-		"files not found in AIP METS:\n_file1 (content/file1.jp2)\n_file2 (content/file2.jp2)",
+		"files not found in AIP METS:\n_file1 (\"content/file1.jp2\")\n_file2 (\"content/file2.jp2\")",
 	), nil, nil, nil, nil)
 }
 
 func (s *CreateDIPTestSuite) TestMetadataContainsNoFiles() {
 	s.testSessionResult(nil, 0, &activities.ParseMetadataResult{}, nil, nil, nil, nil, nil)
+}
+
+func (s *CreateDIPTestSuite) TestMetadataContainsOnlyHeaderFiles() {
+	s.testSessionResult(nil, 0, &activities.ParseMetadataResult{
+		HeaderFiles: []*datatypes.File{{
+			DIPPath: "header/xsd/arelda.xsd", Checksum: "schema-checksum", ChecksumAlgorithm: "MD5",
+		}},
+	}, nil, nil, nil, nil, nil)
+}
+
+func (s *CreateDIPTestSuite) TestMetadataContainsOnlyContentFiles() {
+	s.testSessionResult(nil, 0, &activities.ParseMetadataResult{
+		ContentFiles: []*datatypes.File{{
+			DIPPath: "content/file1.jp2", Checksum: "checksum", ChecksumAlgorithm: "MD5",
+		}},
+	}, nil, nil, nil, nil, nil)
 }
 
 func (s *CreateDIPTestSuite) TestPrepareDIPFails() {
@@ -459,7 +475,7 @@ func (s *CreateDIPTestSuite) testSessionResult(
 	} else {
 		if parseResult == nil {
 			// Cover compressed and directory AIPs, nested destinations, and repeated AIPs.
-			parseResult = &activities.ParseMetadataResult{Files: []*datatypes.File{
+			parseResult = &activities.ParseMetadataResult{ContentFiles: []*datatypes.File{
 				{
 					DateiID: "_file1", DIPPath: "content/file1.jp2", Checksum: "checksum1", ChecksumAlgorithm: "MD5",
 					AIPUUID: aipUUIDs[0], AIPPath: "test-" + aipUUIDs[0].String() + "/data/objects/file1.jp2",
@@ -484,13 +500,20 @@ func (s *CreateDIPTestSuite) testSessionResult(
 					DateiID: "_file4", DIPPath: "content/file4.jp2", Checksum: "checksum4", ChecksumAlgorithm: "MD5",
 					AIPUUID: aipUUIDs[0], AIPPath: "test-" + aipUUIDs[0].String() + "/data/objects/file4.jp2",
 				},
+			}, HeaderFiles: []*datatypes.File{
+				{
+					DIPPath: "header/xsd/arelda.xsd", Checksum: "schema-checksum", ChecksumAlgorithm: "MD5",
+				},
+				{
+					DIPPath: "header/xsd/nested/base.xsd", Checksum: "base-checksum", ChecksumAlgorithm: "SHA-256",
+				},
 			}}
 		}
 		parseMetadata.Return(parseResult, nil)
 	}
 	previousActivity = parseMetadata
 	var contentErrorMessage string
-	if parseErr == nil && len(parseResult.Files) > 0 {
+	if parseErr == nil && len(parseResult.ContentFiles) > 0 && len(parseResult.HeaderFiles) > 0 {
 		previousActivity = s.env.OnActivity(
 			activities.PrepareDIPName,
 			mock.AnythingOfType("*context.timerCtx"),
@@ -498,10 +521,11 @@ func (s *CreateDIPTestSuite) testSessionResult(
 				DIPPath:      filepath.Join(s.workingDir, s.dip.UUID.String(), "DIP_"+s.dip.UUID.String()),
 				MetadataPath: parseParams.MetadataPath,
 				XSDDir:       s.xsdDir,
+				HeaderFiles:  parseResult.HeaderFiles,
 			},
 		).Return(&activities.PrepareDIPResult{}, prepareErr).Once().NotBefore(parseMetadata)
 		if prepareErr == nil {
-			for i, file := range parseResult.Files {
+			for i, file := range parseResult.ContentFiles {
 				fetch := s.env.OnActivity(
 					amss.FetchActivityName,
 					mock.AnythingOfType("*context.timerCtx"),
@@ -563,9 +587,15 @@ func (s *CreateDIPTestSuite) testSessionResult(
 	if parseErr != nil {
 		wDIP.Status = enums.DIPStatusFailed
 		wDIP.ErrorMessage = "DIP metadata parsing failed: " + parseErr.Error()
-	} else if len(parseResult.Files) == 0 {
+	} else if len(parseResult.ContentFiles) == 0 && len(parseResult.HeaderFiles) == 0 {
 		wDIP.Status = enums.DIPStatusFailed
-		wDIP.ErrorMessage = "DIP metadata contains no files."
+		wDIP.ErrorMessage = "DIP metadata contains no content files.\nDIP metadata contains no header files."
+	} else if len(parseResult.ContentFiles) == 0 {
+		wDIP.Status = enums.DIPStatusFailed
+		wDIP.ErrorMessage = "DIP metadata contains no content files."
+	} else if len(parseResult.HeaderFiles) == 0 {
+		wDIP.Status = enums.DIPStatusFailed
+		wDIP.ErrorMessage = "DIP metadata contains no header files."
 	} else if prepareErr != nil {
 		wDIP.Status = enums.DIPStatusFailed
 		wDIP.ErrorMessage = "DIP preparation failed: " + prepareErr.Error()
@@ -597,8 +627,8 @@ func (s *CreateDIPTestSuite) testSessionResult(
 		Return(&activities.UpdateDIPResult{DIP: wDIP}, s.retention.finalUpdateErr).
 		After(s.retention.finalUpdateDelay).Once().NotBefore(cleanup)
 	wantFinish := wDIP.CompletedAt.Add(s.retention.finalUpdateDelay)
-	uploadAttempted := parseErr == nil && len(parseResult.Files) > 0 && prepareErr == nil && contentErr == nil &&
-		archiveErr == nil
+	uploadAttempted := parseErr == nil && len(parseResult.ContentFiles) > 0 && len(parseResult.HeaderFiles) > 0 &&
+		prepareErr == nil && contentErr == nil && archiveErr == nil
 	shouldDelete := uploadAttempted && (wDIP.Status == enums.DIPStatusFailed || s.retention.finalUpdateErr != nil)
 
 	if s.retention.finalUpdateErr == nil &&
@@ -721,7 +751,7 @@ func (s *CreateDIPTestSuite) testSessionResult(
 		s.ErrorContains(s.env.GetWorkflowError(), parseErr.Error())
 		return
 	}
-	if len(parseResult.Files) == 0 {
+	if len(parseResult.ContentFiles) == 0 || len(parseResult.HeaderFiles) == 0 {
 		applicationErr, ok := errors.AsType[*temporalsdk_temporal.ApplicationError](s.env.GetWorkflowError())
 		s.Require().True(ok)
 		s.Equal(wDIP.ErrorMessage, applicationErr.Message())
@@ -815,6 +845,9 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 			Destination:  metsPath,
 		},
 	).Return(&amss.FetchActivityResult{}, nil).Once().NotBefore(validateExport)
+	headerFiles := []*datatypes.File{{
+		DIPPath: "header/xsd/arelda.xsd", Checksum: "schema-checksum", ChecksumAlgorithm: "MD5",
+	}}
 	parseMetadata := s.env.OnActivity(
 		activities.ParseMetadataName,
 		mock.AnythingOfType("*context.timerCtx"),
@@ -824,10 +857,10 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 				{UUID: aipUUID, DirName: "test-" + aipUUID.String(), METSPath: metsPath},
 			},
 		},
-	).Return(&activities.ParseMetadataResult{Files: []*datatypes.File{{
+	).Return(&activities.ParseMetadataResult{ContentFiles: []*datatypes.File{{
 		DateiID: "_file1", DIPPath: "content/file1.jp2", Checksum: "checksum", ChecksumAlgorithm: "MD5",
 		AIPUUID: aipUUID, AIPPath: "test-" + aipUUID.String() + "/data/objects/file1.jp2",
-	}}}, nil).Once().NotBefore(fetchMETS)
+	}}, HeaderFiles: headerFiles}, nil).Once().NotBefore(fetchMETS)
 	prepareDIP := s.env.OnActivity(
 		activities.PrepareDIPName,
 		mock.AnythingOfType("*context.timerCtx"),
@@ -835,6 +868,7 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 			DIPPath:      filepath.Join(s.workingDir, s.dip.UUID.String(), "DIP_"+s.dip.UUID.String()),
 			MetadataPath: downloadParams.MetadataPath,
 			XSDDir:       s.xsdDir,
+			HeaderFiles:  headerFiles,
 		},
 	).Return(&activities.PrepareDIPResult{}, nil).Once().NotBefore(parseMetadata)
 	fetchContent := s.env.OnActivity(

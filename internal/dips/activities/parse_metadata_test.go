@@ -21,7 +21,41 @@ const metadataExport = `<?xml version="1.0"?>
   <inhaltsverzeichnis>
     <ordner>
       <name>header</name>
-      <datei id="_header"><name>metadata.xml</name></datei>
+      <datei id="_extra">
+        <name>extra.xml</name>
+        <pruefalgorithmus>MD5</pruefalgorithmus>
+        <pruefsumme>checksum-extra</pruefsumme>
+      </datei>
+      <ordner>
+        <name>xsd</name>
+        <originalName>ignored-schema-folder</originalName>
+        <datei id="_schema">
+          <name>arelda.xsd</name>
+          <originalName>ignored-schema-name.xsd</originalName>
+          <pruefalgorithmus>MD5</pruefalgorithmus>
+          <pruefsumme>checksum-schema</pruefsumme>
+        </datei>
+        <ordner>
+          <name>nested</name>
+          <datei id="_base">
+            <name>base.xsd</name>
+            <pruefalgorithmus>SHA-256</pruefalgorithmus>
+            <pruefsumme>checksum-base</pruefsumme>
+          </datei>
+        </ordner>
+      </ordner>
+      <ordner>
+        <name>old</name>
+        <datei id="_old">
+          <name>extra.xml</name>
+          <pruefalgorithmus>SHA-256</pruefalgorithmus>
+          <pruefsumme>checksum-old</pruefsumme>
+        </datei>
+      </ordner>
+    </ordner>
+    <ordner>
+      <name>ignored</name>
+      <datei id="_ignored"><name>file.txt</name></datei>
     </ordner>
     <ordner>
       <name>content</name>
@@ -67,14 +101,14 @@ func TestParseMetadata(t *testing.T) {
 	}
 
 	for _, tt := range []struct {
-		name      string
-		metadata  string
-		mets      []string
-		wantFiles []*datatypes.File
-		wantErr   string
+		name     string
+		metadata string
+		mets     []string
+		want     activities.ParseMetadataResult
+		wantErr  string
 	}{
 		{
-			name:     "Matches content files across AIPs",
+			name:     "Matches content files across AIPs and collects all header files separately",
 			metadata: metadataExport,
 			mets: []string{
 				metsDocument(t, metsObject(t, "_one", "%transferDirectory%data/objects/one.jp2")),
@@ -87,21 +121,41 @@ func TestParseMetadata(t *testing.T) {
 				),
 				"", // All files are matched, so this missing METS is not opened.
 			},
-			wantFiles: []*datatypes.File{
-				{
-					DateiID: "_one", DIPPath: "content/one.jp2",
-					Checksum: "09ac7d901a0dd16f1f95bbfe015336ae", ChecksumAlgorithm: "MD5",
-					AIPUUID: aipUUIDs[0], AIPPath: aipDirNames[0] + "/data/objects/one.jp2",
+			want: activities.ParseMetadataResult{
+				ContentFiles: []*datatypes.File{
+					{
+						DateiID: "_one", DIPPath: "content/one.jp2",
+						Checksum: "09ac7d901a0dd16f1f95bbfe015336ae", ChecksumAlgorithm: "MD5",
+						AIPUUID: aipUUIDs[0], AIPPath: aipDirNames[0] + "/data/objects/one.jp2",
+					},
+					{
+						DateiID: "_two", DIPPath: "content/folder/nested/two.pdf",
+						Checksum: "checksum-two", ChecksumAlgorithm: "SHA-256",
+						AIPUUID: aipUUIDs[1], AIPPath: aipDirNames[1] + "/data/objects/two.pdf",
+					},
+					{
+						DateiID: "_three", DIPPath: "content/sibling/three.txt",
+						Checksum: "checksum-three", ChecksumAlgorithm: "SHA-1",
+						AIPUUID: aipUUIDs[1], AIPPath: aipDirNames[1] + "/data/objects/three.txt",
+					},
 				},
-				{
-					DateiID: "_two", DIPPath: "content/folder/nested/two.pdf",
-					Checksum: "checksum-two", ChecksumAlgorithm: "SHA-256",
-					AIPUUID: aipUUIDs[1], AIPPath: aipDirNames[1] + "/data/objects/two.pdf",
-				},
-				{
-					DateiID: "_three", DIPPath: "content/sibling/three.txt",
-					Checksum: "checksum-three", ChecksumAlgorithm: "SHA-1",
-					AIPUUID: aipUUIDs[1], AIPPath: aipDirNames[1] + "/data/objects/three.txt",
+				HeaderFiles: []*datatypes.File{
+					{
+						DateiID: "_extra", DIPPath: "header/extra.xml",
+						Checksum: "checksum-extra", ChecksumAlgorithm: "MD5",
+					},
+					{
+						DateiID: "_schema", DIPPath: "header/xsd/arelda.xsd",
+						Checksum: "checksum-schema", ChecksumAlgorithm: "MD5",
+					},
+					{
+						DateiID: "_base", DIPPath: "header/xsd/nested/base.xsd",
+						Checksum: "checksum-base", ChecksumAlgorithm: "SHA-256",
+					},
+					{
+						DateiID: "_old", DIPPath: "header/old/extra.xml",
+						Checksum: "checksum-old", ChecksumAlgorithm: "SHA-256",
+					},
 				},
 			},
 		},
@@ -119,6 +173,7 @@ func TestParseMetadata(t *testing.T) {
 			metadata: `<paket><inhaltsverzeichnis>
   <ordner><name>content</name></ordner>
 </inhaltsverzeichnis></paket>`,
+			want: activities.ParseMetadataResult{},
 		},
 		{
 			name:    "Missing export",
@@ -178,7 +233,7 @@ func TestParseMetadata(t *testing.T) {
 
 			var res activities.ParseMetadataResult
 			assert.NilError(t, enc.Get(&res))
-			assert.DeepEqual(t, res.Files, tt.wantFiles)
+			assert.DeepEqual(t, res, tt.want)
 		})
 	}
 }
