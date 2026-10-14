@@ -514,6 +514,8 @@ func (s *CreateDIPTestSuite) testSessionResult(
 							"DIP_"+s.dip.UUID.String(),
 							file.DIPPath,
 						),
+						Checksum:          file.Checksum,
+						ChecksumAlgorithm: file.ChecksumAlgorithm,
 					},
 				).Once().NotBefore(previousActivity)
 				previousActivity = fetch
@@ -848,6 +850,8 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 				"content",
 				"file1.jp2",
 			),
+			Checksum:          "checksum",
+			ChecksumAlgorithm: "MD5",
 		},
 	).Return(&amss.FetchActivityResult{}, nil).Once().NotBefore(prepareDIP)
 	dipPath := filepath.Join(s.workingDir, s.dip.UUID.String(), "DIP_"+s.dip.UUID.String())

@@ -460,15 +460,17 @@ func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *stat
 		return err
 	}
 
-	// Download each content file directly into the DIP.
+	// Download each content file directly into the DIP and validate its checksum.
 	for _, file := range state.files {
 		err = temporalsdk_workflow.ExecuteActivity(
 			withOptsForFileTransfer(ctx),
 			amss.FetchActivityName,
 			&amss.FetchActivityParams{
-				AIPUUID:      file.AIPUUID,
-				RelativePath: file.AIPPath,
-				Destination:  filepath.Join(state.dipPath, file.DIPPath),
+				AIPUUID:           file.AIPUUID,
+				RelativePath:      file.AIPPath,
+				Destination:       filepath.Join(state.dipPath, file.DIPPath),
+				Checksum:          file.Checksum,
+				ChecksumAlgorithm: file.ChecksumAlgorithm,
 			},
 		).Get(ctx, nil)
 		if err != nil {

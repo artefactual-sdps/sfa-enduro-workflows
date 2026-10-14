@@ -87,8 +87,10 @@ are exhausted, with the aggregation and cleanup exceptions below.
     `header/xsd`, and moves the export into `header/metadata.xml`.
 11. `fetch-aip-file` (each content file): downloads from the matched AIP using
     `AIPPath`, which already includes the AIP directory name, into
-    `<DIP directory>/<DIPPath>`, creating missing parent directories. A failed
-    download stops processing once retries are exhausted.
+    `<DIP directory>/<DIPPath>`, creating missing parent directories. Each
+    downloaded file is validated using the checksum details from the ACTApro
+    metadata. Download or checksum validation errors cause the file to be
+    downloaded again, up to 3 attempts in total.
 12. `archive-zip`: creates `DIP_<DIP UUID>.zip` alongside the DIP directory.
 13. `bucket-upload`: uploads the ZIP to the configured bucket under its filename,
     using the object key `DIP_<DIP UUID>.zip`. An upload failure fails the workflow.
