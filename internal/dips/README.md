@@ -78,13 +78,20 @@ are exhausted, with the aggregation and cleanup exceptions below.
 8. `fetch-aip-file` (each AIP): downloads the METS file into the working
    directory. All METS file downloads are attempted before reporting combined
    errors.
-9. `parse-dip-metadata`: builds the file list and matches files to AIPs as
-   described below. Parsing or matching errors fail both the activity and the
-   workflow, without retrying the activity. An empty file list also fails the
-   workflow.
-10. `prepare-dip`: creates `<workingDir>/<DIP UUID>/DIP_<DIP UUID>`, copies all
-    `.xsd` files from the configured schema directory (`xsdDir`) into
-    `header/xsd`, and moves the export into `header/metadata.xml`.
+9. `parse-dip-metadata`: builds separate content and header file lists and
+   matches content files to AIPs as described below. Parsing or matching errors
+   fail both the activity and the workflow, without retrying the activity. An
+   empty content or header file list also fails the workflow.
+10. `prepare-dip`: creates `header` under
+    `<workingDir>/<DIP UUID>/DIP_<DIP UUID>`. For declared files under
+    `header/xsd`, it finds their sources at the same relative paths under the
+    configured schema directory (`xsdDir`) and copies them to their DIP paths,
+    creating parent directories as needed, then validates the copied files'
+    checksums. After checking all schemas, it reports missing files from the
+    configured schema directory (`xsdDir`), checksum validation or copy failures,
+    and all unexpected header files outside `header/xsd` together. These errors
+    fail both the activity and the workflow, without retrying the activity. On
+    success, it moves the export into `header/metadata.xml`.
 11. `fetch-aip-file` (each content file): downloads from the matched AIP using
     `AIPPath`, which already includes the AIP directory name, into
     `<DIP directory>/<DIPPath>`, creating missing parent directories. Each
@@ -137,18 +144,20 @@ POST requests may extend.
 [`parse-dip-metadata`](activities/parse_metadata.go) combines the ACTApro XML
 export with the downloaded AIP METS files:
 
-1. Read `inhaltsverzeichnis` and select its top-level `ordner` elements whose
-   `name` is `content`. Recursively collect their `datei` elements; other
-   top-level folders, including `header`, are excluded.
+1. Read `inhaltsverzeichnis` and recursively collect `datei` elements under
+   `content` and `header` into `ContentFiles` and `HeaderFiles`, respectively.
+   Other top-level folders are excluded.
 2. For each file, store the `datei/@id` as `DateiID`, `pruefsumme` as
    `Checksum`, and `pruefalgorithmus` as `ChecksumAlgorithm`. The checksums are
    not verified against the file contents by this activity.
 3. Build `DIPPath`, the file's destination path within the DIP, by joining the
-   folder `name` values from `content` down to the file's `name` in the ACTApro
-   export.
-4. Search the METS files in AIP order for PREMIS `object` elements. Match an
-   `objectIdentifier` whose `objectIdentifierType` is exactly `local` and whose
-   `objectIdentifierValue` exactly equals the file's `DateiID`.
+   folder `name` values from `content` or `header` down to the file's `name` in
+   the ACTApro export.
+4. For content files, search the METS files in AIP order for PREMIS `object`
+   elements. Match an `objectIdentifier` whose `objectIdentifierType` is
+   exactly `local` and whose `objectIdentifierValue` exactly equals the file's
+   `DateiID`. Header files do not require AIP matches; `prepare-dip` supplies
+   schemas locally and rejects other header files.
 5. Take the matched object's PREMIS `originalName`, remove a leading
    `%transferDirectory%`, and store the result as `AIPPath` together with the
    source `AIPUUID`. Objects with an empty resulting path are skipped. The first
@@ -160,7 +169,7 @@ can match a PREMIS local identifier `_one` with original name
 `data/objects/report.pdf` in the matched AIP, while its DIP destination remains
 `content/dossier/report.pdf`.
 
-Every selected file must match a PREMIS object; unmatched files cause the
+Every content file must match a PREMIS object; unmatched files cause the
 activity to fail with an error listing each missing file ID and its DIP path. If
 the PREMIS XML document is unreadable or malformed the workflow will also fail
 with an error. Each file is matched to one, and only one, PREMIS object —

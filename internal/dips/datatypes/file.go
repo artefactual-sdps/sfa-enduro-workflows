@@ -2,7 +2,7 @@ package datatypes
 
 import "github.com/google/uuid"
 
-// File describes a DIP file and its source in an AIP.
+// File describes a DIP file and, for content files, its source in an AIP.
 type File struct {
 	// The datei ID of the file from the ACTApro document.
 	DateiID string
