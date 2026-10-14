@@ -30,7 +30,8 @@ type ParseMetadataParams struct {
 }
 
 type ParseMetadataResult struct {
-	Files []*datatypes.File
+	ContentFiles []*datatypes.File
+	HeaderFiles  []*datatypes.File
 }
 
 type ParseMetadata struct{}
@@ -39,18 +40,18 @@ func NewParseMetadata() *ParseMetadata {
 	return &ParseMetadata{}
 }
 
-// Execute collects content files from the ACTApro export and locates each file
-// in the supplied AIPs using its PREMIS local object identifier.
+// Execute collects content and header files from the ACTApro export and
+// locates content files in the supplied AIPs using their PREMIS local identifiers.
 func (a *ParseMetadata) Execute(ctx context.Context, params *ParseMetadataParams) (*ParseMetadataResult, error) {
-	files, err := parseExport(params.MetadataPath)
+	result, err := parseExport(params.MetadataPath)
 	if err != nil {
 		return nil, fmt.Errorf("parse DIP metadata: %w", err)
 	}
 
 	// Track files still needing an AIP match by datei ID. The pointers share
-	// updates with files, which retains every file for the result.
-	unmatched := make(map[string]*datatypes.File, len(files))
-	for _, file := range files {
+	// updates with result.ContentFiles, which retains every content file.
+	unmatched := make(map[string]*datatypes.File, len(result.ContentFiles))
+	for _, file := range result.ContentFiles {
 		unmatched[file.DateiID] = file
 	}
 
@@ -66,7 +67,7 @@ func (a *ParseMetadata) Execute(ctx context.Context, params *ParseMetadataParams
 	// Any IDs left after searching the AIPs are missing from their METS files.
 	if len(unmatched) > 0 {
 		var missing []string
-		for _, file := range files {
+		for _, file := range result.ContentFiles {
 			if _, ok := unmatched[file.DateiID]; ok {
 				missing = append(missing, fmt.Sprintf("%s (%s)", file.DateiID, file.DIPPath))
 			}
@@ -77,7 +78,7 @@ func (a *ParseMetadata) Execute(ctx context.Context, params *ParseMetadataParams
 	// TODO: Large file lists can exceed Temporal's default 2 MiB payload limit
 	// (roughly 7,000 files with metadata like the examples). Consider returning
 	// a manifest reference for larger DIPs.
-	return &ParseMetadataResult{Files: files}, nil
+	return result, nil
 }
 
 type exportFolder struct {
@@ -91,7 +92,7 @@ type exportFolder struct {
 	} `xml:"datei"`
 }
 
-func parseExport(metadataPath string) ([]*datatypes.File, error) {
+func parseExport(metadataPath string) (*ParseMetadataResult, error) {
 	metadata, err := os.Open(metadataPath)
 	if err != nil {
 		return nil, fmt.Errorf("open ACTApro export: %w", err)
@@ -105,13 +106,16 @@ func parseExport(metadataPath string) ([]*datatypes.File, error) {
 		return nil, fmt.Errorf("parse ACTApro export: %w", err)
 	}
 
-	var files []*datatypes.File
+	result := &ParseMetadataResult{}
 	for _, folder := range export.Folders {
-		if folder.Name == "content" {
-			files = appendExportFiles(files, folder, "")
+		switch folder.Name {
+		case "content":
+			result.ContentFiles = appendExportFiles(result.ContentFiles, folder, "")
+		case "header":
+			result.HeaderFiles = appendExportFiles(result.HeaderFiles, folder, "")
 		}
 	}
-	return files, nil
+	return result, nil
 }
 
 // appendExportFiles recursively collects files, building DIP paths from folder names.

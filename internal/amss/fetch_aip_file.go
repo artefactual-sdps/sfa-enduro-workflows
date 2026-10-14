@@ -7,10 +7,13 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/uuid"
 	"go.artefactual.dev/ssclient"
 	"go.artefactual.dev/tools/temporal"
+
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/checksum"
 )
 
 const FetchActivityName = "fetch-aip-file"
@@ -20,6 +23,9 @@ type (
 		AIPUUID      uuid.UUID
 		RelativePath string
 		Destination  string
+		// Validate the downloaded file when both checksum fields are set.
+		Checksum          string
+		ChecksumAlgorithm string
 	}
 	FetchActivityResult struct{}
 	FetchActivity       struct {
@@ -31,6 +37,8 @@ func NewFetchActivity(packages *ssclient.PackagesService) *FetchActivity {
 	return &FetchActivity{packages: packages}
 }
 
+// Execute downloads a file, overwriting any file left by an earlier attempt,
+// and optionally validates its checksum.
 func (a *FetchActivity) Execute(ctx context.Context, params *FetchActivityParams) (*FetchActivityResult, error) {
 	h := temporal.StartAutoHeartbeat(ctx)
 	defer h.Stop()
@@ -56,6 +64,16 @@ func (a *FetchActivity) Execute(ctx context.Context, params *FetchActivityParams
 
 	if _, err := io.Copy(file, stream.Body); err != nil {
 		return nil, fmt.Errorf("FetchActivity: write file: %w", err)
+	}
+
+	if params.Checksum != "" && params.ChecksumAlgorithm != "" {
+		hash, err := checksum.GenerateHash(params.Destination, params.ChecksumAlgorithm)
+		if err != nil {
+			return nil, fmt.Errorf("FetchActivity: validate checksum: %w", err)
+		}
+		if hash != strings.ToLower(params.Checksum) {
+			return nil, fmt.Errorf("FetchActivity: checksum mismatch (expected: %q, got: %q)", params.Checksum, hash)
+		}
 	}
 
 	return &FetchActivityResult{}, nil

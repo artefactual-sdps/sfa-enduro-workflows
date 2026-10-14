@@ -38,7 +38,6 @@ type state struct {
 	dip        datatypes.DIP
 	exportID   string
 	aips       []*aip
-	files      []*datatypes.File
 }
 
 type aip struct {
@@ -438,11 +437,17 @@ func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *stat
 		state.dip.ErrorMessage = fmt.Sprintf("DIP metadata parsing failed: %s", activityErrorMessage(err))
 		return err
 	}
-	if len(metadata.Files) == 0 {
-		state.dip.ErrorMessage = "DIP metadata contains no files."
+	var metadataFailures []string
+	if len(metadata.ContentFiles) == 0 {
+		metadataFailures = append(metadataFailures, "DIP metadata contains no content files.")
+	}
+	if len(metadata.HeaderFiles) == 0 {
+		metadataFailures = append(metadataFailures, "DIP metadata contains no header files.")
+	}
+	if len(metadataFailures) > 0 {
+		state.dip.ErrorMessage = strings.Join(metadataFailures, "\n")
 		return errors.New(state.dip.ErrorMessage)
 	}
-	state.files = metadata.Files
 
 	// Prepare the DIP header before adding content files.
 	state.dipPath = filepath.Join(dipWorkingDir, "DIP_"+state.dip.UUID.String())
@@ -453,6 +458,7 @@ func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *stat
 			DIPPath:      state.dipPath,
 			MetadataPath: metadataExportPath,
 			XSDDir:       w.xsdDir,
+			HeaderFiles:  metadata.HeaderFiles,
 		},
 	).Get(ctx, nil)
 	if err != nil {
@@ -460,15 +466,17 @@ func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *stat
 		return err
 	}
 
-	// Download each content file directly into the DIP.
-	for _, file := range state.files {
+	// Download each content file directly into the DIP and validate its checksum.
+	for _, file := range metadata.ContentFiles {
 		err = temporalsdk_workflow.ExecuteActivity(
 			withOptsForFileTransfer(ctx),
 			amss.FetchActivityName,
 			&amss.FetchActivityParams{
-				AIPUUID:      file.AIPUUID,
-				RelativePath: file.AIPPath,
-				Destination:  filepath.Join(state.dipPath, file.DIPPath),
+				AIPUUID:           file.AIPUUID,
+				RelativePath:      file.AIPPath,
+				Destination:       filepath.Join(state.dipPath, file.DIPPath),
+				Checksum:          file.Checksum,
+				ChecksumAlgorithm: file.ChecksumAlgorithm,
 			},
 		).Get(ctx, nil)
 		if err != nil {

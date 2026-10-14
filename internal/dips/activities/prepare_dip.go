@@ -7,8 +7,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"go.artefactual.dev/tools/fsutil"
+
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/checksum"
+	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/datatypes"
 )
 
 const PrepareDIPName = "prepare-dip"
@@ -17,6 +21,7 @@ type PrepareDIPParams struct {
 	DIPPath      string
 	MetadataPath string
 	XSDDir       string
+	HeaderFiles  []*datatypes.File
 }
 
 type PrepareDIPResult struct{}
@@ -27,27 +32,47 @@ func NewPrepareDIP() *PrepareDIP {
 	return &PrepareDIP{}
 }
 
-// Execute creates the DIP header directory with its schemas and exported metadata.
+// Execute validates and copies the declared header schemas, rejects unexpected
+// header files, then moves the exported metadata into the DIP header directory.
 func (a *PrepareDIP) Execute(ctx context.Context, params *PrepareDIPParams) (*PrepareDIPResult, error) {
 	headerPath := filepath.Join(params.DIPPath, "header")
-	xsdPath := filepath.Join(headerPath, "xsd")
-	if err := os.MkdirAll(xsdPath, 0o700); err != nil {
+	if err := os.MkdirAll(headerPath, 0o700); err != nil {
 		return nil, fmt.Errorf("create DIP header: %v", err)
 	}
 
-	entries, err := os.ReadDir(params.XSDDir)
-	if err != nil {
-		return nil, fmt.Errorf("read DIP schemas: %v", err)
-	}
-
-	for _, entry := range entries {
-		if entry.IsDir() || filepath.Ext(entry.Name()) != ".xsd" {
+	var failures error
+	var unexpected []string
+	for _, file := range params.HeaderFiles {
+		relPath, ok := strings.CutPrefix(file.DIPPath, "header/xsd/")
+		if !ok {
+			unexpected = append(unexpected, file.DIPPath)
 			continue
 		}
-		err := copyDIPFile(filepath.Join(params.XSDDir, entry.Name()), filepath.Join(xsdPath, entry.Name()))
+
+		src := filepath.Join(params.XSDDir, relPath)
+		hash, err := checksum.GenerateHash(src, file.ChecksumAlgorithm)
 		if err != nil {
-			return nil, fmt.Errorf("copy DIP schema %s: %v", entry.Name(), err)
+			failures = errors.Join(failures, fmt.Errorf("validate DIP schema checksum %q: %v", file.DIPPath, err))
+			continue
 		}
+		if hash != strings.ToLower(file.Checksum) {
+			failures = errors.Join(failures, fmt.Errorf(
+				"validate DIP schema checksum %q: checksum mismatch (expected: %q, got: %q)",
+				file.DIPPath, file.Checksum, hash,
+			))
+			continue
+		}
+
+		dst := filepath.Join(params.DIPPath, file.DIPPath)
+		if err := copyDIPFile(src, dst); err != nil {
+			failures = errors.Join(failures, fmt.Errorf("copy DIP schema %q: %v", file.DIPPath, err))
+		}
+	}
+	if len(unexpected) > 0 {
+		failures = errors.Join(failures, fmt.Errorf("unexpected header files:\n%s", strings.Join(unexpected, "\n")))
+	}
+	if failures != nil {
+		return nil, failures
 	}
 
 	if err := fsutil.Move(params.MetadataPath, filepath.Join(headerPath, "metadata.xml")); err != nil {
@@ -58,6 +83,10 @@ func (a *PrepareDIP) Execute(ctx context.Context, params *PrepareDIPParams) (*Pr
 }
 
 func copyDIPFile(src, dst string) error {
+	if err := os.MkdirAll(filepath.Dir(dst), 0o700); err != nil {
+		return err
+	}
+
 	source, err := os.Open(src)
 	if err != nil {
 		return err
