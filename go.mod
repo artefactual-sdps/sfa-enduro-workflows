@@ -35,12 +35,12 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/tonglil/buflogr v1.1.1
 	go.artefactual.dev/ssclient v0.11.0
-	go.artefactual.dev/tools v0.26.1-0.20260908054352-e357345186f4
+	go.artefactual.dev/tools v0.27.0
 	go.opentelemetry.io/otel v1.45.0
 	go.opentelemetry.io/otel/metric v1.45.0
 	go.opentelemetry.io/otel/trace v1.45.0
-	go.temporal.io/api v1.62.1
-	go.temporal.io/sdk v1.40.0
+	go.temporal.io/api v1.63.5
+	go.temporal.io/sdk v1.48.0
 	go.uber.org/mock v0.6.0
 	goa.design/goa/v3 v3.29.2
 	goa.design/plugins/v3 v3.29.2
@@ -139,7 +139,8 @@ require (
 	github.com/mikelolasagasti/xz v1.0.1 // indirect
 	github.com/minio/minlz v1.0.1 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
-	github.com/nexus-rpc/sdk-go v0.5.1 // indirect
+	github.com/nexus-rpc/nexus-proto-annotations v0.1.0 // indirect
+	github.com/nexus-rpc/sdk-go v0.7.0 // indirect
 	github.com/nwaples/rardecode/v2 v2.2.1 // indirect
 	github.com/nyudlts/go-bagit v0.3.0-alpha.0.20240515212815-8dab411c23af // indirect
 	github.com/otiai10/copy v1.14.0 // indirect
