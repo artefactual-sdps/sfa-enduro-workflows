@@ -95,7 +95,6 @@ func (w *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPP
 		}
 		if e != nil {
 			params.Status = enums.DIPStatusFailed
-			params.ObjectKey = ""
 			params.Retention = 0
 			params.ErrorMessage = state.dip.ErrorMessage
 			if params.ErrorMessage == "" {
@@ -116,7 +115,7 @@ func (w *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPP
 		// Remove the object if generation or its final update failed, even after cancellation.
 		if err != nil || state.dip.Status == enums.DIPStatusFailed {
 			if state.objectKey != "" {
-				e = errors.Join(e, deleteDIP(dctx, state.objectKey))
+				e = errors.Join(e, deleteDIP(dctx, state.dip.UUID, state.objectKey))
 			}
 			r = nil
 			return
@@ -301,7 +300,7 @@ func (w *CreateDIP) deleteDIPAfterRetention(ctx temporalsdk_workflow.Context, id
 		// to decide whether to delete the object or wait for the stored expiry.
 		switch result.DIP.Status {
 		case enums.DIPStatusDeleted, enums.DIPStatusFailed:
-			return deleteDIP(ctx, key)
+			return deleteDIP(ctx, id, key)
 		case enums.DIPStatusDone:
 			if result.DIP.ExpiresAt.IsZero() {
 				return nil
@@ -317,7 +316,7 @@ func (w *CreateDIP) deleteDIPAfterRetention(ctx temporalsdk_workflow.Context, id
 	}
 }
 
-func deleteDIP(ctx temporalsdk_workflow.Context, key string) error {
+func deleteDIP(ctx temporalsdk_workflow.Context, id uuid.UUID, key string) error {
 	err := temporalsdk_workflow.ExecuteActivity(
 		withOptsForAPIRequest(ctx),
 		bucketdelete.Name,
@@ -326,7 +325,12 @@ func deleteDIP(ctx temporalsdk_workflow.Context, key string) error {
 	if err != nil {
 		return fmt.Errorf("delete DIP archive: %v", err)
 	}
-	return nil
+	// Keep the key for later cleanup if deleting the object fails.
+	_, err = updateDIP(ctx, activities.UpdateDIPParams{
+		UUID:           id,
+		ClearObjectKey: true,
+	})
+	return err
 }
 
 // sessionHandler runs activities that belong to the same session.

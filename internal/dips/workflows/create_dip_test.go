@@ -580,7 +580,9 @@ func (s *CreateDIPTestSuite) testSessionResult(
 		wDIP.Status = enums.DIPStatusFailed
 		wDIP.ErrorMessage = "canceled"
 	}
-	if wDIP.Status == enums.DIPStatusDone {
+	uploadAttempted := parseErr == nil && len(parseResult.Files) > 0 && prepareErr == nil && contentErr == nil &&
+		archiveErr == nil
+	if uploadAttempted {
 		wDIP.ObjectKey = s.objectKey
 	}
 	wDIP.CompletedAt = createDIPTestTime.Add(cleanupDelay)
@@ -595,8 +597,6 @@ func (s *CreateDIPTestSuite) testSessionResult(
 		Return(&activities.UpdateDIPResult{DIP: wDIP}, s.retention.finalUpdateErr).
 		After(s.retention.finalUpdateDelay).Once().NotBefore(cleanup)
 	wantFinish := wDIP.CompletedAt.Add(s.retention.finalUpdateDelay)
-	uploadAttempted := parseErr == nil && len(parseResult.Files) > 0 && prepareErr == nil && contentErr == nil &&
-		archiveErr == nil
 	shouldDelete := uploadAttempted && (wDIP.Status == enums.DIPStatusFailed || s.retention.finalUpdateErr != nil)
 
 	if s.retention.finalUpdateErr == nil &&
@@ -627,7 +627,6 @@ func (s *CreateDIPTestSuite) testSessionResult(
 						Return(&activities.UpdateDIPResult{DIP: current}, nil).Once()
 				} else {
 					current.Status = enums.DIPStatusDeleted
-					current.ObjectKey = ""
 					if s.retention.lostClaimResult {
 						s.env.OnActivity(activities.UpdateDIPName, mock.Anything, claim).
 							Return(nil, errors.New("lost claim result")).
@@ -647,8 +646,14 @@ func (s *CreateDIPTestSuite) testSessionResult(
 				Return(nil, errors.New("temporary deletion failure")).Once().NotBefore(finalUpdate)
 			wantFinish = wantFinish.Add(5 * time.Second)
 		}
-		s.env.OnActivity(bucketdelete.Name, mock.Anything, &bucketdelete.Params{Key: s.objectKey}).
+		deletion := s.env.OnActivity(bucketdelete.Name, mock.Anything, &bucketdelete.Params{Key: s.objectKey}).
 			Return(&bucketdelete.Result{}, s.retention.deleteErr).Once().NotBefore(finalUpdate)
+		if s.retention.deleteErr == nil {
+			s.env.OnActivity(activities.UpdateDIPName, mock.Anything, &activities.UpdateDIPParams{
+				UUID:           wDIP.UUID,
+				ClearObjectKey: true,
+			}).Return(&activities.UpdateDIPResult{}, nil).Once().NotBefore(deletion)
+		}
 	}
 	var cancel temporalsdk_workflow.CancelFunc
 	if s.retention.cancelAfterPublication {

@@ -89,6 +89,7 @@ func TestUpdateDIP(t *testing.T) {
 				UUID:         dipUUID,
 				Status:       enums.DIPStatusFailed,
 				ErrorMessage: "DIP creation failed",
+				ObjectKey:    "archive.zip",
 			},
 			wantDIP: datatypes.DIP{
 				DBID:         1,
@@ -99,6 +100,7 @@ func TestUpdateDIP(t *testing.T) {
 				StartedAt:    createdAt.Add(time.Second),
 				CompletedAt:  now,
 				ErrorMessage: "DIP creation failed",
+				ObjectKey:    "archive.zip",
 			},
 		},
 		{
@@ -387,7 +389,7 @@ func TestUpdateDIP(t *testing.T) {
 				StartedAt:   createdAt.Add(time.Second),
 				CompletedAt: createdAt.Add(time.Minute),
 				ExpiresAt:   now.Add(-time.Hour),
-				ObjectKey:   "",
+				ObjectKey:   "archive.zip",
 			},
 		},
 		{
@@ -446,6 +448,63 @@ func TestUpdateDIP(t *testing.T) {
 				CompletedAt: createdAt.Add(time.Minute),
 				ExpiresAt:   time.Time{},
 				ObjectKey:   "archive.zip",
+			},
+		},
+		{
+			name: "Clears the object key after cleanup of a failed DIP",
+			params: &activities.UpdateDIPParams{
+				UUID:           dipUUID,
+				ClearObjectKey: true,
+			},
+			current: &datatypes.DIP{
+				UUID:        dipUUID,
+				Status:      enums.DIPStatusFailed,
+				ObjectKey:   "archive.zip",
+				CompletedAt: createdAt,
+			},
+			wantDIP: datatypes.DIP{
+				UUID:        dipUUID,
+				Status:      enums.DIPStatusFailed,
+				ObjectKey:   "",
+				CompletedAt: createdAt,
+			},
+		},
+		{
+			name: "Clears the object key after cleanup of a deleted DIP",
+			params: &activities.UpdateDIPParams{
+				UUID:           dipUUID,
+				ClearObjectKey: true,
+			},
+			current: &datatypes.DIP{
+				UUID:        dipUUID,
+				Status:      enums.DIPStatusDeleted,
+				ObjectKey:   "archive.zip",
+				CompletedAt: createdAt,
+			},
+			wantDIP: datatypes.DIP{
+				UUID:        dipUUID,
+				Status:      enums.DIPStatusDeleted,
+				ObjectKey:   "",
+				CompletedAt: createdAt,
+			},
+		},
+		{
+			name: "Does not clear the object key of a done DIP",
+			params: &activities.UpdateDIPParams{
+				UUID:           dipUUID,
+				ClearObjectKey: true,
+			},
+			current: &datatypes.DIP{
+				UUID:        dipUUID,
+				Status:      enums.DIPStatusDone,
+				ObjectKey:   "archive.zip",
+				CompletedAt: createdAt,
+			},
+			wantDIP: datatypes.DIP{
+				UUID:        dipUUID,
+				Status:      enums.DIPStatusDone,
+				ObjectKey:   "archive.zip",
+				CompletedAt: createdAt,
 			},
 		},
 		{

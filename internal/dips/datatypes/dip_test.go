@@ -127,6 +127,22 @@ func TestDIPGoa(t *testing.T) {
 			},
 		},
 		{
+			name: "Hides the object key of a deleted DIP awaiting cleanup",
+			dip: &DIP{
+				UUID:      dipUUID,
+				DocKey:    "CH-000001",
+				Status:    enums.DIPStatusDeleted,
+				CreatedAt: createdAt,
+				ObjectKey: "dips/CH-000001.zip",
+			},
+			want: &goadips.ShowResult{
+				ID:        goadips.DIPID("d61fe7ac-a9a9-42b8-a067-3f43d148f48e"),
+				DocKey:    goadips.DocKey("CH-000001"),
+				Status:    goadips.DIPStatus("deleted"),
+				CreatedAt: goadips.DateTime("2026-08-31T08:00:00Z"),
+			},
+		},
+		{
 			name: "Converts failed DIP",
 			dip: &DIP{
 				DBID:         42,
@@ -134,6 +150,7 @@ func TestDIPGoa(t *testing.T) {
 				DocKey:       "CH-000001",
 				Status:       enums.DIPStatusFailed,
 				ErrorMessage: "rendering failed",
+				ObjectKey:    "dips/CH-000001.zip",
 				CreatedAt:    createdAt,
 				StartedAt:    startedAt,
 				CompletedAt:  completedAt,

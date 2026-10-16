@@ -17,12 +17,13 @@ import (
 const UpdateDIPName = "update-dip"
 
 type UpdateDIPParams struct {
-	UUID         uuid.UUID
-	Status       enums.DIPStatus
-	ObjectKey    string
-	ErrorMessage string
-	Retention    time.Duration
-	WorkflowID   string
+	UUID           uuid.UUID
+	Status         enums.DIPStatus
+	ObjectKey      string
+	ErrorMessage   string
+	Retention      time.Duration
+	WorkflowID     string
+	ClearObjectKey bool
 }
 
 type UpdateDIPResult struct {
@@ -39,6 +40,13 @@ func NewUpdateDIP(perSvc persistence.Service) *UpdateDIP {
 
 func (a *UpdateDIP) Execute(ctx context.Context, params *UpdateDIPParams) (*UpdateDIPResult, error) {
 	updater := func(d *datatypes.DIP) (*datatypes.DIP, error) {
+		if params.ClearObjectKey {
+			if d.Status == enums.DIPStatusFailed || d.Status == enums.DIPStatusDeleted {
+				d.ObjectKey = ""
+			}
+			return d, nil
+		}
+
 		// The database update may succeed even if Temporal does not receive the result.
 		// On retry, leave completed generations unchanged: publishing again would reset
 		// completion and expiry times, possibly overwriting an API renewal. Likewise,
@@ -67,6 +75,7 @@ func (a *UpdateDIP) Execute(ctx context.Context, params *UpdateDIPParams) (*Upda
 			}
 		case enums.DIPStatusFailed:
 			d.Status = params.Status
+			d.ObjectKey = params.ObjectKey
 			d.ErrorMessage = params.ErrorMessage
 			d.CompletedAt = now
 		case enums.DIPStatusDeleted:
@@ -74,7 +83,6 @@ func (a *UpdateDIP) Execute(ctx context.Context, params *UpdateDIPParams) (*Upda
 			// Return the DIP unchanged if it is not eligible for deletion.
 			if d.Status == enums.DIPStatusDone && !d.ExpiresAt.IsZero() && !d.ExpiresAt.After(now) {
 				d.Status = params.Status
-				d.ObjectKey = ""
 			}
 		default:
 			return nil, fmt.Errorf("%w: invalid DIP update status", persistence.ErrNotValid)

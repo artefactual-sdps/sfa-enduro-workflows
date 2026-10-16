@@ -71,7 +71,7 @@ func (d *DIP) Goa() *goadips.ShowResult {
 	if !d.ExpiresAt.IsZero() {
 		re.ExpiresAt = new(goadips.DateTime(d.ExpiresAt.Format(time.RFC3339)))
 	}
-	if d.ObjectKey != "" {
+	if d.Status == enums.DIPStatusDone && d.ObjectKey != "" {
 		re.ObjectKey = new(goadips.ObjectKey(d.ObjectKey))
 	}
 
