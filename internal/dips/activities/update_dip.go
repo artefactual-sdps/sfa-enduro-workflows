@@ -22,6 +22,7 @@ type UpdateDIPParams struct {
 	ObjectKey    string
 	ErrorMessage string
 	Retention    time.Duration
+	WorkflowID   string
 }
 
 type UpdateDIPResult struct {
@@ -53,6 +54,7 @@ func (a *UpdateDIP) Execute(ctx context.Context, params *UpdateDIPParams) (*Upda
 		case enums.DIPStatusInProgress:
 			d.Status = params.Status
 			d.StartedAt = now
+			d.WorkflowID = params.WorkflowID
 		case enums.DIPStatusDone:
 			if params.ObjectKey == "" || params.Retention < 0 {
 				return nil, fmt.Errorf("%w: invalid DIP publication", persistence.ErrNotValid)

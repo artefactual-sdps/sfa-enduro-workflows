@@ -251,7 +251,6 @@ func TestCreate(t *testing.T) {
 						savedDIP.UUID = uuid.New()
 						savedDIP.Status = tt.existingStatus
 					}
-					savedDIP.WorkflowID = "create-dip-" + savedDIP.UUID.String()
 					return &savedDIP, nil
 				})
 			if tt.persistenceErr == nil && tt.existingStatus == "" {

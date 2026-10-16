@@ -131,8 +131,9 @@ func (w *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPP
 	}()
 
 	initial, err := updateDIP(ctx, activities.UpdateDIPParams{
-		UUID:   state.dip.UUID,
-		Status: enums.DIPStatusInProgress,
+		WorkflowID: temporalsdk_workflow.GetInfo(ctx).WorkflowExecution.ID,
+		UUID:       state.dip.UUID,
+		Status:     enums.DIPStatusInProgress,
 	})
 	if err != nil {
 		state.dip.ErrorMessage = "DIP persistence update failed."

@@ -143,6 +143,26 @@ func (_u *DIPUpdate) ClearObjectKey() *DIPUpdate {
 	return _u
 }
 
+// SetWorkflowID sets the "workflow_id" field.
+func (_u *DIPUpdate) SetWorkflowID(v string) *DIPUpdate {
+	_u.mutation.SetWorkflowID(v)
+	return _u
+}
+
+// SetNillableWorkflowID sets the "workflow_id" field if the given value is not nil.
+func (_u *DIPUpdate) SetNillableWorkflowID(v *string) *DIPUpdate {
+	if v != nil {
+		_u.SetWorkflowID(*v)
+	}
+	return _u
+}
+
+// ClearWorkflowID clears the value of the "workflow_id" field.
+func (_u *DIPUpdate) ClearWorkflowID() *DIPUpdate {
+	_u.mutation.ClearWorkflowID()
+	return _u
+}
+
 // Mutation returns the DIPMutation object of the builder.
 func (_u *DIPUpdate) Mutation() *DIPMutation {
 	return _u.mutation
@@ -229,6 +249,12 @@ func (_u *DIPUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.ObjectKeyCleared() {
 		_spec.ClearField(dip.FieldObjectKey, field.TypeString)
+	}
+	if value, ok := _u.mutation.WorkflowID(); ok {
+		_spec.SetField(dip.FieldWorkflowID, field.TypeString, value)
+	}
+	if _u.mutation.WorkflowIDCleared() {
+		_spec.ClearField(dip.FieldWorkflowID, field.TypeString)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -364,6 +390,26 @@ func (_u *DIPUpdateOne) ClearObjectKey() *DIPUpdateOne {
 	return _u
 }
 
+// SetWorkflowID sets the "workflow_id" field.
+func (_u *DIPUpdateOne) SetWorkflowID(v string) *DIPUpdateOne {
+	_u.mutation.SetWorkflowID(v)
+	return _u
+}
+
+// SetNillableWorkflowID sets the "workflow_id" field if the given value is not nil.
+func (_u *DIPUpdateOne) SetNillableWorkflowID(v *string) *DIPUpdateOne {
+	if v != nil {
+		_u.SetWorkflowID(*v)
+	}
+	return _u
+}
+
+// ClearWorkflowID clears the value of the "workflow_id" field.
+func (_u *DIPUpdateOne) ClearWorkflowID() *DIPUpdateOne {
+	_u.mutation.ClearWorkflowID()
+	return _u
+}
+
 // Mutation returns the DIPMutation object of the builder.
 func (_u *DIPUpdateOne) Mutation() *DIPMutation {
 	return _u.mutation
@@ -480,6 +526,12 @@ func (_u *DIPUpdateOne) sqlSave(ctx context.Context) (_node *DIP, err error) {
 	}
 	if _u.mutation.ObjectKeyCleared() {
 		_spec.ClearField(dip.FieldObjectKey, field.TypeString)
+	}
+	if value, ok := _u.mutation.WorkflowID(); ok {
+		_spec.SetField(dip.FieldWorkflowID, field.TypeString, value)
+	}
+	if _u.mutation.WorkflowIDCleared() {
+		_spec.ClearField(dip.FieldWorkflowID, field.TypeString)
 	}
 	_node = &DIP{config: _u.config}
 	_spec.Assign = _node.assignValues

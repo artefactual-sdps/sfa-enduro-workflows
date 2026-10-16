@@ -86,7 +86,6 @@ func (c *client) RequestDIP(ctx context.Context, req persistence.RequestDIPParam
 			SetDocKey(req.DocKey).
 			SetStatus(enums.DIPStatusQueued).
 			SetCreatedAt(now).
-			SetWorkflowID("create-dip-" + req.UUID.String()).
 			Save(ctx)
 		if err != nil {
 			return nil, rollback(tx, newDBError(err))
@@ -131,7 +130,7 @@ func (c *client) ReadDIP(ctx context.Context, id uuid.UUID) (*datatypes.DIP, err
 // UpdateDIP updates the persisted DIP identified by id using updater and
 // returns the updated DIP. The row is locked before calling updater.
 //
-// DBID, UUID, DocKey, CreatedAt, and WorkflowID cannot be updated with this method.
+// DBID, UUID, DocKey, and CreatedAt cannot be updated with this method.
 func (c *client) UpdateDIP(
 	ctx context.Context,
 	id uuid.UUID,
@@ -170,6 +169,9 @@ func (c *client) UpdateDIP(
 	}
 	if !up.ExpiresAt.IsZero() && up.ExpiresAt.After(dbd.ExpiresAt) {
 		q.SetExpiresAt(up.ExpiresAt)
+	}
+	if up.WorkflowID != "" {
+		q.SetWorkflowID(up.WorkflowID)
 	}
 	if up.ObjectKey != "" {
 		q.SetObjectKey(up.ObjectKey)

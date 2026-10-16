@@ -569,9 +569,22 @@ func (m *DIPMutation) OldWorkflowID(ctx context.Context) (v string, err error) {
 	return oldValue.WorkflowID, nil
 }
 
+// ClearWorkflowID clears the value of the "workflow_id" field.
+func (m *DIPMutation) ClearWorkflowID() {
+	m.workflow_id = nil
+	m.clearedFields[dip.FieldWorkflowID] = struct{}{}
+}
+
+// WorkflowIDCleared returns if the "workflow_id" field was cleared in this mutation.
+func (m *DIPMutation) WorkflowIDCleared() bool {
+	_, ok := m.clearedFields[dip.FieldWorkflowID]
+	return ok
+}
+
 // ResetWorkflowID resets all changes to the "workflow_id" field.
 func (m *DIPMutation) ResetWorkflowID() {
 	m.workflow_id = nil
+	delete(m.clearedFields, dip.FieldWorkflowID)
 }
 
 // Where appends a list predicates to the DIPMutation builder.
@@ -820,6 +833,9 @@ func (m *DIPMutation) ClearedFields() []string {
 	if m.FieldCleared(dip.FieldObjectKey) {
 		fields = append(fields, dip.FieldObjectKey)
 	}
+	if m.FieldCleared(dip.FieldWorkflowID) {
+		fields = append(fields, dip.FieldWorkflowID)
+	}
 	return fields
 }
 
@@ -848,6 +864,9 @@ func (m *DIPMutation) ClearField(name string) error {
 		return nil
 	case dip.FieldObjectKey:
 		m.ClearObjectKey()
+		return nil
+	case dip.FieldWorkflowID:
+		m.ClearWorkflowID()
 		return nil
 	}
 	return fmt.Errorf("unknown DIP nullable field %s", name)

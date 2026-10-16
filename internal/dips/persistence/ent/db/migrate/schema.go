@@ -21,7 +21,7 @@ var (
 		{Name: "completed_at", Type: field.TypeTime, Nullable: true},
 		{Name: "expires_at", Type: field.TypeTime, Nullable: true},
 		{Name: "object_key", Type: field.TypeString, Nullable: true, Size: 1024},
-		{Name: "workflow_id", Type: field.TypeString},
+		{Name: "workflow_id", Type: field.TypeString, Nullable: true},
 	}
 	// DipTable holds the schema information for the "dip" table.
 	DipTable = &schema.Table{

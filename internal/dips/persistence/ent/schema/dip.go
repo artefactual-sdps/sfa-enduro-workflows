@@ -48,7 +48,7 @@ func (DIP) Fields() []ent.Field {
 			Annotations(entsql.Annotation{Size: 1024}).
 			Optional(),
 		field.String("workflow_id").
-			Immutable(),
+			Optional(),
 	}
 }
 

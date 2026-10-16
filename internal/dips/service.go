@@ -121,7 +121,7 @@ func (svc *svcImpl) Create(ctx context.Context, p *goadips.CreatePayload) (*goad
 
 func (svc *svcImpl) startDIPCreationWorkflow(ctx context.Context, d *datatypes.DIP) error {
 	opts := temporalsdk_client.StartWorkflowOptions{
-		ID:                    d.WorkflowID,
+		ID:                    "create-dip-" + d.UUID.String(),
 		TaskQueue:             svc.taskQueue,
 		WorkflowIDReusePolicy: temporalapi_enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 	}

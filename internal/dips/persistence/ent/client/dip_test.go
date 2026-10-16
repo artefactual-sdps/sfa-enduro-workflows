@@ -23,14 +23,12 @@ func TestRequestDIP(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now().UTC()
-	workflowID := "create-dip-" + dipUUID.String()
 	created := datatypes.DIP{
-		DBID:       1,
-		UUID:       dipUUID,
-		DocKey:     "CH-000001",
-		Status:     enums.DIPStatusQueued,
-		CreatedAt:  now,
-		WorkflowID: workflowID,
+		DBID:      1,
+		UUID:      dipUUID,
+		DocKey:    "CH-000001",
+		Status:    enums.DIPStatusQueued,
+		CreatedAt: now,
 	}
 	cached := created
 	cached.UUID = uuid.MustParse("c822307a-b224-4c6d-a03e-9bc24345dc2b")
@@ -68,12 +66,11 @@ func TestRequestDIP(t *testing.T) {
 				Retention: time.Hour,
 			},
 			want: &datatypes.DIP{
-				DBID:       1,
-				UUID:       dipUUID,
-				DocKey:     "CH-000001",
-				Status:     enums.DIPStatusQueued,
-				CreatedAt:  now,
-				WorkflowID: workflowID,
+				DBID:      1,
+				UUID:      dipUUID,
+				DocKey:    "CH-000001",
+				Status:    enums.DIPStatusQueued,
+				CreatedAt: now,
 			},
 		},
 		{
@@ -238,12 +235,11 @@ func TestRequestDIP(t *testing.T) {
 			},
 			existing: []datatypes.DIP{cached},
 			want: &datatypes.DIP{
-				DBID:       1,
-				UUID:       dipUUID,
-				DocKey:     "CH-000001",
-				Status:     enums.DIPStatusQueued,
-				CreatedAt:  now,
-				WorkflowID: workflowID,
+				DBID:      1,
+				UUID:      dipUUID,
+				DocKey:    "CH-000001",
+				Status:    enums.DIPStatusQueued,
+				CreatedAt: now,
 			},
 		},
 		{
@@ -255,12 +251,11 @@ func TestRequestDIP(t *testing.T) {
 			},
 			existing: []datatypes.DIP{expired},
 			want: &datatypes.DIP{
-				DBID:       1,
-				UUID:       dipUUID,
-				DocKey:     "CH-000001",
-				Status:     enums.DIPStatusQueued,
-				CreatedAt:  now,
-				WorkflowID: workflowID,
+				DBID:      1,
+				UUID:      dipUUID,
+				DocKey:    "CH-000001",
+				Status:    enums.DIPStatusQueued,
+				CreatedAt: now,
 			},
 		},
 		{
@@ -329,7 +324,7 @@ func TestRequestDIP(t *testing.T) {
 					WillReturnRows(rows(tt.existing...))
 				if tt.want.UUID == tt.req.UUID {
 					mock.ExpectExec("INSERT INTO `dip`").
-						WithArgs(tt.req.UUID.String(), tt.req.DocKey, enums.DIPStatusQueued.String(), approximateTime{now}, workflowID).
+						WithArgs(tt.req.UUID.String(), tt.req.DocKey, enums.DIPStatusQueued.String(), approximateTime{now}).
 						WillReturnResult(sqlmock.NewResult(1, 1))
 				} else if tt.update {
 					if tt.want.ExpiresAt.IsZero() {
@@ -380,7 +375,7 @@ func TestUpdateDIP(t *testing.T) {
 	}{
 		{
 			name: "Updates all mutable DIP columns without changing immutable fields",
-			set:  "`status` = ?, `error_message` = ?, `started_at` = ?, `completed_at` = ?, `expires_at` = ?, `object_key` = ?",
+			set:  "`status` = ?, `error_message` = ?, `started_at` = ?, `completed_at` = ?, `expires_at` = ?, `object_key` = ?, `workflow_id` = ?",
 			args: []driver.Value{
 				"done",
 				"new error",
@@ -388,6 +383,7 @@ func TestUpdateDIP(t *testing.T) {
 				completed2,
 				completed2.Add(time.Hour),
 				"dips/new.zip",
+				"changed",
 				1,
 			},
 			dip: &datatypes.DIP{
@@ -427,6 +423,7 @@ func TestUpdateDIP(t *testing.T) {
 					CompletedAt:  completed2,
 					ExpiresAt:    completed2.Add(time.Hour),
 					ObjectKey:    "dips/new.zip",
+					WorkflowID:   "changed",
 				}
 			},
 		},
@@ -571,12 +568,11 @@ func TestUpdateDIP(t *testing.T) {
 
 			svc, mock := setUpMockClient(t, logr.Discard())
 			createdAt := started.Add(-time.Hour)
-			workflowID := "create-dip-" + dipUUID.String()
 			rows := func(d *datatypes.DIP) *sqlmock.Rows {
 				r := sqlmock.NewRows(dip.Columns)
 				if d != nil {
 					r.AddRow(1, d.UUID.String(), d.DocKey, d.Status.String(), d.ErrorMessage,
-						createdAt, d.StartedAt, d.CompletedAt, d.ExpiresAt, d.ObjectKey, workflowID)
+						createdAt, d.StartedAt, d.CompletedAt, d.ExpiresAt, d.ObjectKey, d.WorkflowID)
 				}
 				return r
 			}
@@ -588,7 +584,6 @@ func TestUpdateDIP(t *testing.T) {
 				mock.ExpectRollback()
 			} else {
 				want = tt.want(createdAt)
-				want.WorkflowID = workflowID
 				mock.ExpectExec(regexp.QuoteMeta("UPDATE `dip` SET " + tt.set + " WHERE `id` = ?")).
 					WithArgs(tt.args...).WillReturnResult(sqlmock.NewResult(0, 1))
 				mock.ExpectQuery("SELECT .* FROM `dip` WHERE `id` = ").WithArgs(1).

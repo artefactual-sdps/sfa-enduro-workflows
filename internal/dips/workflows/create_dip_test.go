@@ -1730,10 +1730,15 @@ func (s *CreateDIPTestSuite) expectDIPCleanup(d datatypes.DIP) {
 }
 
 func updateParams(d datatypes.DIP) *activities.UpdateDIPParams {
+	var workflowID string
+	if d.Status == enums.DIPStatusInProgress {
+		workflowID = "default-test-workflow-id"
+	}
 	return &activities.UpdateDIPParams{
 		UUID:         d.UUID,
 		Status:       d.Status,
 		ObjectKey:    d.ObjectKey,
 		ErrorMessage: d.ErrorMessage,
+		WorkflowID:   workflowID,
 	}
 }

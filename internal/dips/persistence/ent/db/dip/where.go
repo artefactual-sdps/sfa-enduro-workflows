@@ -631,6 +631,16 @@ func WorkflowIDHasSuffix(v string) predicate.DIP {
 	return predicate.DIP(sql.FieldHasSuffix(FieldWorkflowID, v))
 }
 
+// WorkflowIDIsNil applies the IsNil predicate on the "workflow_id" field.
+func WorkflowIDIsNil() predicate.DIP {
+	return predicate.DIP(sql.FieldIsNull(FieldWorkflowID))
+}
+
+// WorkflowIDNotNil applies the NotNil predicate on the "workflow_id" field.
+func WorkflowIDNotNil() predicate.DIP {
+	return predicate.DIP(sql.FieldNotNull(FieldWorkflowID))
+}
+
 // WorkflowIDEqualFold applies the EqualFold predicate on the "workflow_id" field.
 func WorkflowIDEqualFold(v string) predicate.DIP {
 	return predicate.DIP(sql.FieldEqualFold(FieldWorkflowID, v))

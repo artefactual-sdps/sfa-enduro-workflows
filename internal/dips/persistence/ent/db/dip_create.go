@@ -130,6 +130,14 @@ func (_c *DIPCreate) SetWorkflowID(v string) *DIPCreate {
 	return _c
 }
 
+// SetNillableWorkflowID sets the "workflow_id" field if the given value is not nil.
+func (_c *DIPCreate) SetNillableWorkflowID(v *string) *DIPCreate {
+	if v != nil {
+		_c.SetWorkflowID(*v)
+	}
+	return _c
+}
+
 // Mutation returns the DIPMutation object of the builder.
 func (_c *DIPCreate) Mutation() *DIPMutation {
 	return _c.mutation
@@ -189,9 +197,6 @@ func (_c *DIPCreate) check() error {
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`db: missing required field "DIP.created_at"`)}
-	}
-	if _, ok := _c.mutation.WorkflowID(); !ok {
-		return &ValidationError{Name: "workflow_id", err: errors.New(`db: missing required field "DIP.workflow_id"`)}
 	}
 	return nil
 }
