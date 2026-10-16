@@ -66,7 +66,7 @@ func TestUpdateDIP(t *testing.T) {
 			},
 		},
 		{
-			name: "Publishes without retention",
+			name: "Marks the DIP done without setting an expiry",
 			params: &activities.UpdateDIPParams{
 				UUID:      dipUUID,
 				Status:    enums.DIPStatusDone,
@@ -140,7 +140,7 @@ func TestUpdateDIP(t *testing.T) {
 			},
 		},
 		{
-			name: "Preserves renewed publication",
+			name: "Retrying completion preserves the renewed expiry",
 			params: &activities.UpdateDIPParams{
 				UUID:         dipUUID,
 				Status:       enums.DIPStatusDone,
@@ -172,13 +172,12 @@ func TestUpdateDIP(t *testing.T) {
 			},
 		},
 		{
-			name: "Preserves indefinite publication",
+			name: "Retrying completion preserves indefinite retention",
 			params: &activities.UpdateDIPParams{
-				UUID:         dipUUID,
-				Status:       enums.DIPStatusDone,
-				ObjectKey:    "replacement.zip",
-				Retention:    time.Hour,
-				ErrorMessage: "retry failed",
+				UUID:      dipUUID,
+				Status:    enums.DIPStatusDone,
+				ObjectKey: "replacement.zip",
+				Retention: time.Hour,
 			},
 			current: &datatypes.DIP{
 				DBID:        1,
@@ -204,7 +203,7 @@ func TestUpdateDIP(t *testing.T) {
 			},
 		},
 		{
-			name: "Preserves publication after failure",
+			name: "Doesn't update done DIP to failed",
 			params: &activities.UpdateDIPParams{
 				UUID:         dipUUID,
 				Status:       enums.DIPStatusFailed,
@@ -236,13 +235,12 @@ func TestUpdateDIP(t *testing.T) {
 			},
 		},
 		{
-			name: "Preserves publication after start",
+			name: "Doesn't update done DIP to in progress",
 			params: &activities.UpdateDIPParams{
-				UUID:         dipUUID,
-				Status:       enums.DIPStatusInProgress,
-				ObjectKey:    "replacement.zip",
-				Retention:    time.Hour,
-				ErrorMessage: "retry failed",
+				UUID:      dipUUID,
+				Status:    enums.DIPStatusInProgress,
+				ObjectKey: "replacement.zip",
+				Retention: time.Hour,
 			},
 			current: &datatypes.DIP{
 				DBID:        1,
@@ -268,7 +266,7 @@ func TestUpdateDIP(t *testing.T) {
 			},
 		},
 		{
-			name: "Preserves failure after publication",
+			name: "Doesn't update failed DIP state",
 			params: &activities.UpdateDIPParams{
 				UUID:         dipUUID,
 				Status:       enums.DIPStatusDone,
@@ -300,7 +298,7 @@ func TestUpdateDIP(t *testing.T) {
 			},
 		},
 		{
-			name: "Preserves deletion after publication",
+			name: "Doesn't update deleted DIP status",
 			params: &activities.UpdateDIPParams{
 				UUID:         dipUUID,
 				Status:       enums.DIPStatusDone,
@@ -389,7 +387,7 @@ func TestUpdateDIP(t *testing.T) {
 			},
 		},
 		{
-			name: "Preserves a renewed DIP",
+			name: "Ignores deletion when DIP expiration is in the future",
 			params: &activities.UpdateDIPParams{
 				UUID:   dipUUID,
 				Status: enums.DIPStatusDeleted,
@@ -418,7 +416,7 @@ func TestUpdateDIP(t *testing.T) {
 			},
 		},
 		{
-			name: "Preserves an indefinite DIP",
+			name: "Never deletes a DIP with an indefinite expiration",
 			params: &activities.UpdateDIPParams{
 				UUID:   dipUUID,
 				Status: enums.DIPStatusDeleted,
@@ -533,8 +531,8 @@ func TestUpdateDIP(t *testing.T) {
 			enc, err := env.ExecuteActivity(activities.UpdateDIPName, tt.params)
 			if tt.wantErr != "" {
 				assert.ErrorContains(t, err, tt.wantErr)
-				var appErr *temporalsdk_temporal.ApplicationError
-				assert.Assert(t, errors.As(err, &appErr))
+				appErr, ok := errors.AsType[*temporalsdk_temporal.ApplicationError](err)
+				assert.Assert(t, ok)
 				assert.Equal(t, appErr.NonRetryable(), tt.nonRetryable)
 				return
 			}

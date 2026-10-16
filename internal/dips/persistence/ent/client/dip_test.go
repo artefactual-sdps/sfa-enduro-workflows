@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"entgo.io/ent/dialect"
-	entsql "entgo.io/ent/dialect/sql"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -18,22 +16,21 @@ import (
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/datatypes"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/enums"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence"
-	entclient "github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence/ent/client"
-	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence/ent/db"
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence/ent/db/dip"
 )
 
-func TestGetOrCreateDIP(t *testing.T) {
+func TestRequestDIP(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now().UTC()
+	workflowID := "create-dip-" + dipUUID.String()
 	created := datatypes.DIP{
 		DBID:       1,
 		UUID:       dipUUID,
 		DocKey:     "CH-000001",
 		Status:     enums.DIPStatusQueued,
 		CreatedAt:  now,
-		WorkflowID: "create-dip-" + dipUUID.String(),
+		WorkflowID: workflowID,
 	}
 	cached := created
 	cached.UUID = uuid.MustParse("c822307a-b224-4c6d-a03e-9bc24345dc2b")
@@ -44,8 +41,6 @@ func TestGetOrCreateDIP(t *testing.T) {
 	cached.CompletedAt = cached.StartedAt.Add(time.Minute)
 	cached.ObjectKey = "dips/CH-000001.zip"
 	cached.ExpiresAt = now.Add(30 * time.Minute)
-	renewed := cached
-	renewed.ExpiresAt = now.Add(time.Hour)
 	indefinite := cached
 	indefinite.ExpiresAt = time.Time{}
 	queued := cached
@@ -56,12 +51,10 @@ func TestGetOrCreateDIP(t *testing.T) {
 	pending.Status = enums.DIPStatusInProgress
 	expired := cached
 	expired.ExpiresAt = now.Add(-time.Minute)
-	missingObject := cached
-	missingObject.ObjectKey = ""
 
 	for _, tt := range []struct {
 		name     string
-		req      persistence.GetOrCreateRequest
+		req      persistence.RequestDIPParams
 		existing []datatypes.DIP
 		want     *datatypes.DIP
 		update   bool
@@ -69,139 +62,231 @@ func TestGetOrCreateDIP(t *testing.T) {
 	}{
 		{
 			name: "Creates a DIP",
-			req: persistence.GetOrCreateRequest{
+			req: persistence.RequestDIPParams{
 				UUID:      dipUUID,
 				DocKey:    "CH-000001",
 				Retention: time.Hour,
 			},
-			want: &created,
-		},
-		{
-			name: "Creates a DIP without retention",
-			req: persistence.GetOrCreateRequest{
-				UUID:      dipUUID,
-				DocKey:    "CH-000001",
-				Retention: 0,
+			want: &datatypes.DIP{
+				DBID:       1,
+				UUID:       dipUUID,
+				DocKey:     "CH-000001",
+				Status:     enums.DIPStatusQueued,
+				CreatedAt:  now,
+				WorkflowID: workflowID,
 			},
-			want: &created,
 		},
 		{
 			name: "Reuses a queued DIP",
-			req: persistence.GetOrCreateRequest{
+			req: persistence.RequestDIPParams{
 				UUID:      dipUUID,
 				DocKey:    "CH-000001",
 				Retention: time.Hour,
 			},
 			existing: []datatypes.DIP{queued},
-			want:     &queued,
+			want: &datatypes.DIP{
+				DBID:        1,
+				UUID:        uuid.MustParse("c822307a-b224-4c6d-a03e-9bc24345dc2b"),
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusQueued,
+				CreatedAt:   now.Add(-time.Hour),
+				StartedAt:   now.Add(-time.Hour + time.Minute),
+				CompletedAt: now.Add(-time.Hour + 2*time.Minute),
+				ExpiresAt:   time.Time{},
+				ObjectKey:   "",
+				WorkflowID:  "create-dip-c822307a-b224-4c6d-a03e-9bc24345dc2b",
+			},
 		},
 		{
 			name: "Reuses an in progress DIP when ignoring cache",
-			req: persistence.GetOrCreateRequest{
+			// Retention is ignored while the DIP is still in progress.
+			req: persistence.RequestDIPParams{
 				UUID:        dipUUID,
 				DocKey:      "CH-000001",
 				IgnoreCache: true,
 				Retention:   time.Hour,
 			},
 			existing: []datatypes.DIP{pending},
-			want:     &pending,
+			want: &datatypes.DIP{
+				DBID:        1,
+				UUID:        uuid.MustParse("c822307a-b224-4c6d-a03e-9bc24345dc2b"),
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusInProgress,
+				CreatedAt:   now.Add(-time.Hour),
+				StartedAt:   now.Add(-time.Hour + time.Minute),
+				CompletedAt: now.Add(-time.Hour + 2*time.Minute),
+				ExpiresAt:   time.Time{},
+				ObjectKey:   "",
+				WorkflowID:  "create-dip-c822307a-b224-4c6d-a03e-9bc24345dc2b",
+			},
 		},
 		{
 			name: "Prefers pending over cached",
-			req: persistence.GetOrCreateRequest{
+			// Retention is ignored because the pending DIP is reused.
+			req: persistence.RequestDIPParams{
 				UUID:      dipUUID,
 				DocKey:    "CH-000001",
 				Retention: time.Hour,
 			},
 			existing: []datatypes.DIP{cached, pending},
-			want:     &pending,
+			want: &datatypes.DIP{
+				DBID:        1,
+				UUID:        uuid.MustParse("c822307a-b224-4c6d-a03e-9bc24345dc2b"),
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusInProgress,
+				CreatedAt:   now.Add(-time.Hour),
+				StartedAt:   now.Add(-time.Hour + time.Minute),
+				CompletedAt: now.Add(-time.Hour + 2*time.Minute),
+				ExpiresAt:   time.Time{},
+				ObjectKey:   "",
+				WorkflowID:  "create-dip-c822307a-b224-4c6d-a03e-9bc24345dc2b",
+			},
 		},
 		{
 			name: "Renews a cached DIP",
-			req: persistence.GetOrCreateRequest{
+			req: persistence.RequestDIPParams{
 				UUID:      dipUUID,
 				DocKey:    "CH-000001",
 				Retention: time.Hour,
 			},
 			existing: []datatypes.DIP{cached},
-			want:     &renewed,
-			update:   true,
+			want: &datatypes.DIP{
+				DBID:        1,
+				UUID:        uuid.MustParse("c822307a-b224-4c6d-a03e-9bc24345dc2b"),
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDone,
+				CreatedAt:   now.Add(-time.Hour),
+				StartedAt:   now.Add(-time.Hour + time.Minute),
+				CompletedAt: now.Add(-time.Hour + 2*time.Minute),
+				ExpiresAt:   now.Add(time.Hour),
+				ObjectKey:   "dips/CH-000001.zip",
+				WorkflowID:  "create-dip-c822307a-b224-4c6d-a03e-9bc24345dc2b",
+			},
+			update: true,
 		},
 		{
 			name: "Does not shorten retention",
-			req: persistence.GetOrCreateRequest{
+			req: persistence.RequestDIPParams{
 				UUID:      dipUUID,
 				DocKey:    "CH-000001",
 				Retention: time.Minute,
 			},
 			existing: []datatypes.DIP{cached},
-			want:     &cached,
+			want: &datatypes.DIP{
+				DBID:        1,
+				UUID:        uuid.MustParse("c822307a-b224-4c6d-a03e-9bc24345dc2b"),
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDone,
+				CreatedAt:   now.Add(-time.Hour),
+				StartedAt:   now.Add(-time.Hour + time.Minute),
+				CompletedAt: now.Add(-time.Hour + 2*time.Minute),
+				ExpiresAt:   now.Add(30 * time.Minute),
+				ObjectKey:   "dips/CH-000001.zip",
+				WorkflowID:  "create-dip-c822307a-b224-4c6d-a03e-9bc24345dc2b",
+			},
 		},
 		{
 			name: "Clears retention",
-			req: persistence.GetOrCreateRequest{
+			req: persistence.RequestDIPParams{
 				UUID:      dipUUID,
 				DocKey:    "CH-000001",
 				Retention: 0,
 			},
 			existing: []datatypes.DIP{cached},
-			want:     &indefinite,
-			update:   true,
+			want: &datatypes.DIP{
+				DBID:        1,
+				UUID:        uuid.MustParse("c822307a-b224-4c6d-a03e-9bc24345dc2b"),
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDone,
+				CreatedAt:   now.Add(-time.Hour),
+				StartedAt:   now.Add(-time.Hour + time.Minute),
+				CompletedAt: now.Add(-time.Hour + 2*time.Minute),
+				ExpiresAt:   time.Time{},
+				ObjectKey:   "dips/CH-000001.zip",
+				WorkflowID:  "create-dip-c822307a-b224-4c6d-a03e-9bc24345dc2b",
+			},
+			update: true,
 		},
 		{
 			name: "Preserves indefinite retention",
-			req: persistence.GetOrCreateRequest{
+			req: persistence.RequestDIPParams{
 				UUID:      dipUUID,
 				DocKey:    "CH-000001",
 				Retention: time.Hour,
 			},
 			existing: []datatypes.DIP{indefinite},
-			want:     &indefinite,
+			want: &datatypes.DIP{
+				DBID:        1,
+				UUID:        uuid.MustParse("c822307a-b224-4c6d-a03e-9bc24345dc2b"),
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDone,
+				CreatedAt:   now.Add(-time.Hour),
+				StartedAt:   now.Add(-time.Hour + time.Minute),
+				CompletedAt: now.Add(-time.Hour + 2*time.Minute),
+				ExpiresAt:   time.Time{},
+				ObjectKey:   "dips/CH-000001.zip",
+				WorkflowID:  "create-dip-c822307a-b224-4c6d-a03e-9bc24345dc2b",
+			},
 		},
 		{
 			name: "Ignores a cached DIP",
-			req: persistence.GetOrCreateRequest{
+			req: persistence.RequestDIPParams{
 				UUID:        dipUUID,
 				DocKey:      "CH-000001",
 				IgnoreCache: true,
 				Retention:   time.Hour,
 			},
 			existing: []datatypes.DIP{cached},
-			want:     &created,
+			want: &datatypes.DIP{
+				DBID:       1,
+				UUID:       dipUUID,
+				DocKey:     "CH-000001",
+				Status:     enums.DIPStatusQueued,
+				CreatedAt:  now,
+				WorkflowID: workflowID,
+			},
 		},
 		{
 			name: "Skips an expired DIP",
-			req: persistence.GetOrCreateRequest{
+			req: persistence.RequestDIPParams{
 				UUID:      dipUUID,
 				DocKey:    "CH-000001",
 				Retention: time.Hour,
 			},
 			existing: []datatypes.DIP{expired},
-			want:     &created,
-		},
-		{
-			name: "Skips a DIP without an object",
-			req: persistence.GetOrCreateRequest{
-				UUID:      dipUUID,
-				DocKey:    "CH-000001",
-				Retention: time.Hour,
+			want: &datatypes.DIP{
+				DBID:       1,
+				UUID:       dipUUID,
+				DocKey:     "CH-000001",
+				Status:     enums.DIPStatusQueued,
+				CreatedAt:  now,
+				WorkflowID: workflowID,
 			},
-			existing: []datatypes.DIP{missingObject},
-			want:     &created,
 		},
 		{
 			name: "Falls back to a usable cached DIP",
-			req: persistence.GetOrCreateRequest{
+			req: persistence.RequestDIPParams{
 				UUID:      dipUUID,
 				DocKey:    "CH-000001",
 				Retention: time.Minute,
 			},
 			existing: []datatypes.DIP{expired, cached},
-			want:     &cached,
+			want: &datatypes.DIP{
+				DBID:        1,
+				UUID:        uuid.MustParse("c822307a-b224-4c6d-a03e-9bc24345dc2b"),
+				DocKey:      "CH-000001",
+				Status:      enums.DIPStatusDone,
+				CreatedAt:   now.Add(-time.Hour),
+				StartedAt:   now.Add(-time.Hour + time.Minute),
+				CompletedAt: now.Add(-time.Hour + 2*time.Minute),
+				ExpiresAt:   now.Add(30 * time.Minute),
+				ObjectKey:   "dips/CH-000001.zip",
+				WorkflowID:  "create-dip-c822307a-b224-4c6d-a03e-9bc24345dc2b",
+			},
 		},
 		{
 			name: "Missing UUID",
-			req: persistence.GetOrCreateRequest{
+			req: persistence.RequestDIPParams{
 				DocKey:    "CH-000001",
 				Retention: time.Hour,
 			},
@@ -209,7 +294,7 @@ func TestGetOrCreateDIP(t *testing.T) {
 		},
 		{
 			name: "Missing DocKey",
-			req: persistence.GetOrCreateRequest{
+			req: persistence.RequestDIPParams{
 				UUID:      dipUUID,
 				Retention: time.Hour,
 			},
@@ -217,7 +302,7 @@ func TestGetOrCreateDIP(t *testing.T) {
 		},
 		{
 			name: "Negative retention",
-			req: persistence.GetOrCreateRequest{
+			req: persistence.RequestDIPParams{
 				UUID:      dipUUID,
 				DocKey:    "CH-000001",
 				Retention: -time.Second,
@@ -228,12 +313,7 @@ func TestGetOrCreateDIP(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			// SQLite cannot execute FOR UPDATE.
-			sqlDB, mock, err := sqlmock.New()
-			assert.NilError(t, err)
-			entc := db.NewClient(db.Driver(entsql.OpenDB(dialect.MySQL, sqlDB)))
-			t.Cleanup(func() { entc.Close() })
-			svc := entclient.New(logr.Discard(), entc)
+			svc, mock := setUpMockClient(t, logr.Discard())
 			rows := func(ds ...datatypes.DIP) *sqlmock.Rows {
 				r := sqlmock.NewRows(dip.Columns)
 				for _, d := range ds {
@@ -249,7 +329,7 @@ func TestGetOrCreateDIP(t *testing.T) {
 					WillReturnRows(rows(tt.existing...))
 				if tt.want.UUID == tt.req.UUID {
 					mock.ExpectExec("INSERT INTO `dip`").
-						WithArgs(tt.req.UUID.String(), tt.req.DocKey, enums.DIPStatusQueued.String(), approximateTime{now}, created.WorkflowID).
+						WithArgs(tt.req.UUID.String(), tt.req.DocKey, enums.DIPStatusQueued.String(), approximateTime{now}, workflowID).
 						WillReturnResult(sqlmock.NewResult(1, 1))
 				} else if tt.update {
 					if tt.want.ExpiresAt.IsZero() {
@@ -266,7 +346,7 @@ func TestGetOrCreateDIP(t *testing.T) {
 				mock.ExpectCommit()
 			}
 
-			d, err := svc.GetOrCreateDIP(t.Context(), tt.req)
+			d, err := svc.RequestDIP(t.Context(), tt.req)
 			if tt.wantErr != "" {
 				assert.Error(t, err, tt.wantErr)
 				assert.Assert(t, d == nil)
@@ -317,6 +397,7 @@ func TestUpdateDIP(t *testing.T) {
 				ErrorMessage: "old error",
 				StartedAt:    started,
 				CompletedAt:  completed,
+				ExpiresAt:    completed.Add(time.Hour),
 				ObjectKey:    "dips/old.zip",
 			},
 			id: dipUUID,
@@ -380,6 +461,34 @@ func TestUpdateDIP(t *testing.T) {
 			},
 		},
 		{
+			name: "Does not reduce expiry",
+			set:  "`status` = ?, `object_key` = ?",
+			args: []driver.Value{"done", "dips/original.zip", 1},
+			dip: &datatypes.DIP{
+				UUID:      dipUUID,
+				DocKey:    "CH-000001",
+				Status:    enums.DIPStatusDone,
+				ExpiresAt: completed.Add(time.Hour),
+				ObjectKey: "dips/original.zip",
+			},
+			id: dipUUID,
+			updater: func(d *datatypes.DIP) (*datatypes.DIP, error) {
+				d.ExpiresAt = completed.Add(30 * time.Minute)
+				return d, nil
+			},
+			want: func(createdAt time.Time) *datatypes.DIP {
+				return &datatypes.DIP{
+					DBID:      1,
+					UUID:      dipUUID,
+					DocKey:    "CH-000001",
+					Status:    enums.DIPStatusDone,
+					CreatedAt: createdAt,
+					ExpiresAt: completed.Add(time.Hour),
+					ObjectKey: "dips/original.zip",
+				}
+			},
+		},
+		{
 			name: "Ignores an invalid status",
 			set:  "`object_key` = NULL, `started_at` = ?",
 			args: []driver.Value{started, 1},
@@ -425,17 +534,15 @@ func TestUpdateDIP(t *testing.T) {
 			args: []driver.Value{"deleted", 1},
 			want: func(createdAt time.Time) *datatypes.DIP {
 				return &datatypes.DIP{
-					DBID:   1,
-					UUID:   dipUUID,
-					DocKey: "CH-000001",
-
+					DBID:         1,
+					UUID:         dipUUID,
+					DocKey:       "CH-000001",
 					Status:       enums.DIPStatusDeleted,
 					ErrorMessage: "old error",
 					CreatedAt:    createdAt,
-
-					StartedAt:   started,
-					CompletedAt: completed,
-					ExpiresAt:   completed.Add(time.Hour),
+					StartedAt:    started,
+					CompletedAt:  completed,
+					ExpiresAt:    completed.Add(time.Hour),
 				}
 			},
 		},
@@ -462,12 +569,7 @@ func TestUpdateDIP(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			// SQLite cannot execute FOR UPDATE.
-			sqlDB, mock, err := sqlmock.New()
-			assert.NilError(t, err)
-			entc := db.NewClient(db.Driver(entsql.OpenDB(dialect.MySQL, sqlDB)))
-			t.Cleanup(func() { entc.Close() })
-			svc := entclient.New(logr.Discard(), entc)
+			svc, mock := setUpMockClient(t, logr.Discard())
 			createdAt := started.Add(-time.Hour)
 			workflowID := "create-dip-" + dipUUID.String()
 			rows := func(d *datatypes.DIP) *sqlmock.Rows {

@@ -12,7 +12,7 @@ paths:
             tags:
                 - DIPs
             summary: create DIPs
-            description: The create method requests DIP creation. It may return a new ID or an existing one from the cache.
+            description: The create method requests DIP creation for the given document key. It may return the ID of a new DIP or a previously cached DIP.
             operationId: DIPs#create
             requestBody:
                 description: Request body for create.
@@ -26,7 +26,7 @@ paths:
                                     $ref: '#/components/schemas/DocKey'
                                 ignoreCache:
                                     type: boolean
-                                    description: When true, creates a new DIP unless one is already queued or in progress.
+                                    description: When ignoreCache is true it forces the creation of a new DIP for the given docKey, unless a previous DIP request is still queued or in progress.
                                     default: false
                                     example: true
                             example:

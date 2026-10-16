@@ -23,8 +23,8 @@ type Service interface {
 	// service is running, but does not guarantee that it is able to process
 	// requests successfully.
 	Livez(context.Context) (err error)
-	// The create method requests DIP creation. It may return a new ID or an
-	// existing one from the cache.
+	// The create method requests DIP creation for the given document key. It may
+	// return the ID of a new DIP or a previously cached DIP.
 	Create(context.Context, *CreatePayload) (res *CreateResult, err error)
 	// The show method retrieves DIP details.
 	Show(context.Context, *ShowPayload) (res *ShowResult, err error)
@@ -58,7 +58,8 @@ type CreatePayload struct {
 	Token *string
 	// The docKey field contains the document key used to create the DIP.
 	DocKey DocKey
-	// When true, creates a new DIP unless one is already queued or in progress.
+	// When ignoreCache is true it forces the creation of a new DIP for the given
+	// docKey, unless a previous DIP request is still queued or in progress.
 	IgnoreCache bool
 }
 
@@ -101,17 +102,18 @@ type ShowResult struct {
 	Status DIPStatus
 	// The error_message field contains an error message if the DIP failed.
 	ErrorMessage *string
-	// The created_at field contains the time when the DIP was first requested.
+	// created_at is the time when the DIP was first requested.
 	CreatedAt DateTime
-	// The started_at field contains the time when DIP generation started.
+	// started_at is the time when DIP generation started.
 	StartedAt *DateTime
-	// The completed_at field contains the time when DIP generation completed.
+	// completed_at is the time when DIP generation completed.
 	CompletedAt *DateTime
-	// The expires_at field contains the time when the DIP expires. Reusing a
-	// stored DIP may extend or remove it. Omitted when no expiry is set.
+	// expires_at is the time when a cached DIP expires for a given docKey.
+	// Requesting the creation of a new DIP for this docKey may extend or remove
+	// the expiry time. expires_at is omitted when no expiry is set.
 	ExpiresAt *DateTime
-	// The object_key field contains the object store key for a completed DIP.
-	// Omitted before completion or after deletion.
+	// object_key is the object store key for the generated DIP. Omitted before DIP
+	// generation completes and after deletion.
 	ObjectKey *ObjectKey
 }
 

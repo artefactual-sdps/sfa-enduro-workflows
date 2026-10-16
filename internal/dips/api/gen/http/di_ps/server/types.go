@@ -32,17 +32,18 @@ type ShowResponseBody struct {
 	Status string `form:"status" json:"status" xml:"status"`
 	// The error_message field contains an error message if the DIP failed.
 	ErrorMessage *string `form:"error_message,omitempty" json:"error_message,omitempty" xml:"error_message,omitempty"`
-	// The created_at field contains the time when the DIP was first requested.
+	// created_at is the time when the DIP was first requested.
 	CreatedAt string `form:"created_at" json:"created_at" xml:"created_at"`
-	// The started_at field contains the time when DIP generation started.
+	// started_at is the time when DIP generation started.
 	StartedAt *string `form:"started_at,omitempty" json:"started_at,omitempty" xml:"started_at,omitempty"`
-	// The completed_at field contains the time when DIP generation completed.
+	// completed_at is the time when DIP generation completed.
 	CompletedAt *string `form:"completed_at,omitempty" json:"completed_at,omitempty" xml:"completed_at,omitempty"`
-	// The expires_at field contains the time when the DIP expires. Reusing a
-	// stored DIP may extend or remove it. Omitted when no expiry is set.
+	// expires_at is the time when a cached DIP expires for a given docKey.
+	// Requesting the creation of a new DIP for this docKey may extend or remove
+	// the expiry time. expires_at is omitted when no expiry is set.
 	ExpiresAt *string `form:"expires_at,omitempty" json:"expires_at,omitempty" xml:"expires_at,omitempty"`
-	// The object_key field contains the object store key for a completed DIP.
-	// Omitted before completion or after deletion.
+	// object_key is the object store key for the generated DIP. Omitted before DIP
+	// generation completes and after deletion.
 	ObjectKey *string `form:"object_key,omitempty" json:"object_key,omitempty" xml:"object_key,omitempty"`
 }
 
@@ -344,7 +345,8 @@ func NewShowInternalErrorResponseBody(res *goa.ServiceError) *ShowInternalErrorR
 func NewCreatePayload(body struct {
 	// The docKey field contains the document key used to create the DIP.
 	DocKey *string `form:"docKey" json:"docKey" xml:"docKey"`
-	// When true, creates a new DIP unless one is already queued or in progress.
+	// When ignoreCache is true it forces the creation of a new DIP for the given
+	// docKey, unless a previous DIP request is still queued or in progress.
 	IgnoreCache *bool `form:"ignoreCache" json:"ignoreCache" xml:"ignoreCache"`
 }, token *string) *dips.CreatePayload {
 	v := &dips.CreatePayload{}

@@ -11,7 +11,7 @@ paths:
             tags:
                 - DIPs
             summary: create DIPs
-            description: The create method requests DIP creation. It may return a new ID or an existing one from the cache.
+            description: The create method requests DIP creation for the given document key. It may return the ID of a new DIP or a previously cached DIP.
             operationId: DIPs#create
             requestBody:
                 description: Request body for create.
@@ -29,7 +29,7 @@ paths:
                                     maxLength: 1024
                                 ignoreCache:
                                     type: boolean
-                                    description: When true, creates a new DIP unless one is already queued or in progress.
+                                    description: When ignoreCache is true it forces the creation of a new DIP for the given docKey, unless a previous DIP request is still queued or in progress.
                                     default: false
                                     example: true
                             example:
@@ -206,12 +206,12 @@ components:
             properties:
                 completed_at:
                     type: string
-                    description: The completed_at field contains the time when DIP generation completed.
+                    description: completed_at is the time when DIP generation completed.
                     example: "2026-05-27T15:04:05Z"
                     format: date-time
                 created_at:
                     type: string
-                    description: The created_at field contains the time when the DIP was first requested.
+                    description: created_at is the time when the DIP was first requested.
                     example: "2026-05-27T15:04:05Z"
                     format: date-time
                 docKey:
@@ -226,7 +226,7 @@ components:
                     example: 'ACTAPro returned: 404 Not Found; Document not found'
                 expires_at:
                     type: string
-                    description: The expires_at field contains the time when the DIP expires. Reusing a stored DIP may extend or remove it. Omitted when no expiry is set.
+                    description: expires_at is the time when a cached DIP expires for a given docKey. Requesting the creation of a new DIP for this docKey may extend or remove the expiry time. expires_at is omitted when no expiry is set.
                     example: "2026-05-27T15:04:05Z"
                     format: date-time
                 id:
@@ -236,12 +236,12 @@ components:
                     format: uuid
                 object_key:
                     type: string
-                    description: The object_key field contains the object store key for a completed DIP. Omitted before completion or after deletion.
+                    description: object_key is the object store key for the generated DIP. Omitted before DIP generation completes and after deletion.
                     example: DIP_3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb.zip
                     minLength: 1
                 started_at:
                     type: string
-                    description: The started_at field contains the time when DIP generation started.
+                    description: started_at is the time when DIP generation started.
                     example: "2026-05-27T15:04:05Z"
                     format: date-time
                 status:

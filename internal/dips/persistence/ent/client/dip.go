@@ -15,8 +15,11 @@ import (
 	"github.com/artefactual-sdps/sfa-enduro-workflows/internal/dips/persistence/ent/db/dip"
 )
 
-// GetOrCreateDIP reuses a pending DIP, renews a cached DIP, or creates a new generation.
-func (c *client) GetOrCreateDIP(ctx context.Context, req persistence.GetOrCreateRequest) (*datatypes.DIP, error) {
+// RequestDIP reuses a pending DIP, renews a cached DIP, or creates a new generation.
+// Retention is only applied when reusing a completed DIP. For new, queued, or
+// in-progress DIPs, no expiry is set here; the workflow sets it on completion
+// using its configured retention period.
+func (c *client) RequestDIP(ctx context.Context, req persistence.RequestDIPParams) (*datatypes.DIP, error) {
 	if req.UUID == uuid.Nil {
 		return nil, newRequiredFieldError("UUID")
 	}
@@ -53,7 +56,7 @@ func (c *client) GetOrCreateDIP(ctx context.Context, req persistence.GetOrCreate
 		}
 
 		// If the generation is cached, only select it if the ignoreCache flag is false and it has not expired.
-		if selected == nil && !req.IgnoreCache && d.Status == enums.DIPStatusDone && d.ObjectKey != "" &&
+		if selected == nil && !req.IgnoreCache && d.Status == enums.DIPStatusDone &&
 			(d.ExpiresAt.IsZero() || d.ExpiresAt.After(now)) {
 			selected = d
 		}
@@ -100,7 +103,7 @@ func (c *client) GetOrCreateDIP(ctx context.Context, req persistence.GetOrCreate
 				(d.Status == enums.DIPStatusQueued || d.Status == enums.DIPStatusInProgress) {
 				return d, nil
 			}
-			if selected.Status == enums.DIPStatusDone && d.Status == enums.DIPStatusDone && d.ObjectKey != "" &&
+			if selected.Status == enums.DIPStatusDone && d.Status == enums.DIPStatusDone &&
 				(d.ExpiresAt.IsZero() || (!selected.ExpiresAt.IsZero() &&
 					!d.ExpiresAt.Before(selected.ExpiresAt) && d.ExpiresAt.After(time.Now()))) {
 				return d, nil
@@ -165,7 +168,7 @@ func (c *client) UpdateDIP(
 	if !up.CompletedAt.IsZero() {
 		q.SetCompletedAt(up.CompletedAt)
 	}
-	if !up.ExpiresAt.IsZero() {
+	if !up.ExpiresAt.IsZero() && up.ExpiresAt.After(dbd.ExpiresAt) {
 		q.SetExpiresAt(up.ExpiresAt)
 	}
 	if up.ObjectKey != "" {

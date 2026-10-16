@@ -82,7 +82,8 @@ func DecodeCreateRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.
 			body struct {
 				// The docKey field contains the document key used to create the DIP.
 				DocKey *string `form:"docKey" json:"docKey" xml:"docKey"`
-				// When true, creates a new DIP unless one is already queued or in progress.
+				// When ignoreCache is true it forces the creation of a new DIP for the given
+				// docKey, unless a previous DIP request is still queued or in progress.
 				IgnoreCache *bool `form:"ignoreCache" json:"ignoreCache" xml:"ignoreCache"`
 			}
 			err error

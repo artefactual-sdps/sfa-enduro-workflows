@@ -21,7 +21,7 @@ var (
 	ErrInternal = errors.New("internal error")
 )
 
-type GetOrCreateRequest struct {
+type RequestDIPParams struct {
 	UUID        uuid.UUID
 	DocKey      string
 	IgnoreCache bool
@@ -31,7 +31,7 @@ type GetOrCreateRequest struct {
 type DIPUpdater func(*datatypes.DIP) (*datatypes.DIP, error)
 
 type Service interface {
-	GetOrCreateDIP(context.Context, GetOrCreateRequest) (*datatypes.DIP, error)
+	RequestDIP(context.Context, RequestDIPParams) (*datatypes.DIP, error)
 	ReadDIP(context.Context, uuid.UUID) (*datatypes.DIP, error)
 	UpdateDIP(context.Context, uuid.UUID, DIPUpdater) (*datatypes.DIP, error)
 	DeleteDIP(context.Context, uuid.UUID) error

@@ -171,7 +171,7 @@ func TestCreate(t *testing.T) {
 			name:           "Does not start a workflow when persistence fails",
 			docKey:         "CH-000001",
 			persistenceErr: errors.New("persistence error"),
-			wantErr:        "get or create DIP: persistence error",
+			wantErr:        "request DIP: persistence error",
 			wantErrName:    "internal_error",
 		},
 		{
@@ -231,8 +231,8 @@ func TestCreate(t *testing.T) {
 				return
 			}
 
-			psvc.EXPECT().GetOrCreateDIP(ctx, gomock.Any()).
-				DoAndReturn(func(_ context.Context, req persistence.GetOrCreateRequest) (*datatypes.DIP, error) {
+			psvc.EXPECT().RequestDIP(ctx, gomock.Any()).
+				DoAndReturn(func(_ context.Context, req persistence.RequestDIPParams) (*datatypes.DIP, error) {
 					assert.Assert(t, req.UUID != uuid.Nil)
 					assert.Equal(t, req.DocKey, string(tt.docKey))
 					assert.Equal(t, req.IgnoreCache, tt.ignoreCache)

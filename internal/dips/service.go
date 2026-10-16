@@ -87,18 +87,18 @@ func (svc *svcImpl) Create(ctx context.Context, p *goadips.CreatePayload) (*goad
 		return nil, goadips.MakeBadRequest(errors.New("docKey exceeds 1024 characters"))
 	}
 
-	req := persistence.GetOrCreateRequest{
+	req := persistence.RequestDIPParams{
 		UUID:        uuid.New(),
 		DocKey:      docKey,
 		IgnoreCache: p.IgnoreCache,
 		Retention:   svc.retention,
 	}
-	d, err := svc.psvc.GetOrCreateDIP(ctx, req)
+	d, err := svc.psvc.RequestDIP(ctx, req)
 	if err != nil {
-		return nil, goadips.MakeInternalError(fmt.Errorf("get or create DIP: %v", err))
+		return nil, goadips.MakeInternalError(fmt.Errorf("request DIP: %v", err))
 	}
 
-	// If the returned row has a different UUID, GetOrCreateRequest returned an existing DIP.
+	// If the returned row has a different UUID, RequestDIP returned an existing DIP.
 	if d.UUID != req.UUID {
 		return &goadips.CreateResult{ID: goadips.DIPID(d.UUID.String())}, nil
 	}
