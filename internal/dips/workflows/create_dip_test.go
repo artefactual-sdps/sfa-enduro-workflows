@@ -2,6 +2,7 @@ package workflows_test
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -33,13 +34,14 @@ type CreateDIPTestSuite struct {
 	suite.Suite
 	temporalsdk_testsuite.WorkflowTestSuite
 
-	env        *temporalsdk_testsuite.TestWorkflowEnvironment
-	workflow   *workflows.CreateDIP
-	workingDir string
-	xsdDir     string
-	dip        datatypes.DIP
-	objectKey  string
-	retention  retentionTestOptions
+	env            *temporalsdk_testsuite.TestWorkflowEnvironment
+	workflow       *workflows.CreateDIP
+	workingDir     string
+	xsdDir         string
+	dip            datatypes.DIP
+	objectKey      string
+	retention      retentionTestOptions
+	exportAttempts []exportTestOptions
 }
 
 type retentionTestOptions struct {
@@ -54,6 +56,14 @@ type retentionTestOptions struct {
 	retryDelete            bool
 	cancelDuringCleanup    bool
 	cancelAfterPublication bool
+}
+
+type exportTestOptions struct {
+	failures         []string
+	failedActivity   string
+	err              error
+	activityAttempts int
+	exportStatus     *actapro.PollExportStatusResult
 }
 
 var createDIPTestTime = time.Date(2024, 6, 6, 15, 8, 39, 0, time.UTC)
@@ -121,6 +131,7 @@ func (s *CreateDIPTestSuite) SetupTest() {
 	s.workingDir = s.T().TempDir()
 	s.xsdDir = "/schemas/custom"
 	s.retention = retentionTestOptions{}
+	s.exportAttempts = []exportTestOptions{{}} // One successful export by default.
 	s.workflow = workflows.NewCreateDIP(s.workingDir, s.xsdDir, s.retention.period)
 	s.dip = datatypes.DIP{
 		DBID:      1,
@@ -137,7 +148,142 @@ func TestCreateDIP(t *testing.T) {
 }
 
 func (s *CreateDIPTestSuite) TestSuccess() {
-	s.testSessionResult(nil, 0, nil, nil, nil, nil, nil, nil)
+	for _, tt := range []struct {
+		name           string
+		exportAttempts []exportTestOptions
+	}{
+		{
+			name: "Valid metadata on attempt 1",
+			exportAttempts: []exportTestOptions{
+				{}, // Success.
+			},
+		},
+		{
+			name: "Valid metadata on attempt 2",
+			exportAttempts: []exportTestOptions{
+				{
+					failures: []string{"metadata.xml fails to validate"},
+				},
+				{}, // Success.
+			},
+		},
+		{
+			name: "Valid metadata on attempt 3",
+			exportAttempts: []exportTestOptions{
+				{
+					failures: []string{"metadata.xml fails to validate"},
+				},
+				{
+					failures: []string{"metadata.xml fails to validate"},
+				},
+				{}, // Success.
+			},
+		},
+	} {
+		s.Run(tt.name, func() {
+			s.SetupTest()
+			s.exportAttempts = tt.exportAttempts
+			s.testSessionResult(nil, 0, nil, nil, nil, nil, nil, nil)
+		})
+	}
+}
+
+func (s *CreateDIPTestSuite) TestSuccessAfterExportActivityFailure() {
+	for _, tt := range []struct {
+		name             string
+		activity         string
+		err              error
+		activityAttempts int
+	}{
+		{
+			name:             "creation",
+			activity:         actapro.CreateExportActivityName,
+			err:              errors.New("ACTApro unavailable"),
+			activityAttempts: 3,
+		},
+		{
+			name:             "polling",
+			activity:         actapro.PollExportStatusActivityName,
+			err:              errors.New("ACTApro unavailable"),
+			activityAttempts: 3,
+		},
+		{
+			name:             "download",
+			activity:         actapro.DownloadExportActivityName,
+			err:              errors.New("export generation failed"),
+			activityAttempts: 3,
+		},
+		{
+			name:             "validation",
+			activity:         xmlvalidate.Name,
+			err:              errors.New("cannot read metadata"),
+			activityAttempts: 1,
+		},
+		{
+			name:             "download timeout",
+			activity:         actapro.DownloadExportActivityName,
+			err:              temporalsdk_temporal.NewHeartbeatTimeoutError(),
+			activityAttempts: 3,
+		},
+		{
+			name:             "creation non-retryable",
+			activity:         actapro.CreateExportActivityName,
+			err:              temporalsdk_temporal.NewNonRetryableApplicationError("missing export ID", "", nil),
+			activityAttempts: 1,
+		},
+		{
+			name:             "polling non-retryable",
+			activity:         actapro.PollExportStatusActivityName,
+			err:              temporalsdk_temporal.NewNonRetryableApplicationError("export not found", "", nil),
+			activityAttempts: 1,
+		},
+		{
+			name:             "download non-retryable",
+			activity:         actapro.DownloadExportActivityName,
+			err:              temporalsdk_temporal.NewNonRetryableApplicationError("missing export binary", "", nil),
+			activityAttempts: 1,
+		},
+		{
+			name:             "validation non-retryable",
+			activity:         xmlvalidate.Name,
+			err:              temporalsdk_temporal.NewNonRetryableApplicationError("metadata unavailable", "", nil),
+			activityAttempts: 1,
+		},
+	} {
+		s.Run(tt.name, func() {
+			s.SetupTest()
+			s.exportAttempts = []exportTestOptions{
+				{ // Attempt 1: activity failure.
+					failedActivity:   tt.activity,
+					err:              tt.err,
+					activityAttempts: tt.activityAttempts,
+				},
+				{ // Attempt 2: metadata validation failure.
+					failures: []string{"metadata.xml fails to validate"},
+				},
+				{}, // Attempt 3: success.
+			}
+			s.testSessionResult(nil, 0, nil, nil, nil, nil, nil, nil)
+		})
+	}
+}
+
+func (s *CreateDIPTestSuite) TestSuccessAfterFailedOrCanceledExport() {
+	for _, status := range []string{actapro.ExportStatusFailed, actapro.ExportStatusCanceled} {
+		s.Run(status, func() {
+			s.SetupTest()
+			s.exportAttempts = []exportTestOptions{
+				{
+					exportStatus: &actapro.PollExportStatusResult{
+						Status: status,
+						Logs:   "first export did not complete",
+					},
+				},
+				{}, // Success on the second export attempt.
+			}
+			s.testSessionResult(nil, 0, nil, nil, nil, nil, nil, nil)
+		})
+	}
 }
 
 func (s *CreateDIPTestSuite) TestRetention() {
@@ -416,34 +562,14 @@ func (s *CreateDIPTestSuite) testSessionResult(
 			Path: "aa/bb/test-" + aipUUID.String() + aipExtensions[i],
 		}, nil).Once().NotBefore(getAIPPath)
 	}
-	createExport := s.env.OnActivity(
-		actapro.CreateExportActivityName,
-		mock.AnythingOfType("*context.timerCtx"),
-		&actapro.CreateExportParams{DocKey: s.dip.DocKey},
-	).Return(&actapro.CreateExportResult{ExportID: "1ef33301-83c4-407c-9895-18d16a1f10b9"}, nil).
-		Once().NotBefore(getAIPPath)
-	pollExport := s.env.OnActivity(
-		actapro.PollExportStatusActivityName,
-		mock.AnythingOfType("*context.timerCtx"),
-		&actapro.PollExportStatusParams{ExportID: "1ef33301-83c4-407c-9895-18d16a1f10b9"},
-	).Return(&actapro.PollExportStatusResult{Status: "COMPLETED"}, nil).Once().NotBefore(createExport)
-	downloadExport := s.env.OnActivity(
-		actapro.DownloadExportActivityName,
-		mock.AnythingOfType("*context.timerCtx"),
-		&actapro.DownloadExportParams{
-			ExportID:     "1ef33301-83c4-407c-9895-18d16a1f10b9",
-			MetadataPath: filepath.Join(s.workingDir, s.dip.UUID.String(), "metadata.xml"),
-		},
-	).Return(&actapro.DownloadExportResult{}, nil).Once().NotBefore(pollExport)
-	validateExport := s.env.OnActivity(
-		xmlvalidate.Name,
-		mock.AnythingOfType("*context.timerCtx"),
-		&xmlvalidate.Params{
-			XMLPath: filepath.Join(s.workingDir, s.dip.UUID.String(), "metadata.xml"),
-			XSDPath: filepath.Join(s.xsdDir, "arelda.xsd"),
-		},
-	).Return(&xmlvalidate.Result{}, nil).Once().NotBefore(downloadExport)
-	previousActivity := validateExport
+	previousActivity := getAIPPath
+	exportRetryDelay := time.Duration(len(s.exportAttempts)-1) * 10 * time.Second
+	for attempt, opts := range s.exportAttempts {
+		previousActivity = s.expectExportAttempt(
+			fmt.Sprintf("export-%d", attempt+1), opts, previousActivity,
+		)
+		exportRetryDelay += time.Duration(max(0, opts.activityAttempts-1)) * 5 * time.Second
+	}
 	parseParams := &activities.ParseMetadataParams{
 		MetadataPath: filepath.Join(s.workingDir, s.dip.UUID.String(), "metadata.xml"),
 	}
@@ -617,7 +743,7 @@ func (s *CreateDIPTestSuite) testSessionResult(
 	if uploadAttempted {
 		wDIP.ObjectKey = s.objectKey
 	}
-	wDIP.CompletedAt = createDIPTestTime.Add(cleanupDelay)
+	wDIP.CompletedAt = createDIPTestTime.Add(cleanupDelay + exportRetryDelay)
 	if wDIP.Status == enums.DIPStatusDone && s.retention.period > 0 {
 		wDIP.ExpiresAt = wDIP.CompletedAt.Add(s.retention.period)
 	}
@@ -806,40 +932,20 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 		mock.AnythingOfType("*context.timerCtx"),
 		&amss.GetAIPPathActivityParams{AIPUUID: aipUUID},
 	).Return(&amss.GetAIPPathActivityResult{Path: "test-" + aipUUID.String() + ".7z"}, nil).Once()
-	s.env.OnActivity(
-		actapro.CreateExportActivityName,
-		mock.AnythingOfType("*context.timerCtx"),
-		&actapro.CreateExportParams{DocKey: s.dip.DocKey},
-	).Return(&actapro.CreateExportResult{ExportID: "1ef33301-83c4-407c-9895-18d16a1f10b9"}, nil).Once()
-	s.env.OnActivity(
-		actapro.PollExportStatusActivityName,
-		mock.AnythingOfType("*context.timerCtx"),
-		&actapro.PollExportStatusParams{ExportID: "1ef33301-83c4-407c-9895-18d16a1f10b9"},
-	).Return(&actapro.PollExportStatusResult{Status: "COMPLETED"}, nil).Once()
-
-	downloadParams := &actapro.DownloadExportParams{
-		ExportID:     "1ef33301-83c4-407c-9895-18d16a1f10b9",
-		MetadataPath: filepath.Join(s.workingDir, s.dip.UUID.String(), "metadata.xml"),
-	}
 	// A canceled download with an active workflow triggers a new session.
-	failedDownload := s.env.OnActivity(
-		actapro.DownloadExportActivityName,
-		mock.AnythingOfType("*context.timerCtx"),
-		downloadParams,
-	).Return(nil, temporalsdk_temporal.NewCanceledError()).Once()
-	downloadExport := s.env.OnActivity(
-		actapro.DownloadExportActivityName,
-		mock.AnythingOfType("*context.timerCtx"),
-		downloadParams,
-	).Return(&actapro.DownloadExportResult{}, nil).Once().NotBefore(failedDownload)
-	validateExport := s.env.OnActivity(
-		xmlvalidate.Name,
-		mock.AnythingOfType("*context.timerCtx"),
-		&xmlvalidate.Params{
-			XMLPath: downloadParams.MetadataPath,
-			XSDPath: filepath.Join(s.xsdDir, "arelda.xsd"),
-		},
-	).Return(&xmlvalidate.Result{}, nil).Once().NotBefore(downloadExport)
+	failedDownload := s.expectExportAttempt("export-1", exportTestOptions{
+		failedActivity: actapro.DownloadExportActivityName,
+		err:            temporalsdk_temporal.NewCanceledError(),
+	}, nil)
+	failedSessionCleanup := s.env.OnActivity(
+		removepaths.Name, mock.Anything,
+		&removepaths.Params{Paths: []string{filepath.Join(s.workingDir, s.dip.UUID.String())}},
+	).Return(&removepaths.Result{}, nil).Once().NotBefore(failedDownload)
+
+	validateExport := s.expectExportAttempt(
+		"export-2", exportTestOptions{}, failedSessionCleanup,
+	)
+	metadataPath := filepath.Join(s.workingDir, s.dip.UUID.String(), "metadata.xml")
 	metsName := "METS." + aipUUID.String() + ".xml"
 	metsPath := filepath.Join(s.workingDir, s.dip.UUID.String(), metsName)
 	fetchMETS := s.env.OnActivity(
@@ -858,7 +964,7 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 		activities.ParseMetadataName,
 		mock.AnythingOfType("*context.timerCtx"),
 		&activities.ParseMetadataParams{
-			MetadataPath: downloadParams.MetadataPath,
+			MetadataPath: metadataPath,
 			AIPs: []activities.AIP{
 				{UUID: aipUUID, DirName: "test-" + aipUUID.String(), METSPath: metsPath},
 			},
@@ -872,7 +978,7 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 		mock.AnythingOfType("*context.timerCtx"),
 		&activities.PrepareDIPParams{
 			DIPPath:      filepath.Join(s.workingDir, s.dip.UUID.String(), "DIP_"+s.dip.UUID.String()),
-			MetadataPath: downloadParams.MetadataPath,
+			MetadataPath: metadataPath,
 			XSDDir:       s.xsdDir,
 			HeaderFiles:  headerFiles,
 		},
@@ -912,7 +1018,7 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 		removepaths.Name,
 		mock.AnythingOfType("*context.timerCtx"),
 		&removepaths.Params{Paths: []string{filepath.Join(s.workingDir, s.dip.UUID.String())}},
-	).Return(&removepaths.Result{}, nil).Twice()
+	).Return(&removepaths.Result{}, nil).Once().NotBefore(archiveDIP)
 
 	wDIP.ObjectKey = "DIP_9390594f-84c2-457d-bd6a-618f21f7c954.zip"
 	wDIP.Status = enums.DIPStatusDone
@@ -936,28 +1042,42 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 
 func (s *CreateDIPTestSuite) TestExportFailed() {
 	for _, tt := range []struct {
-		name string
-		logs string
-		want string
+		name   string
+		status string
+		logs   string
+		want   string
 	}{
 		{
-			name: "Includes formatted activity logs in the DIP and workflow errors",
-			logs: "- [ERROR] CH-000001: Export script failed\nSee the ACTApro logfile for details.",
-			want: "ACTApro export failed or canceled. Logs:\n" +
+			name:   "Failed export includes formatted activity logs in the DIP and workflow errors",
+			status: actapro.ExportStatusFailed,
+			logs:   "- [ERROR] CH-000001: Export script failed\nSee the ACTApro logfile for details.",
+			want: "export status: FAILED\nLogs:\n" +
 				"- [ERROR] CH-000001: Export script failed\nSee the ACTApro logfile for details.",
 		},
 		{
-			name: "Handles no logs",
-			want: "ACTApro export failed or canceled.",
+			name:   "Failed export handles no logs",
+			status: actapro.ExportStatusFailed,
+			want:   "export status: FAILED",
+		},
+		{
+			name:   "Canceled export includes logs",
+			status: actapro.ExportStatusCanceled,
+			logs:   "export canceled by AIS",
+			want:   "export status: CANCELED\nLogs:\nexport canceled by AIS",
+		},
+		{
+			name:   "Canceled export handles no logs",
+			status: actapro.ExportStatusCanceled,
+			want:   "export status: CANCELED",
 		},
 	} {
 		s.Run(tt.name, func() {
-			s.testExportFailed(tt.logs, tt.want)
+			s.testExportFailed(tt.status, tt.logs, tt.want)
 		})
 	}
 }
 
-func (s *CreateDIPTestSuite) testExportFailed(logs, wantMessage string) {
+func (s *CreateDIPTestSuite) testExportFailed(status, logs, wantMessage string) {
 	s.T().Helper()
 
 	s.SetupTest()
@@ -980,23 +1100,32 @@ func (s *CreateDIPTestSuite) testExportFailed(logs, wantMessage string) {
 		mock.AnythingOfType("*context.timerCtx"),
 		&amss.GetAIPPathActivityParams{AIPUUID: uuid.MustParse("28c1a3e2-abd3-4b9b-9214-ae851c87b1a6")},
 	).Return(&amss.GetAIPPathActivityResult{Path: "aip.7z"}, nil).Once()
+	var previous *temporalsdk_testsuite.MockCallWrapper
+	for attempt := range 3 {
+		exportLogs := "earlier export failed"
+		if attempt == 2 {
+			exportLogs = logs
+		}
+		previous = s.expectExportAttempt(
+			fmt.Sprintf("export-%d", attempt+1),
+			exportTestOptions{
+				exportStatus: &actapro.PollExportStatusResult{
+					Status: status,
+					Logs:   exportLogs,
+				},
+			},
+			previous,
+		)
+	}
+
 	s.env.OnActivity(
-		actapro.CreateExportActivityName,
-		mock.AnythingOfType("*context.timerCtx"),
-		&actapro.CreateExportParams{DocKey: s.dip.DocKey},
-	).Return(&actapro.CreateExportResult{ExportID: "1ef33301-83c4-407c-9895-18d16a1f10b9"}, nil).Once()
-	s.env.OnActivity(
-		actapro.PollExportStatusActivityName,
-		mock.AnythingOfType("*context.timerCtx"),
-		&actapro.PollExportStatusParams{ExportID: "1ef33301-83c4-407c-9895-18d16a1f10b9"},
-	).Return(&actapro.PollExportStatusResult{
-		Status: "FAILED",
-		Logs:   logs,
-	}, nil).Once()
+		removepaths.Name, mock.Anything,
+		&removepaths.Params{Paths: []string{filepath.Join(s.workingDir, s.dip.UUID.String())}},
+	).Return(&removepaths.Result{}, nil).Once().NotBefore(previous)
 
 	wDIP.Status = enums.DIPStatusFailed
-	wDIP.CompletedAt = createDIPTestTime
-	wDIP.ErrorMessage = wantMessage
+	wDIP.CompletedAt = createDIPTestTime.Add(20 * time.Second)
+	wDIP.ErrorMessage = "ACTApro export failed after 3 attempts:\n" + wantMessage
 	s.env.OnActivity(
 		activities.UpdateDIPName,
 		mock.AnythingOfType("*context.timerCtx"),
@@ -1009,7 +1138,9 @@ func (s *CreateDIPTestSuite) testExportFailed(logs, wantMessage string) {
 	s.env.AssertExpectations(s.T())
 	var applicationErr *temporalsdk_temporal.ApplicationError
 	s.Require().True(errors.As(s.env.GetWorkflowError(), &applicationErr))
-	s.Equal(wantMessage, applicationErr.Message())
+	s.Equal(wDIP.ErrorMessage, applicationErr.Message())
+	s.env.AssertNotCalled(s.T(), actapro.DownloadExportActivityName, mock.Anything, mock.Anything)
+	s.Equal(wDIP.CompletedAt, s.env.Now().UTC())
 }
 
 func (s *CreateDIPTestSuite) TestGetDocumentFails() {
@@ -1216,128 +1347,52 @@ func (s *CreateDIPTestSuite) TestGetAIPPathsFails() {
 	}
 }
 
-func (s *CreateDIPTestSuite) TestExportActivityFails() {
-	for _, tt := range []struct {
-		name         string
-		poll         bool
-		download     bool
-		err          error
-		attempts     int
-		errorMessage string
-	}{
-		{
-			name:         "Retries transient creation errors",
-			err:          errors.New("ACTApro unavailable"),
-			attempts:     3,
-			errorMessage: "ACTApro export creation failed: ACTApro unavailable",
-		},
-		{
-			name:         "Does not retry permanent creation errors",
-			err:          temporalsdk_temporal.NewNonRetryableApplicationError("unknown script", "", nil),
-			attempts:     1,
-			errorMessage: "ACTApro export creation failed: unknown script",
-		},
-		{
-			name:         "Retries transient polling errors without recreating the export",
-			poll:         true,
-			err:          errors.New("ACTApro unavailable"),
-			attempts:     3,
-			errorMessage: "ACTApro export polling failed: ACTApro unavailable",
-		},
-		{
-			name:         "Does not retry permanent polling errors",
-			poll:         true,
-			err:          temporalsdk_temporal.NewNonRetryableApplicationError("export not found", "", nil),
-			attempts:     1,
-			errorMessage: "ACTApro export polling failed: export not found",
-		},
-		{
-			name:         "Retries transient download errors without recreating the export",
-			download:     true,
-			err:          errors.New("ACTApro unavailable"),
-			attempts:     3,
-			errorMessage: "ACTApro export download failed: ACTApro unavailable",
-		},
-		{
-			name:         "Does not retry permanent download errors",
-			download:     true,
-			err:          temporalsdk_temporal.NewNonRetryableApplicationError("export not found", "", nil),
-			attempts:     1,
-			errorMessage: "ACTApro export download failed: export not found",
-		},
-	} {
-		s.Run(tt.name, func() {
-			s.SetupTest()
-
-			wDIP := s.dip
-			wDIP.Status = enums.DIPStatusInProgress
-			wDIP.StartedAt = createDIPTestTime
-			s.env.OnActivity(
-				activities.UpdateDIPName,
-				mock.AnythingOfType("*context.timerCtx"),
-				updateParams(wDIP),
-			).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).Once()
-			s.env.OnActivity(
-				actapro.GetDocumentActivityName,
-				mock.AnythingOfType("*context.timerCtx"),
-				&actapro.GetDocumentParams{DocKey: s.dip.DocKey},
-			).Return(&actapro.GetDocumentResult{AIPUUIDs: []uuid.UUID{uuid.MustParse("28c1a3e2-abd3-4b9b-9214-ae851c87b1a6")}}, nil).Once()
-			s.env.OnActivity(
-				amss.GetAIPPathActivityName,
-				mock.AnythingOfType("*context.timerCtx"),
-				&amss.GetAIPPathActivityParams{AIPUUID: uuid.MustParse("28c1a3e2-abd3-4b9b-9214-ae851c87b1a6")},
-			).Return(&amss.GetAIPPathActivityResult{Path: "aip.7z"}, nil).Once()
-			createExport := s.env.OnActivity(
-				actapro.CreateExportActivityName,
-				mock.AnythingOfType("*context.timerCtx"),
-				&actapro.CreateExportParams{DocKey: s.dip.DocKey},
-			)
-			if tt.poll || tt.download {
-				createExport.Return(&actapro.CreateExportResult{ExportID: "1ef33301-83c4-407c-9895-18d16a1f10b9"}, nil).
-					Once()
-				pollExport := s.env.OnActivity(
-					actapro.PollExportStatusActivityName,
-					mock.AnythingOfType("*context.timerCtx"),
-					&actapro.PollExportStatusParams{ExportID: "1ef33301-83c4-407c-9895-18d16a1f10b9"},
-				)
-				if tt.download {
-					pollExport.Return(&actapro.PollExportStatusResult{Status: "COMPLETED"}, nil).Once()
-					downloadExport := s.env.OnActivity(
-						actapro.DownloadExportActivityName,
-						mock.AnythingOfType("*context.timerCtx"),
-						&actapro.DownloadExportParams{
-							ExportID:     "1ef33301-83c4-407c-9895-18d16a1f10b9",
-							MetadataPath: filepath.Join(s.workingDir, s.dip.UUID.String(), "metadata.xml"),
-						},
-					).Return(nil, tt.err).Times(tt.attempts)
-					s.env.OnActivity(
-						removepaths.Name,
-						mock.AnythingOfType("*context.timerCtx"),
-						&removepaths.Params{Paths: []string{filepath.Join(s.workingDir, s.dip.UUID.String())}},
-					).Return(&removepaths.Result{}, nil).Once().NotBefore(downloadExport)
-				} else {
-					pollExport.Return(nil, tt.err).Times(tt.attempts)
-				}
-			} else {
-				createExport.Return(nil, tt.err).Times(tt.attempts)
-			}
-
-			wDIP.Status = enums.DIPStatusFailed
-			wDIP.CompletedAt = createDIPTestTime.Add(time.Duration(tt.attempts-1) * 5 * time.Second)
-			wDIP.ErrorMessage = tt.errorMessage
-			s.env.OnActivity(
-				activities.UpdateDIPName,
-				mock.AnythingOfType("*context.timerCtx"),
-				updateParams(wDIP),
-			).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).Once()
-
-			s.env.ExecuteWorkflow(s.workflow.Execute, &workflows.CreateDIPParams{DIP: s.dip})
-
-			s.True(s.env.IsWorkflowCompleted())
-			s.env.AssertExpectations(s.T())
-			s.ErrorContains(s.env.GetWorkflowError(), tt.err.Error())
-		})
+func (s *CreateDIPTestSuite) TestExportAttemptsExhaustedByActivityError() {
+	wDIP := s.dip
+	wDIP.Status = enums.DIPStatusInProgress
+	wDIP.StartedAt = createDIPTestTime
+	s.env.OnActivity(activities.UpdateDIPName, mock.Anything, updateParams(wDIP)).
+		Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).Once()
+	aipUUID := uuid.MustParse("28c1a3e2-abd3-4b9b-9214-ae851c87b1a6")
+	s.env.OnActivity(actapro.GetDocumentActivityName, mock.Anything,
+		&actapro.GetDocumentParams{DocKey: s.dip.DocKey}).
+		Return(&actapro.GetDocumentResult{AIPUUIDs: []uuid.UUID{aipUUID}}, nil).Once()
+	previous := s.env.OnActivity(amss.GetAIPPathActivityName, mock.Anything,
+		&amss.GetAIPPathActivityParams{AIPUUID: aipUUID}).
+		Return(&amss.GetAIPPathActivityResult{Path: "aip.7z"}, nil).Once()
+	for attempt := range 3 {
+		errorMessage := "export operation failed"
+		if attempt < 2 {
+			errorMessage = fmt.Sprintf("export attempt %d failed", attempt+1)
+		}
+		previous = s.expectExportAttempt(
+			fmt.Sprintf("export-%d", attempt+1),
+			exportTestOptions{
+				failedActivity: actapro.DownloadExportActivityName,
+				err:            temporalsdk_temporal.NewNonRetryableApplicationError(errorMessage, "", nil),
+			},
+			previous,
+		)
 	}
+	cleanup := s.env.OnActivity(removepaths.Name, mock.Anything,
+		&removepaths.Params{Paths: []string{filepath.Join(s.workingDir, s.dip.UUID.String())}}).
+		Return(&removepaths.Result{}, nil).Once().NotBefore(previous)
+
+	wDIP.Status = enums.DIPStatusFailed
+	wDIP.CompletedAt = createDIPTestTime.Add(20 * time.Second)
+	wDIP.ErrorMessage = "ACTApro export failed after 3 attempts:\nexport operation failed"
+	s.env.OnActivity(activities.UpdateDIPName, mock.Anything, updateParams(wDIP)).
+		Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).Once().NotBefore(cleanup)
+
+	s.env.ExecuteWorkflow(s.workflow.Execute, &workflows.CreateDIPParams{DIP: s.dip})
+
+	s.True(s.env.IsWorkflowCompleted())
+	s.env.AssertExpectations(s.T())
+	var applicationErr *temporalsdk_temporal.ApplicationError
+	s.Require().True(errors.As(s.env.GetWorkflowError(), &applicationErr))
+	s.Equal(wDIP.ErrorMessage, applicationErr.Message())
+	s.env.AssertNotCalled(s.T(), amss.FetchActivityName, mock.Anything, mock.Anything)
+	s.Equal(wDIP.CompletedAt, s.env.Now().UTC())
 }
 
 func (s *CreateDIPTestSuite) TestDownloadAIPMETSFails() {
@@ -1487,109 +1542,63 @@ func (s *CreateDIPTestSuite) TestDownloadAIPMETSFails() {
 
 func (s *CreateDIPTestSuite) TestExportValidationFails() {
 	aipUUID := uuid.MustParse("28c1a3e2-abd3-4b9b-9214-ae851c87b1a6")
-	for _, tt := range []struct {
-		name         string
-		result       *xmlvalidate.Result
-		err          error
-		errorMessage string
-	}{
-		{
-			name:         "Rejects XML that does not match the schema",
-			result:       &xmlvalidate.Result{Failures: []string{"metadata.xml fails to validate"}},
-			errorMessage: "ACTApro export validation failed:\nmetadata.xml fails to validate",
-		},
-		{
-			name: "Includes all validation failures",
-			result: &xmlvalidate.Result{Failures: []string{
+	wDIP := s.dip
+	wDIP.Status = enums.DIPStatusInProgress
+	wDIP.StartedAt = createDIPTestTime
+	s.env.OnActivity(
+		activities.UpdateDIPName,
+		mock.AnythingOfType("*context.timerCtx"),
+		updateParams(wDIP),
+	).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).Once()
+	s.env.OnActivity(
+		actapro.GetDocumentActivityName,
+		mock.AnythingOfType("*context.timerCtx"),
+		&actapro.GetDocumentParams{DocKey: s.dip.DocKey},
+	).Return(&actapro.GetDocumentResult{AIPUUIDs: []uuid.UUID{aipUUID}}, nil).Once()
+	s.env.OnActivity(
+		amss.GetAIPPathActivityName,
+		mock.AnythingOfType("*context.timerCtx"),
+		&amss.GetAIPPathActivityParams{AIPUUID: aipUUID},
+	).Return(&amss.GetAIPPathActivityResult{Path: "aa/bb/test-" + aipUUID.String() + ".7z"}, nil).Once()
+	var validateExport *temporalsdk_testsuite.MockCallWrapper
+	for attempt := range 3 {
+		failures := []string{"earlier export was invalid"}
+		if attempt == 2 {
+			failures = []string{
 				"metadata.xml: invalid schemaVersion",
 				"metadata.xml: missing required element",
-			}},
-			errorMessage: "ACTApro export validation failed:\n" +
-				"metadata.xml: invalid schemaVersion\nmetadata.xml: missing required element",
-		},
-		{
-			name:         "Returns activity errors without retrying validation",
-			err:          errors.New("xmlvalidate: xmllint not found"),
-			errorMessage: "ACTApro export validation failed: xmlvalidate: xmllint not found",
-		},
-	} {
-		s.Run(tt.name, func() {
-			s.SetupTest()
-
-			wDIP := s.dip
-			wDIP.Status = enums.DIPStatusInProgress
-			wDIP.StartedAt = createDIPTestTime
-			s.env.OnActivity(
-				activities.UpdateDIPName,
-				mock.AnythingOfType("*context.timerCtx"),
-				updateParams(wDIP),
-			).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).Once()
-			s.env.OnActivity(
-				actapro.GetDocumentActivityName,
-				mock.AnythingOfType("*context.timerCtx"),
-				&actapro.GetDocumentParams{DocKey: s.dip.DocKey},
-			).Return(&actapro.GetDocumentResult{AIPUUIDs: []uuid.UUID{aipUUID}}, nil).Once()
-			s.env.OnActivity(
-				amss.GetAIPPathActivityName,
-				mock.AnythingOfType("*context.timerCtx"),
-				&amss.GetAIPPathActivityParams{AIPUUID: aipUUID},
-			).Return(&amss.GetAIPPathActivityResult{Path: "aa/bb/test-" + aipUUID.String() + ".7z"}, nil).Once()
-			s.env.OnActivity(
-				actapro.CreateExportActivityName,
-				mock.AnythingOfType("*context.timerCtx"),
-				&actapro.CreateExportParams{DocKey: s.dip.DocKey},
-			).Return(&actapro.CreateExportResult{ExportID: "1ef33301-83c4-407c-9895-18d16a1f10b9"}, nil).Once()
-			s.env.OnActivity(
-				actapro.PollExportStatusActivityName,
-				mock.AnythingOfType("*context.timerCtx"),
-				&actapro.PollExportStatusParams{ExportID: "1ef33301-83c4-407c-9895-18d16a1f10b9"},
-			).Return(&actapro.PollExportStatusResult{Status: "COMPLETED"}, nil).Once()
-			metadataPath := filepath.Join(s.workingDir, s.dip.UUID.String(), "metadata.xml")
-			downloadExport := s.env.OnActivity(
-				actapro.DownloadExportActivityName,
-				mock.AnythingOfType("*context.timerCtx"),
-				&actapro.DownloadExportParams{
-					ExportID:     "1ef33301-83c4-407c-9895-18d16a1f10b9",
-					MetadataPath: metadataPath,
-				},
-			).Return(&actapro.DownloadExportResult{}, nil).Once()
-			validateExport := s.env.OnActivity(
-				xmlvalidate.Name,
-				mock.AnythingOfType("*context.timerCtx"),
-				&xmlvalidate.Params{
-					XMLPath: metadataPath,
-					XSDPath: filepath.Join(s.xsdDir, "arelda.xsd"),
-				},
-			).Return(tt.result, tt.err).Once().NotBefore(downloadExport)
-			cleanup := s.env.OnActivity(
-				removepaths.Name,
-				mock.AnythingOfType("*context.timerCtx"),
-				&removepaths.Params{Paths: []string{filepath.Join(s.workingDir, s.dip.UUID.String())}},
-			).Return(&removepaths.Result{}, nil).Once().NotBefore(validateExport)
-
-			wDIP.Status = enums.DIPStatusFailed
-			wDIP.CompletedAt = createDIPTestTime
-			wDIP.ErrorMessage = tt.errorMessage
-			s.env.OnActivity(
-				activities.UpdateDIPName,
-				mock.AnythingOfType("*context.timerCtx"),
-				updateParams(wDIP),
-			).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).Once().NotBefore(cleanup)
-
-			s.env.ExecuteWorkflow(s.workflow.Execute, &workflows.CreateDIPParams{DIP: s.dip})
-
-			s.True(s.env.IsWorkflowCompleted())
-			s.env.AssertExpectations(s.T())
-			s.env.AssertNotCalled(s.T(), amss.FetchActivityName, mock.Anything, mock.Anything)
-			if tt.err != nil {
-				s.ErrorContains(s.env.GetWorkflowError(), tt.err.Error())
-			} else {
-				var applicationErr *temporalsdk_temporal.ApplicationError
-				s.Require().True(errors.As(s.env.GetWorkflowError(), &applicationErr))
-				s.Equal(tt.errorMessage, applicationErr.Message())
 			}
-		})
+		}
+		validateExport = s.expectExportAttempt(
+			fmt.Sprintf("export-%d", attempt+1), exportTestOptions{failures: failures}, validateExport,
+		)
 	}
+
+	cleanup := s.env.OnActivity(
+		removepaths.Name,
+		mock.AnythingOfType("*context.timerCtx"),
+		&removepaths.Params{Paths: []string{filepath.Join(s.workingDir, s.dip.UUID.String())}},
+	).Return(&removepaths.Result{}, nil).Once().NotBefore(validateExport)
+
+	wDIP.Status = enums.DIPStatusFailed
+	wDIP.CompletedAt = createDIPTestTime.Add(20 * time.Second)
+	wDIP.ErrorMessage = "ACTApro export failed after 3 attempts:\nmetadata validation failed:\n" +
+		"metadata.xml: invalid schemaVersion\nmetadata.xml: missing required element"
+	s.env.OnActivity(
+		activities.UpdateDIPName,
+		mock.AnythingOfType("*context.timerCtx"),
+		updateParams(wDIP),
+	).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).Once().NotBefore(cleanup)
+
+	s.env.ExecuteWorkflow(s.workflow.Execute, &workflows.CreateDIPParams{DIP: s.dip})
+
+	s.True(s.env.IsWorkflowCompleted())
+	s.env.AssertExpectations(s.T())
+	s.env.AssertNotCalled(s.T(), amss.FetchActivityName, mock.Anything, mock.Anything)
+	var applicationErr *temporalsdk_temporal.ApplicationError
+	s.Require().True(errors.As(s.env.GetWorkflowError(), &applicationErr))
+	s.Equal(wDIP.ErrorMessage, applicationErr.Message())
+	s.Equal(wDIP.CompletedAt, s.env.Now().UTC())
 }
 
 func (s *CreateDIPTestSuite) TestBothUpdatesFail() {
@@ -1760,6 +1769,60 @@ func (s *CreateDIPTestSuite) TestCancellationPersistsFinalStatus() {
 			s.Equal(createDIPTestTime.Add(3*time.Second), s.env.Now().UTC())
 		})
 	}
+}
+
+func (s *CreateDIPTestSuite) expectExportAttempt(
+	exportID string,
+	opts exportTestOptions,
+	previous *temporalsdk_testsuite.MockCallWrapper,
+) *temporalsdk_testsuite.MockCallWrapper {
+	s.T().Helper()
+	metadataPath := filepath.Join(s.workingDir, s.dip.UUID.String(), "metadata.xml")
+	for _, activity := range []struct {
+		name   string
+		params any
+		result any
+	}{
+		{
+			name:   actapro.CreateExportActivityName,
+			params: &actapro.CreateExportParams{DocKey: s.dip.DocKey},
+			result: &actapro.CreateExportResult{ExportID: exportID},
+		},
+		{
+			name:   actapro.PollExportStatusActivityName,
+			params: &actapro.PollExportStatusParams{ExportID: exportID},
+			result: &actapro.PollExportStatusResult{Status: actapro.ExportStatusCompleted},
+		},
+		{
+			name: actapro.DownloadExportActivityName,
+			params: &actapro.DownloadExportParams{
+				ExportID:     exportID,
+				MetadataPath: metadataPath,
+			},
+			result: &actapro.DownloadExportResult{},
+		},
+		{
+			name: xmlvalidate.Name,
+			params: &xmlvalidate.Params{
+				XMLPath: metadataPath,
+				XSDPath: filepath.Join(s.xsdDir, "arelda.xsd"),
+			},
+			result: &xmlvalidate.Result{Failures: opts.failures},
+		},
+	} {
+		call := s.env.OnActivity(activity.name, mock.AnythingOfType("*context.timerCtx"), activity.params).Once()
+		if previous != nil {
+			call.NotBefore(previous)
+		}
+		if activity.name == opts.failedActivity && opts.err != nil {
+			return call.Return(nil, opts.err).Times(max(1, opts.activityAttempts))
+		}
+		if activity.name == actapro.PollExportStatusActivityName && opts.exportStatus != nil {
+			return call.Return(opts.exportStatus, nil)
+		}
+		previous = call.Return(activity.result, nil)
+	}
+	return previous
 }
 
 func (s *CreateDIPTestSuite) expectDIPCleanup(d datatypes.DIP) {

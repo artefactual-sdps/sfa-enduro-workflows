@@ -26,8 +26,10 @@ import (
 
 const (
 	// We use this constant to represent a long period of time (10 years).
-	forever       = time.Hour * 24 * 365 * 10
-	CreateDIPName = "create-dip"
+	forever           = time.Hour * 24 * 365 * 10
+	CreateDIPName     = "create-dip"
+	maxExportAttempts = 3
+	exportRetryDelay  = 10 * time.Second
 )
 
 type state struct {
@@ -36,7 +38,6 @@ type state struct {
 	dipPath    string
 	objectKey  string
 	dip        datatypes.DIP
-	exportID   string
 	aips       []*aip
 }
 
@@ -175,48 +176,6 @@ func (w *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPP
 		return nil, errors.New(state.dip.ErrorMessage)
 	}
 
-	// Start the document export.
-	var export actapro.CreateExportResult
-	err = temporalsdk_workflow.ExecuteActivity(
-		withOptsForAPIRequest(ctx),
-		actapro.CreateExportActivityName,
-		&actapro.CreateExportParams{DocKey: state.dip.DocKey},
-	).Get(ctx, &export)
-	if err != nil {
-		state.dip.ErrorMessage = fmt.Sprintf("ACTApro export creation failed: %s", activityErrorMessage(err))
-		return nil, err
-	}
-
-	state.exportID = export.ExportID
-
-	// Poll the export status until it is completed, failed, or canceled.
-	var exportStatus actapro.PollExportStatusResult
-	err = temporalsdk_workflow.ExecuteActivity(
-		temporalsdk_workflow.WithActivityOptions(ctx, temporalsdk_workflow.ActivityOptions{
-			StartToCloseTimeout: 24 * time.Hour,
-			HeartbeatTimeout:    time.Minute,
-			RetryPolicy: &temporalsdk_temporal.RetryPolicy{
-				InitialInterval:    5 * time.Second,
-				BackoffCoefficient: 2,
-				MaximumAttempts:    3,
-			},
-		}),
-		actapro.PollExportStatusActivityName,
-		&actapro.PollExportStatusParams{ExportID: state.exportID},
-	).Get(ctx, &exportStatus)
-	if err != nil {
-		state.dip.ErrorMessage = fmt.Sprintf("ACTApro export polling failed: %s", activityErrorMessage(err))
-		return nil, err
-	}
-
-	if exportStatus.Status != actapro.ExportStatusCompleted {
-		state.dip.ErrorMessage = "ACTApro export failed or canceled."
-		if exportStatus.Logs != "" {
-			state.dip.ErrorMessage += " Logs:\n" + exportStatus.Logs
-		}
-		return nil, errors.New(state.dip.ErrorMessage)
-	}
-
 	// Activities running within a session.
 	{
 		var sessErr error
@@ -266,8 +225,6 @@ func (w *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPP
 		}
 	}
 
-	// A successful session may follow a failed attempt.
-	state.dip.ErrorMessage = ""
 	return &CreateDIPResult{DIP: state.dip}, nil
 }
 
@@ -362,38 +319,10 @@ func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *stat
 		temporalsdk_workflow.CompleteSession(opts)
 	}()
 
-	// Download the metadata.xml export.
 	metadataExportPath := filepath.Join(dipWorkingDir, "metadata.xml")
-	err := temporalsdk_workflow.ExecuteActivity(
-		withOptsForFileTransfer(ctx),
-		actapro.DownloadExportActivityName,
-		&actapro.DownloadExportParams{
-			ExportID:     state.exportID,
-			MetadataPath: metadataExportPath,
-		},
-	).Get(ctx, nil)
+	err := w.fetchValidMetadata(ctx, state, metadataExportPath)
 	if err != nil {
-		state.dip.ErrorMessage = fmt.Sprintf("ACTApro export download failed: %s", activityErrorMessage(err))
 		return err
-	}
-
-	// Validate the export against the configured schema.
-	var validation xmlvalidate.Result
-	err = temporalsdk_workflow.ExecuteActivity(
-		withFilesystemActivityOpts(ctx),
-		xmlvalidate.Name,
-		&xmlvalidate.Params{
-			XMLPath: metadataExportPath,
-			XSDPath: filepath.Join(w.xsdDir, "arelda.xsd"),
-		},
-	).Get(ctx, &validation)
-	if err != nil {
-		state.dip.ErrorMessage = fmt.Sprintf("ACTApro export validation failed: %s", activityErrorMessage(err))
-		return err
-	}
-	if len(validation.Failures) > 0 {
-		state.dip.ErrorMessage = "ACTApro export validation failed:\n" + strings.Join(validation.Failures, "\n")
-		return errors.New(state.dip.ErrorMessage)
 	}
 
 	// Download each AIP's METS file.
@@ -522,6 +451,119 @@ func (w *CreateDIP) sessionHandler(ctx temporalsdk_workflow.Context, state *stat
 	if err != nil {
 		state.dip.ErrorMessage = fmt.Sprintf("DIP upload failed: %s", activityErrorMessage(err))
 		return err
+	}
+
+	return nil
+}
+
+// fetchValidMetadata will retry the whole metadata.xml export sequence up to maxExportAttempts
+// times per session. An activity's retry policy applies only within an individual export attempt.
+func (w *CreateDIP) fetchValidMetadata(
+	ctx temporalsdk_workflow.Context,
+	state *state,
+	metadataExportPath string,
+) error {
+	var err error
+	for attempt := 1; attempt <= maxExportAttempts; attempt++ {
+		if attempt > 1 {
+			if err := temporalsdk_workflow.Sleep(ctx, exportRetryDelay); err != nil {
+				return err
+			}
+		}
+		err = w.fetchMetadata(ctx, state.dip.DocKey, metadataExportPath)
+		if err == nil {
+			return nil
+		}
+
+		// Let the caller handle cancellation and session recovery. These must
+		// not consume the remaining export attempts on an unusable session.
+		if errors.Is(err, temporalsdk_workflow.ErrSessionFailed) || temporalsdk_temporal.IsCanceledError(err) {
+			return err
+		}
+
+		state.logger.Warn("ACTApro export attempt failed", "attempt", attempt, "error", err)
+	}
+
+	state.dip.ErrorMessage = fmt.Sprintf(
+		"ACTApro export failed after %d attempts:\n%s", maxExportAttempts, activityErrorMessage(err),
+	)
+
+	return errors.New(state.dip.ErrorMessage)
+}
+
+// fetchMetadata requests, polls, downloads and validates a single export.
+func (w *CreateDIP) fetchMetadata(
+	ctx temporalsdk_workflow.Context,
+	docKey string,
+	metadataExportPath string,
+) error {
+	// Start the document export.
+	var export actapro.CreateExportResult
+	err := temporalsdk_workflow.ExecuteActivity(
+		withOptsForAPIRequest(ctx),
+		actapro.CreateExportActivityName,
+		&actapro.CreateExportParams{DocKey: docKey},
+	).Get(ctx, &export)
+	if err != nil {
+		return err
+	}
+
+	// Poll the export until it reaches a terminal status.
+	var exportStatus actapro.PollExportStatusResult
+	err = temporalsdk_workflow.ExecuteActivity(
+		temporalsdk_workflow.WithActivityOptions(ctx, temporalsdk_workflow.ActivityOptions{
+			StartToCloseTimeout: 24 * time.Hour,
+			HeartbeatTimeout:    time.Minute,
+			WaitForCancellation: true,
+			RetryPolicy: &temporalsdk_temporal.RetryPolicy{
+				InitialInterval:    5 * time.Second,
+				BackoffCoefficient: 2,
+				MaximumAttempts:    3,
+			},
+		}),
+		actapro.PollExportStatusActivityName,
+		&actapro.PollExportStatusParams{ExportID: export.ExportID},
+	).Get(ctx, &exportStatus)
+	if err != nil {
+		return err
+	}
+
+	if exportStatus.Status != actapro.ExportStatusCompleted {
+		errorMessage := fmt.Sprintf("export status: %s", exportStatus.Status)
+		if exportStatus.Logs != "" {
+			errorMessage += "\nLogs:\n" + exportStatus.Logs
+		}
+		return errors.New(errorMessage)
+	}
+
+	// Download the metadata.xml export.
+	err = temporalsdk_workflow.ExecuteActivity(
+		withOptsForFileTransfer(ctx),
+		actapro.DownloadExportActivityName,
+		&actapro.DownloadExportParams{
+			ExportID:     export.ExportID,
+			MetadataPath: metadataExportPath,
+		},
+	).Get(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	// Validate the export against the configured schema.
+	var validation xmlvalidate.Result
+	err = temporalsdk_workflow.ExecuteActivity(
+		withFilesystemActivityOpts(ctx),
+		xmlvalidate.Name,
+		&xmlvalidate.Params{
+			XMLPath: metadataExportPath,
+			XSDPath: filepath.Join(w.xsdDir, "arelda.xsd"),
+		},
+	).Get(ctx, &validation)
+	if err != nil {
+		return err
+	}
+	if len(validation.Failures) > 0 {
+		return fmt.Errorf("metadata validation failed:\n%s", strings.Join(validation.Failures, "\n"))
 	}
 
 	return nil
