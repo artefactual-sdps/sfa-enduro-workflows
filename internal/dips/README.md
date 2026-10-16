@@ -46,9 +46,9 @@ extend the retention period.
 ## Creation workflow
 
 The [`create-dip` workflow](workflows/create_dip.go) runs these activities in
-order. Only retryable errors are retried, according to each activity's retry
-policy. Processing stops on a non-retryable error or when the allowed attempts
-are exhausted, with the aggregation and cleanup exceptions below.
+order. Each activity uses its own retry policy. Steps 4–7 also run as a group
+with up to three attempts per session, independently of whether an individual
+activity error is retryable. Other failure handling is described below.
 
 1. `update-dip`: sets the DIP status to `in progress` and sets the DIP creation
    start time.
@@ -64,17 +64,21 @@ are exhausted, with the aggregation and cleanup exceptions below.
    errors.
 4. `create-actapro-export`: starts an ACTApro export of a metadata document to
    be included in the DIP. The export response returns an export ID used to
-   check the export progress. A missing export ID fails the workflow and returns
-   an error.
+   check the export progress. A missing export ID fails the current export
+   attempt.
 5. `poll-actapro-export-status`: polls the status of the ACTApro document export
    started in the previous step until it is `COMPLETED`, `FAILED` or `CANCELED`.
-   The workflow continues only after a successful export — otherwise it fails
-   and returns the export logs, if they are available.
+   Downloading proceeds only after a successful export. A `FAILED` or
+   `CANCELED` status fails the current export attempt and includes any available
+   export logs in its error. The next group attempt requests a fresh export.
 6. `download-actapro-export`: saves the ACTApro metadata export to the local DIP
    working directory (`<workingDir>/<DIP UUID>/metadata.xml`).
 7. `xml-validate`: validates `metadata.xml` against the XML Schema Definition
-   (XSD) `arelda.xsd` in the configured schema directory (`xsdDir`). Both
-   activity errors and reported validation failures cause the workflow to fail.
+   (XSD) `arelda.xsd` in the configured eCH-0160 v1.1 schema directory (`xsdDir`).
+   Reported validation failures, activity errors from steps 4–7, and failed or
+   canceled exports repeat those steps, requesting a fresh export each time.
+   All share a limit of three export attempts per session. After the third
+   unsuccessful attempt, the workflow fails with the final error.
 8. `fetch-aip-file` (each AIP): downloads the METS file into the working
    directory. All METS file downloads are attempted before reporting combined
    errors.
@@ -116,16 +120,23 @@ are exhausted, with the aggregation and cleanup exceptions below.
 For all ACTApro activities, a potentially transient API error response
 (`409 Conflict`, `423 Locked`, `500 Internal Server Error`) causes the activity
 to retry according to its retry policy. A permanent error response
-(`400 Bad Request`, `403 Forbidden`, `404 Not Found`) fails the workflow
-immediately.
+(`400 Bad Request`, `403 Forbidden`, `404 Not Found`) stop that activity's
+retries. Within steps 4–7, they still allow a fresh group attempt; outside the
+export group, they fail the workflow.
+
+During steps 4–7, the activity's own retries run before another export is
+requested. For example, if downloading an export fails with a retryable error
+on all three download activity attempts, the next export attempt starts from
+`create-actapro-export`. Thus an activity can run up to nine times across three
+export attempts in one session.
 
 Whenever the workflow fails, no further retrieval or export steps run, but the
 final update to record the failure is still attempted.
 
-Downloads, validation, parsing, DIP preparation, ZIP creation and upload run in
-a Temporal session so they share one worker's local files. Worker loss can
-restart the session from the export download. If the session cannot be created
-or recovered, the workflow fails.
+Export creation and polling, downloads, validation, parsing, DIP preparation,
+ZIP creation and upload run in a Temporal session so they share one worker's
+local files. Worker loss can restart the session from the export creation. If
+the session cannot be created or recovered, the workflow fails.
 
 Cleanup and the final database update are attempted even after workflow
 cancellation. If the final update fails, the database may retain an earlier
