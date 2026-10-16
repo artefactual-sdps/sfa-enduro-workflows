@@ -18,13 +18,15 @@ response schemas.
 
 - `POST /dips`: accepts an ACTApro `docKey` and returns the DIP generation ID
   in the `id` field. If a DIP generation is already queued or in progress, it
-  returns that ID. Otherwise, it returns the newest completed DIP that is still
-  available, or creates a new DIP generation and starts its workflow. Set
-  `ignoreCache: true` to create a new DIP generation instead of reusing a
-  completed DIP. Queued or in-progress DIP generations are still reused.
+  returns that ID. Otherwise, it returns the newest cached DIP that is still
+  available. If no cached DIP is available a new DIP is generated. Set
+  `ignoreCache: true` to force the creation of a new DIP instead of using a cached
+  DIP. If a DIP generation is queued or in-progress then `ignoreCache: true` is
+  ignored and the previous DIP UUID is returned, to prevent multiple generations
+  of the same DIP over a short time span.
 - `GET /dips/{id}`: returns the recorded DIP creation status, timestamps,
   error message and object key, when available. The optional `expires_at` field
-  gives the date and time when the DIP expires.
+  gives the date and time when the cached DIP expires.
 - `GET /livez`: checks that the API server is running and able to respond to
   requests (is "alive").
 
@@ -32,16 +34,15 @@ For `POST /dips`, invalid requests return `400 Bad Request`, authentication
 failures return `401 Unauthorized`, and errors accessing the database or
 starting the workflow return `500 Internal Server Error`.
 
-A `202 Accepted` response returns a new or reused DIP generation ID;
-processing continues asynchronously. Use the returned DIP ID with
-`GET /dips/{id}` to check progress and any subsequent processing failure. The
-returned ID identifies the DIP; the Temporal workflow has a separate ID.
-Several POST requests can return the same DIP generation ID. The timestamps
-describe the DIP generation and are not reset for each request.
+A `202 Accepted` response returns a DIP UUID, which may identify a cached or new
+DIP; if a new DIP is created processing continues asynchronously. Use the
+returned DIP ID with `GET /dips/{id}` to check progress and any subsequent
+processing failure. The returned ID identifies the DIP; the Temporal workflow
+has a separate ID. Several POST requests can return the same DIP ID.
 
-Reusing a completed DIP extends its retention period without shortening an
-existing deadline. Checking progress with GET or downloading the ZIP does not
-extend the retention period.
+If a cached DIP ID is returned, the expiry time of the cache may be extended but
+never shortened. A DIP GET request or ZIP file download does not extend the cache
+expiry.
 
 ## Creation workflow
 

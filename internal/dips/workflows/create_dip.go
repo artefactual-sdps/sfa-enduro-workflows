@@ -113,7 +113,7 @@ func (w *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPP
 		}
 
 		// Remove the object if generation or its final update failed, even after cancellation.
-		if err != nil || state.dip.Status == enums.DIPStatusFailed {
+		if e != nil {
 			if state.objectKey != "" {
 				e = errors.Join(e, deleteDIP(dctx, state.dip.UUID, state.objectKey))
 			}
@@ -121,7 +121,7 @@ func (w *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPP
 			return
 		}
 
-		e = w.deleteDIPAfterRetention(ctx, state.dip.UUID, state.objectKey)
+		e = errors.Join(e, w.deleteDIPAfterRetention(ctx, state.dip.UUID, state.objectKey))
 		if e != nil {
 			r = nil
 			return

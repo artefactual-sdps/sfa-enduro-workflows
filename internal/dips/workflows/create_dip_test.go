@@ -260,13 +260,13 @@ func (s *CreateDIPTestSuite) TestRetention() {
 				cancelAfter: time.Hour,
 			},
 		},
-
 		{
-			name: "Failed DIP deletes unpublished object",
+			name: "Upload failure deletes the object",
 			opts: retentionTestOptions{
 				period: time.Hour,
 			},
 			uploadErr: temporalsdk_temporal.NewNonRetryableApplicationError("bucket upload denied", "", nil),
+			wantErr:   "bucket upload denied",
 		},
 		{
 			name: "Failure recording error after cancellation deletes object",
@@ -536,7 +536,7 @@ func (s *CreateDIPTestSuite) testSessionResult(
 					&archivezip.Params{SourceDir: dipPath},
 				).Return(&archivezip.Result{Path: dipPath + ".zip"}, archiveErr).Once().NotBefore(previousActivity)
 				if archiveErr == nil {
-					// Upload uses the key held in workflow state before publication.
+					// Upload uses the key held in workflow state before the DIP is marked done.
 					previousActivity = s.env.OnActivity(
 						bucketupload.Name,
 						mock.AnythingOfType("*context.timerCtx"),
@@ -597,7 +597,8 @@ func (s *CreateDIPTestSuite) testSessionResult(
 		Return(&activities.UpdateDIPResult{DIP: wDIP}, s.retention.finalUpdateErr).
 		After(s.retention.finalUpdateDelay).Once().NotBefore(cleanup)
 	wantFinish := wDIP.CompletedAt.Add(s.retention.finalUpdateDelay)
-	shouldDelete := uploadAttempted && (wDIP.Status == enums.DIPStatusFailed || s.retention.finalUpdateErr != nil)
+	shouldDelete := uploadAttempted &&
+		(uploadErr != nil || s.retention.cancelDuringCleanup || s.retention.finalUpdateErr != nil)
 
 	if s.retention.finalUpdateErr == nil &&
 		wDIP.Status == enums.DIPStatusDone && !s.retention.cancelAfterPublication {

@@ -1,6 +1,7 @@
 package activities_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -543,21 +544,23 @@ func TestUpdateDIP(t *testing.T) {
 			nonRetryable: true,
 		},
 		{
-			name: "Fails if the update is invalid",
+			name: "Fails if completion has no object key",
 			params: &activities.UpdateDIPParams{
 				UUID:   dipUUID,
-				Status: enums.DIPStatusInProgress,
+				Status: enums.DIPStatusDone,
 			},
-			wantDIP: datatypes.DIP{
-				DBID:      1,
+			wantErr:      `invalid data error: update DIP status to "done": ObjectKey is required`,
+			nonRetryable: true,
+		},
+		{
+			name: "Fails if completion has negative retention",
+			params: &activities.UpdateDIPParams{
 				UUID:      dipUUID,
-				DocKey:    "CH-000001",
-				Status:    enums.DIPStatusInProgress,
-				CreatedAt: createdAt,
-				StartedAt: now,
+				Status:    enums.DIPStatusDone,
+				ObjectKey: "archive.zip",
+				Retention: -time.Hour,
 			},
-			err:          persistence.ErrNotValid,
-			wantErr:      "update DIP: invalid data error",
+			wantErr:      `invalid data error: update DIP status to "done": Retention must not be negative (got -1h0m0s)`,
 			nonRetryable: true,
 		},
 	} {
@@ -566,24 +569,19 @@ func TestUpdateDIP(t *testing.T) {
 
 			svc := persistencefake.NewMockService(gomock.NewController(t))
 			svc.EXPECT().
-				UpdateDIP(
-					mockutil.Context(),
-					dipUUID,
-					mockutil.Func(
-						"should update DIP",
-						func(updater persistence.DIPUpdater) error {
-							d := dip
-							if tt.current != nil {
-								d = *tt.current
-							}
-							got, err := updater(&d)
-							assert.NilError(t, err)
-							assert.DeepEqual(t, got, &tt.wantDIP, cmpopts.EquateApproxTime(time.Second))
-							return nil
-						},
-					),
-				).
-				Return(&tt.wantDIP, tt.err)
+				UpdateDIP(mockutil.Context(), dipUUID, gomock.Any()).
+				DoAndReturn(func(_ context.Context, _ uuid.UUID, updater persistence.DIPUpdater) (*datatypes.DIP, error) {
+					d := dip
+					if tt.current != nil {
+						d = *tt.current
+					}
+					got, err := updater(&d)
+					if err != nil {
+						return nil, err
+					}
+					assert.DeepEqual(t, got, &tt.wantDIP, cmpopts.EquateApproxTime(time.Second))
+					return &tt.wantDIP, tt.err
+				})
 
 			ts := &temporalsdk_testsuite.WorkflowTestSuite{}
 			env := ts.NewTestActivityEnvironment()

@@ -48,7 +48,7 @@ func (a *UpdateDIP) Execute(ctx context.Context, params *UpdateDIPParams) (*Upda
 		}
 
 		// The database update may succeed even if Temporal does not receive the result.
-		// On retry, leave completed generations unchanged: publishing again would reset
+		// On retry, leave completed generations unchanged: marking the DIP done again would reset
 		// completion and expiry times, possibly overwriting an API renewal. Likewise,
 		// do not overwrite a failed or deleted generation. Deletion is handled below
 		// because it must still check whether a completed generation has expired.
@@ -64,8 +64,17 @@ func (a *UpdateDIP) Execute(ctx context.Context, params *UpdateDIPParams) (*Upda
 			d.StartedAt = now
 			d.WorkflowID = params.WorkflowID
 		case enums.DIPStatusDone:
-			if params.ObjectKey == "" || params.Retention < 0 {
-				return nil, fmt.Errorf("%w: invalid DIP publication", persistence.ErrNotValid)
+			if params.ObjectKey == "" {
+				return nil, fmt.Errorf(
+					"%w: update DIP status to \"done\": ObjectKey is required",
+					persistence.ErrNotValid,
+				)
+			}
+			if params.Retention < 0 {
+				return nil, fmt.Errorf(
+					"%w: update DIP status to \"done\": Retention must not be negative (got %s)",
+					persistence.ErrNotValid, params.Retention,
+				)
 			}
 			d.Status = params.Status
 			d.ObjectKey = params.ObjectKey
