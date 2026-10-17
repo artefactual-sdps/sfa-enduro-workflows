@@ -22,10 +22,16 @@ var (
 )
 
 type RequestDIPParams struct {
-	UUID        uuid.UUID
-	DocKey      string
+	// UUID identifies the new DIP if no existing DIP is reused.
+	UUID uuid.UUID
+	// DocKey identifies the ACTApro document to generate a DIP for.
+	DocKey string
+	// IgnoreCache skips cached DIPs. Queued or in-progress DIPs are still reused.
 	IgnoreCache bool
-	Retention   time.Duration
+	// Retention only applies when reusing a cached DIP. It can extend the expiry
+	// or remove it when zero, but never shorten it. For new or pending DIPs, the
+	// workflow sets the expiry on completion using its configured retention.
+	Retention time.Duration
 }
 
 type DIPUpdater func(*datatypes.DIP) (*datatypes.DIP, error)
