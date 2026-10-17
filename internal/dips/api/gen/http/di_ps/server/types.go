@@ -32,13 +32,18 @@ type ShowResponseBody struct {
 	Status string `form:"status" json:"status" xml:"status"`
 	// The error_message field contains an error message if the DIP failed.
 	ErrorMessage *string `form:"error_message,omitempty" json:"error_message,omitempty" xml:"error_message,omitempty"`
-	// The created_at field contains the time when the DIP was requested.
+	// created_at is the time when the DIP was first requested.
 	CreatedAt string `form:"created_at" json:"created_at" xml:"created_at"`
-	// The started_at field contains the time when DIP processing started.
+	// started_at is the time when DIP generation started.
 	StartedAt *string `form:"started_at,omitempty" json:"started_at,omitempty" xml:"started_at,omitempty"`
-	// The completed_at field contains the time when DIP processing completed.
+	// completed_at is the time when DIP generation completed.
 	CompletedAt *string `form:"completed_at,omitempty" json:"completed_at,omitempty" xml:"completed_at,omitempty"`
-	// The object_key field contains the object store key for the completed DIP.
+	// expires_at is the time when a cached DIP expires for a given docKey.
+	// Requesting the creation of a new DIP for this docKey may extend or remove
+	// the expiry time. expires_at is omitted when no expiry is set.
+	ExpiresAt *string `form:"expires_at,omitempty" json:"expires_at,omitempty" xml:"expires_at,omitempty"`
+	// object_key is the object store key for the generated DIP. Omitted before DIP
+	// generation completes and after deletion.
 	ObjectKey *string `form:"object_key,omitempty" json:"object_key,omitempty" xml:"object_key,omitempty"`
 }
 
@@ -213,6 +218,10 @@ func NewShowResponseBody(res *dips.ShowResult) *ShowResponseBody {
 		completedAt := string(*res.CompletedAt)
 		body.CompletedAt = &completedAt
 	}
+	if res.ExpiresAt != nil {
+		expiresAt := string(*res.ExpiresAt)
+		body.ExpiresAt = &expiresAt
+	}
 	if res.ObjectKey != nil {
 		objectKey := string(*res.ObjectKey)
 		body.ObjectKey = &objectKey
@@ -336,10 +345,8 @@ func NewShowInternalErrorResponseBody(res *goa.ServiceError) *ShowInternalErrorR
 func NewCreatePayload(body struct {
 	// The docKey field contains the document key used to create the DIP.
 	DocKey *string `form:"docKey" json:"docKey" xml:"docKey"`
-	// The ignoreCache field indicates whether to ignore a cached DIP previously
-	// created for this docKey. When ignoreCache is true, a new DIP is created for
-	// the given docKey even if a cached DIP exists. When ignoreCache is false or
-	// omitted, the ID of a cached DIP may be returned.
+	// When ignoreCache is true it forces the creation of a new DIP for the given
+	// docKey, unless a previous DIP request is still queued or in progress.
 	IgnoreCache *bool `form:"ignoreCache" json:"ignoreCache" xml:"ignoreCache"`
 }, token *string) *dips.CreatePayload {
 	v := &dips.CreatePayload{}

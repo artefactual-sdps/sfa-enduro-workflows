@@ -86,9 +86,19 @@ func CompletedAt(v time.Time) predicate.DIP {
 	return predicate.DIP(sql.FieldEQ(FieldCompletedAt, v))
 }
 
+// ExpiresAt applies equality check predicate on the "expires_at" field. It's identical to ExpiresAtEQ.
+func ExpiresAt(v time.Time) predicate.DIP {
+	return predicate.DIP(sql.FieldEQ(FieldExpiresAt, v))
+}
+
 // ObjectKey applies equality check predicate on the "object_key" field. It's identical to ObjectKeyEQ.
 func ObjectKey(v string) predicate.DIP {
 	return predicate.DIP(sql.FieldEQ(FieldObjectKey, v))
+}
+
+// WorkflowID applies equality check predicate on the "workflow_id" field. It's identical to WorkflowIDEQ.
+func WorkflowID(v string) predicate.DIP {
+	return predicate.DIP(sql.FieldEQ(FieldWorkflowID, v))
 }
 
 // UUIDEQ applies the EQ predicate on the "uuid" field.
@@ -441,6 +451,56 @@ func CompletedAtNotNil() predicate.DIP {
 	return predicate.DIP(sql.FieldNotNull(FieldCompletedAt))
 }
 
+// ExpiresAtEQ applies the EQ predicate on the "expires_at" field.
+func ExpiresAtEQ(v time.Time) predicate.DIP {
+	return predicate.DIP(sql.FieldEQ(FieldExpiresAt, v))
+}
+
+// ExpiresAtNEQ applies the NEQ predicate on the "expires_at" field.
+func ExpiresAtNEQ(v time.Time) predicate.DIP {
+	return predicate.DIP(sql.FieldNEQ(FieldExpiresAt, v))
+}
+
+// ExpiresAtIn applies the In predicate on the "expires_at" field.
+func ExpiresAtIn(vs ...time.Time) predicate.DIP {
+	return predicate.DIP(sql.FieldIn(FieldExpiresAt, vs...))
+}
+
+// ExpiresAtNotIn applies the NotIn predicate on the "expires_at" field.
+func ExpiresAtNotIn(vs ...time.Time) predicate.DIP {
+	return predicate.DIP(sql.FieldNotIn(FieldExpiresAt, vs...))
+}
+
+// ExpiresAtGT applies the GT predicate on the "expires_at" field.
+func ExpiresAtGT(v time.Time) predicate.DIP {
+	return predicate.DIP(sql.FieldGT(FieldExpiresAt, v))
+}
+
+// ExpiresAtGTE applies the GTE predicate on the "expires_at" field.
+func ExpiresAtGTE(v time.Time) predicate.DIP {
+	return predicate.DIP(sql.FieldGTE(FieldExpiresAt, v))
+}
+
+// ExpiresAtLT applies the LT predicate on the "expires_at" field.
+func ExpiresAtLT(v time.Time) predicate.DIP {
+	return predicate.DIP(sql.FieldLT(FieldExpiresAt, v))
+}
+
+// ExpiresAtLTE applies the LTE predicate on the "expires_at" field.
+func ExpiresAtLTE(v time.Time) predicate.DIP {
+	return predicate.DIP(sql.FieldLTE(FieldExpiresAt, v))
+}
+
+// ExpiresAtIsNil applies the IsNil predicate on the "expires_at" field.
+func ExpiresAtIsNil() predicate.DIP {
+	return predicate.DIP(sql.FieldIsNull(FieldExpiresAt))
+}
+
+// ExpiresAtNotNil applies the NotNil predicate on the "expires_at" field.
+func ExpiresAtNotNil() predicate.DIP {
+	return predicate.DIP(sql.FieldNotNull(FieldExpiresAt))
+}
+
 // ObjectKeyEQ applies the EQ predicate on the "object_key" field.
 func ObjectKeyEQ(v string) predicate.DIP {
 	return predicate.DIP(sql.FieldEQ(FieldObjectKey, v))
@@ -514,6 +574,81 @@ func ObjectKeyEqualFold(v string) predicate.DIP {
 // ObjectKeyContainsFold applies the ContainsFold predicate on the "object_key" field.
 func ObjectKeyContainsFold(v string) predicate.DIP {
 	return predicate.DIP(sql.FieldContainsFold(FieldObjectKey, v))
+}
+
+// WorkflowIDEQ applies the EQ predicate on the "workflow_id" field.
+func WorkflowIDEQ(v string) predicate.DIP {
+	return predicate.DIP(sql.FieldEQ(FieldWorkflowID, v))
+}
+
+// WorkflowIDNEQ applies the NEQ predicate on the "workflow_id" field.
+func WorkflowIDNEQ(v string) predicate.DIP {
+	return predicate.DIP(sql.FieldNEQ(FieldWorkflowID, v))
+}
+
+// WorkflowIDIn applies the In predicate on the "workflow_id" field.
+func WorkflowIDIn(vs ...string) predicate.DIP {
+	return predicate.DIP(sql.FieldIn(FieldWorkflowID, vs...))
+}
+
+// WorkflowIDNotIn applies the NotIn predicate on the "workflow_id" field.
+func WorkflowIDNotIn(vs ...string) predicate.DIP {
+	return predicate.DIP(sql.FieldNotIn(FieldWorkflowID, vs...))
+}
+
+// WorkflowIDGT applies the GT predicate on the "workflow_id" field.
+func WorkflowIDGT(v string) predicate.DIP {
+	return predicate.DIP(sql.FieldGT(FieldWorkflowID, v))
+}
+
+// WorkflowIDGTE applies the GTE predicate on the "workflow_id" field.
+func WorkflowIDGTE(v string) predicate.DIP {
+	return predicate.DIP(sql.FieldGTE(FieldWorkflowID, v))
+}
+
+// WorkflowIDLT applies the LT predicate on the "workflow_id" field.
+func WorkflowIDLT(v string) predicate.DIP {
+	return predicate.DIP(sql.FieldLT(FieldWorkflowID, v))
+}
+
+// WorkflowIDLTE applies the LTE predicate on the "workflow_id" field.
+func WorkflowIDLTE(v string) predicate.DIP {
+	return predicate.DIP(sql.FieldLTE(FieldWorkflowID, v))
+}
+
+// WorkflowIDContains applies the Contains predicate on the "workflow_id" field.
+func WorkflowIDContains(v string) predicate.DIP {
+	return predicate.DIP(sql.FieldContains(FieldWorkflowID, v))
+}
+
+// WorkflowIDHasPrefix applies the HasPrefix predicate on the "workflow_id" field.
+func WorkflowIDHasPrefix(v string) predicate.DIP {
+	return predicate.DIP(sql.FieldHasPrefix(FieldWorkflowID, v))
+}
+
+// WorkflowIDHasSuffix applies the HasSuffix predicate on the "workflow_id" field.
+func WorkflowIDHasSuffix(v string) predicate.DIP {
+	return predicate.DIP(sql.FieldHasSuffix(FieldWorkflowID, v))
+}
+
+// WorkflowIDIsNil applies the IsNil predicate on the "workflow_id" field.
+func WorkflowIDIsNil() predicate.DIP {
+	return predicate.DIP(sql.FieldIsNull(FieldWorkflowID))
+}
+
+// WorkflowIDNotNil applies the NotNil predicate on the "workflow_id" field.
+func WorkflowIDNotNil() predicate.DIP {
+	return predicate.DIP(sql.FieldNotNull(FieldWorkflowID))
+}
+
+// WorkflowIDEqualFold applies the EqualFold predicate on the "workflow_id" field.
+func WorkflowIDEqualFold(v string) predicate.DIP {
+	return predicate.DIP(sql.FieldEqualFold(FieldWorkflowID, v))
+}
+
+// WorkflowIDContainsFold applies the ContainsFold predicate on the "workflow_id" field.
+func WorkflowIDContainsFold(v string) predicate.DIP {
+	return predicate.DIP(sql.FieldContainsFold(FieldWorkflowID, v))
 }
 
 // And groups predicates with the AND operator between them.

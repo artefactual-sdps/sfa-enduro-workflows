@@ -12,7 +12,7 @@ paths:
             tags:
                 - DIPs
             summary: create DIPs
-            description: The create method requests DIP creation for the given document key.
+            description: The create method requests DIP creation for the given document key. It may return the ID of a new DIP or a previously cached DIP.
             operationId: DIPs#create
             requestBody:
                 description: Request body for create.
@@ -26,7 +26,7 @@ paths:
                                     $ref: '#/components/schemas/DocKey'
                                 ignoreCache:
                                     type: boolean
-                                    description: The ignoreCache field indicates whether to ignore a cached DIP previously created for this docKey. When ignoreCache is true, a new DIP is created for the given docKey even if a cached DIP exists. When ignoreCache is false or omitted, the ID of a cached DIP may be returned.
+                                    description: When ignoreCache is true it forces the creation of a new DIP for the given docKey, unless a previous DIP request is still queued or in progress.
                                     default: false
                                     example: true
                             example:
@@ -94,8 +94,9 @@ paths:
                                 created_at: "2026-05-27T15:04:05Z"
                                 docKey: CH-000001
                                 error_message: 'ACTAPro returned: 404 Not Found; Document not found'
+                                expires_at: "2026-05-27T15:04:05Z"
                                 id: 3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb
-                                object_key: dips/3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb.zip
+                                object_key: DIP_3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb.zip
                                 started_at: "2026-05-27T15:04:05Z"
                                 status: done
                 "400":
@@ -166,6 +167,7 @@ components:
                 - in progress
                 - done
                 - failed
+                - deleted
         DateTime:
             type: string
             description: DateTime represents an RFC3339 timestamp.
@@ -222,7 +224,7 @@ components:
         ObjectKey:
             type: string
             description: ObjectKey represents the object store key for a DIP.
-            example: dips/3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb.zip
+            example: DIP_3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb.zip
             minLength: 1
         ShowResponseBody:
             type: object
@@ -237,6 +239,8 @@ components:
                     type: string
                     description: The error_message field contains an error message if the DIP failed.
                     example: 'ACTAPro returned: 404 Not Found; Document not found'
+                expires_at:
+                    $ref: '#/components/schemas/DateTime'
                 id:
                     $ref: '#/components/schemas/DIPID'
                 object_key:
@@ -250,8 +254,9 @@ components:
                 created_at: "2026-05-27T15:04:05Z"
                 docKey: CH-000001
                 error_message: 'ACTAPro returned: 404 Not Found; Document not found'
+                expires_at: "2026-05-27T15:04:05Z"
                 id: 3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb
-                object_key: dips/3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb.zip
+                object_key: DIP_3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb.zip
                 started_at: "2026-05-27T15:04:05Z"
                 status: done
             required:

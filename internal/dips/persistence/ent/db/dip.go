@@ -33,8 +33,12 @@ type DIP struct {
 	StartedAt time.Time `json:"started_at,omitempty"`
 	// CompletedAt holds the value of the "completed_at" field.
 	CompletedAt time.Time `json:"completed_at,omitempty"`
+	// ExpiresAt holds the value of the "expires_at" field.
+	ExpiresAt time.Time `json:"expires_at,omitempty"`
 	// ObjectKey holds the value of the "object_key" field.
-	ObjectKey    string `json:"object_key,omitempty"`
+	ObjectKey string `json:"object_key,omitempty"`
+	// WorkflowID holds the value of the "workflow_id" field.
+	WorkflowID   string `json:"workflow_id,omitempty"`
 	selectValues sql.SelectValues
 }
 
@@ -45,9 +49,9 @@ func (*DIP) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case dip.FieldID:
 			values[i] = new(sql.NullInt64)
-		case dip.FieldDocKey, dip.FieldStatus, dip.FieldErrorMessage, dip.FieldObjectKey:
+		case dip.FieldDocKey, dip.FieldStatus, dip.FieldErrorMessage, dip.FieldObjectKey, dip.FieldWorkflowID:
 			values[i] = new(sql.NullString)
-		case dip.FieldCreatedAt, dip.FieldStartedAt, dip.FieldCompletedAt:
+		case dip.FieldCreatedAt, dip.FieldStartedAt, dip.FieldCompletedAt, dip.FieldExpiresAt:
 			values[i] = new(sql.NullTime)
 		case dip.FieldUUID:
 			values[i] = new(uuid.UUID)
@@ -114,11 +118,23 @@ func (_m *DIP) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.CompletedAt = value.Time
 			}
+		case dip.FieldExpiresAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field expires_at", values[i])
+			} else if value.Valid {
+				_m.ExpiresAt = value.Time
+			}
 		case dip.FieldObjectKey:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field object_key", values[i])
 			} else if value.Valid {
 				_m.ObjectKey = value.String
+			}
+		case dip.FieldWorkflowID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field workflow_id", values[i])
+			} else if value.Valid {
+				_m.WorkflowID = value.String
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -177,8 +193,14 @@ func (_m *DIP) String() string {
 	builder.WriteString("completed_at=")
 	builder.WriteString(_m.CompletedAt.Format(time.ANSIC))
 	builder.WriteString(", ")
+	builder.WriteString("expires_at=")
+	builder.WriteString(_m.ExpiresAt.Format(time.ANSIC))
+	builder.WriteString(", ")
 	builder.WriteString("object_key=")
 	builder.WriteString(_m.ObjectKey)
+	builder.WriteString(", ")
+	builder.WriteString("workflow_id=")
+	builder.WriteString(_m.WorkflowID)
 	builder.WriteByte(')')
 	return builder.String()
 }

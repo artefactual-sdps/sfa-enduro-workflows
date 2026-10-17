@@ -24,10 +24,8 @@ func BuildCreatePayload(dIPsCreateBody string, dIPsCreateToken string) (*dips.Cr
 	var body struct {
 		// The docKey field contains the document key used to create the DIP.
 		DocKey *string `form:"docKey" json:"docKey" xml:"docKey"`
-		// The ignoreCache field indicates whether to ignore a cached DIP previously
-		// created for this docKey. When ignoreCache is true, a new DIP is created for
-		// the given docKey even if a cached DIP exists. When ignoreCache is false or
-		// omitted, the ID of a cached DIP may be returned.
+		// When ignoreCache is true it forces the creation of a new DIP for the given
+		// docKey, unless a previous DIP request is still queued or in progress.
 		IgnoreCache bool `form:"ignoreCache" json:"ignoreCache" xml:"ignoreCache"`
 	}
 	{

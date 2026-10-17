@@ -3,6 +3,7 @@ package persistence
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -20,13 +21,23 @@ var (
 	ErrInternal = errors.New("internal error")
 )
 
+type RequestDIPParams struct {
+	// UUID identifies the new DIP if no existing DIP is reused.
+	UUID uuid.UUID
+	// DocKey identifies the ACTApro document to generate a DIP for.
+	DocKey string
+	// IgnoreCache skips cached DIPs. Queued or in-progress DIPs are still reused.
+	IgnoreCache bool
+	// Retention only applies when reusing a cached DIP. It can extend the expiry
+	// or remove it when zero, but never shorten it. For new or pending DIPs, the
+	// workflow sets the expiry on completion using its configured retention.
+	Retention time.Duration
+}
+
 type DIPUpdater func(*datatypes.DIP) (*datatypes.DIP, error)
 
 type Service interface {
-	// CreateDIP persists the given DIP to the data store then updates
-	// the DIP from the data store, adding auto-generated data
-	// (e.g. ID, CreatedAt).
-	CreateDIP(context.Context, *datatypes.DIP) error
+	RequestDIP(context.Context, RequestDIPParams) (*datatypes.DIP, error)
 	ReadDIP(context.Context, uuid.UUID) (*datatypes.DIP, error)
 	UpdateDIP(context.Context, uuid.UUID, DIPUpdater) (*datatypes.DIP, error)
 	DeleteDIP(context.Context, uuid.UUID) error

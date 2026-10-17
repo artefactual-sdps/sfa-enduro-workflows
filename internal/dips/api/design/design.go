@@ -78,7 +78,7 @@ var DateTime = Type("DateTime", String, func() {
 var ObjectKey = Type("ObjectKey", String, func() {
 	Description("ObjectKey represents the object store key for a DIP.")
 	MinLength(1)
-	Example("dips/3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb.zip")
+	Example("DIP_3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb.zip")
 })
 
 var _ = Service("DIPs", func() {
@@ -108,13 +108,15 @@ var _ = Service("DIPs", func() {
 	})
 
 	Method("create", func() {
-		Description("The create method requests DIP creation for the given document key.")
+		Description(
+			"The create method requests DIP creation for the given document key. It may return the ID of a new DIP or a previously cached DIP.",
+		)
 		Payload(func() {
 			BearerToken("token", String, "The token field contains the OIDC bearer token.")
 			Attribute("docKey", DocKey, "The docKey field contains the document key used to create the DIP.")
 			Attribute("ignoreCache", Boolean, func() {
 				Description(
-					"The ignoreCache field indicates whether to ignore a cached DIP previously created for this docKey. When ignoreCache is true, a new DIP is created for the given docKey even if a cached DIP exists. When ignoreCache is false or omitted, the ID of a cached DIP may be returned.",
+					"When ignoreCache is true it forces the creation of a new DIP for the given docKey, unless a previous DIP request is still queued or in progress.",
 				)
 				Default(false)
 				Example(true)
@@ -154,17 +156,30 @@ var _ = Service("DIPs", func() {
 				Description("The error_message field contains an error message if the DIP failed.")
 				Example("ACTAPro returned: 404 Not Found; Document not found")
 			})
-			Attribute("created_at", DateTime, "The created_at field contains the time when the DIP was requested.")
-			Attribute("started_at", DateTime, "The started_at field contains the time when DIP processing started.")
+			Attribute(
+				"created_at",
+				DateTime,
+				"created_at is the time when the DIP was first requested.",
+			)
+			Attribute(
+				"started_at",
+				DateTime,
+				"started_at is the time when DIP generation started.",
+			)
 			Attribute(
 				"completed_at",
 				DateTime,
-				"The completed_at field contains the time when DIP processing completed.",
+				"completed_at is the time when DIP generation completed.",
+			)
+			Attribute(
+				"expires_at",
+				DateTime,
+				"expires_at is the time when a cached DIP expires for a given docKey. Requesting the creation of a new DIP for this docKey may extend or remove the expiry time. expires_at is omitted when no expiry is set.",
 			)
 			Attribute(
 				"object_key",
 				ObjectKey,
-				"The object_key field contains the object store key for the completed DIP.",
+				"object_key is the object store key for the generated DIP. Omitted before DIP generation completes and after deletion.",
 			)
 			Required("id", "docKey", "status", "created_at")
 		})
