@@ -50,13 +50,21 @@ func TestRequestDIP(t *testing.T) {
 	expired := cached
 	expired.ExpiresAt = now.Add(-time.Minute)
 
+	rows := func(ds ...datatypes.DIP) *sqlmock.Rows {
+		r := sqlmock.NewRows(dip.Columns)
+		for _, d := range ds {
+			r.AddRow(d.DBID, d.UUID.String(), d.DocKey, d.Status.String(), d.ErrorMessage,
+				d.CreatedAt, d.StartedAt, d.CompletedAt, d.ExpiresAt, d.ObjectKey, d.WorkflowID)
+		}
+		return r
+	}
+
 	for _, tt := range []struct {
-		name     string
-		req      persistence.RequestDIPParams
-		existing []datatypes.DIP
-		want     *datatypes.DIP
-		update   bool
-		wantErr  string
+		name      string
+		req       persistence.RequestDIPParams
+		setupMock func(sqlmock.Sqlmock)
+		want      *datatypes.DIP
+		wantErr   string
 	}{
 		{
 			name: "Creates a DIP",
@@ -64,6 +72,16 @@ func TestRequestDIP(t *testing.T) {
 				UUID:      dipUUID,
 				DocKey:    "CH-000001",
 				Retention: time.Hour,
+			},
+			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery("SELECT .* FROM `dip` WHERE .* ORDER BY `dip`.`created_at` DESC FOR UPDATE").
+					WithArgs("CH-000001", enums.DIPStatusQueued.String(), enums.DIPStatusInProgress.String(), enums.DIPStatusDone.String()).
+					WillReturnRows(rows())
+				mock.ExpectExec("INSERT INTO `dip`").
+					WithArgs(dipUUID.String(), "CH-000001", enums.DIPStatusQueued.String(), approximateTime{now}).
+					WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectCommit()
 			},
 			want: &datatypes.DIP{
 				DBID:      1,
@@ -80,7 +98,13 @@ func TestRequestDIP(t *testing.T) {
 				DocKey:    "CH-000001",
 				Retention: time.Hour,
 			},
-			existing: []datatypes.DIP{queued},
+			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery("SELECT .* FROM `dip` WHERE .* ORDER BY `dip`.`created_at` DESC FOR UPDATE").
+					WithArgs("CH-000001", enums.DIPStatusQueued.String(), enums.DIPStatusInProgress.String(), enums.DIPStatusDone.String()).
+					WillReturnRows(rows(queued))
+				mock.ExpectRollback()
+			},
 			want: &datatypes.DIP{
 				DBID:        1,
 				UUID:        uuid.MustParse("c822307a-b224-4c6d-a03e-9bc24345dc2b"),
@@ -103,7 +127,13 @@ func TestRequestDIP(t *testing.T) {
 				IgnoreCache: true,
 				Retention:   time.Hour,
 			},
-			existing: []datatypes.DIP{pending},
+			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery("SELECT .* FROM `dip` WHERE .* ORDER BY `dip`.`created_at` DESC FOR UPDATE").
+					WithArgs("CH-000001", enums.DIPStatusQueued.String(), enums.DIPStatusInProgress.String(), enums.DIPStatusDone.String()).
+					WillReturnRows(rows(pending))
+				mock.ExpectRollback()
+			},
 			want: &datatypes.DIP{
 				DBID:        1,
 				UUID:        uuid.MustParse("c822307a-b224-4c6d-a03e-9bc24345dc2b"),
@@ -125,7 +155,13 @@ func TestRequestDIP(t *testing.T) {
 				DocKey:    "CH-000001",
 				Retention: time.Hour,
 			},
-			existing: []datatypes.DIP{cached, pending},
+			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery("SELECT .* FROM `dip` WHERE .* ORDER BY `dip`.`created_at` DESC FOR UPDATE").
+					WithArgs("CH-000001", enums.DIPStatusQueued.String(), enums.DIPStatusInProgress.String(), enums.DIPStatusDone.String()).
+					WillReturnRows(rows(cached, pending))
+				mock.ExpectRollback()
+			},
 			want: &datatypes.DIP{
 				DBID:        1,
 				UUID:        uuid.MustParse("c822307a-b224-4c6d-a03e-9bc24345dc2b"),
@@ -146,7 +182,20 @@ func TestRequestDIP(t *testing.T) {
 				DocKey:    "CH-000001",
 				Retention: time.Hour,
 			},
-			existing: []datatypes.DIP{cached},
+			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery("SELECT .* FROM `dip` WHERE .* ORDER BY `dip`.`created_at` DESC FOR UPDATE").
+					WithArgs("CH-000001", enums.DIPStatusQueued.String(), enums.DIPStatusInProgress.String(), enums.DIPStatusDone.String()).
+					WillReturnRows(rows(cached))
+				renewed := cached
+				renewed.ExpiresAt = now.Add(time.Hour)
+				mock.ExpectExec("UPDATE `dip` SET `expires_at` = .* WHERE `id` = ").
+					WithArgs(approximateTime{renewed.ExpiresAt}, cached.DBID).
+					WillReturnResult(sqlmock.NewResult(0, 1))
+				mock.ExpectQuery("SELECT .* FROM `dip` WHERE `id` = ").WithArgs(cached.DBID).
+					WillReturnRows(rows(renewed))
+				mock.ExpectCommit()
+			},
 			want: &datatypes.DIP{
 				DBID:        1,
 				UUID:        uuid.MustParse("c822307a-b224-4c6d-a03e-9bc24345dc2b"),
@@ -159,7 +208,6 @@ func TestRequestDIP(t *testing.T) {
 				ObjectKey:   "dips/CH-000001.zip",
 				WorkflowID:  "create-dip-c822307a-b224-4c6d-a03e-9bc24345dc2b",
 			},
-			update: true,
 		},
 		{
 			name: "Does not shorten retention",
@@ -168,7 +216,13 @@ func TestRequestDIP(t *testing.T) {
 				DocKey:    "CH-000001",
 				Retention: time.Minute,
 			},
-			existing: []datatypes.DIP{cached},
+			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery("SELECT .* FROM `dip` WHERE .* ORDER BY `dip`.`created_at` DESC FOR UPDATE").
+					WithArgs("CH-000001", enums.DIPStatusQueued.String(), enums.DIPStatusInProgress.String(), enums.DIPStatusDone.String()).
+					WillReturnRows(rows(cached))
+				mock.ExpectRollback()
+			},
 			want: &datatypes.DIP{
 				DBID:        1,
 				UUID:        uuid.MustParse("c822307a-b224-4c6d-a03e-9bc24345dc2b"),
@@ -189,7 +243,17 @@ func TestRequestDIP(t *testing.T) {
 				DocKey:    "CH-000001",
 				Retention: 0,
 			},
-			existing: []datatypes.DIP{cached},
+			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery("SELECT .* FROM `dip` WHERE .* ORDER BY `dip`.`created_at` DESC FOR UPDATE").
+					WithArgs("CH-000001", enums.DIPStatusQueued.String(), enums.DIPStatusInProgress.String(), enums.DIPStatusDone.String()).
+					WillReturnRows(rows(cached))
+				mock.ExpectExec("UPDATE `dip` SET `expires_at` = NULL WHERE `id` = ").
+					WithArgs(cached.DBID).WillReturnResult(sqlmock.NewResult(0, 1))
+				mock.ExpectQuery("SELECT .* FROM `dip` WHERE `id` = ").WithArgs(cached.DBID).
+					WillReturnRows(rows(indefinite))
+				mock.ExpectCommit()
+			},
 			want: &datatypes.DIP{
 				DBID:        1,
 				UUID:        uuid.MustParse("c822307a-b224-4c6d-a03e-9bc24345dc2b"),
@@ -202,7 +266,6 @@ func TestRequestDIP(t *testing.T) {
 				ObjectKey:   "dips/CH-000001.zip",
 				WorkflowID:  "create-dip-c822307a-b224-4c6d-a03e-9bc24345dc2b",
 			},
-			update: true,
 		},
 		{
 			name: "Preserves indefinite retention",
@@ -211,7 +274,13 @@ func TestRequestDIP(t *testing.T) {
 				DocKey:    "CH-000001",
 				Retention: time.Hour,
 			},
-			existing: []datatypes.DIP{indefinite},
+			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery("SELECT .* FROM `dip` WHERE .* ORDER BY `dip`.`created_at` DESC FOR UPDATE").
+					WithArgs("CH-000001", enums.DIPStatusQueued.String(), enums.DIPStatusInProgress.String(), enums.DIPStatusDone.String()).
+					WillReturnRows(rows(indefinite))
+				mock.ExpectRollback()
+			},
 			want: &datatypes.DIP{
 				DBID:        1,
 				UUID:        uuid.MustParse("c822307a-b224-4c6d-a03e-9bc24345dc2b"),
@@ -233,7 +302,16 @@ func TestRequestDIP(t *testing.T) {
 				IgnoreCache: true,
 				Retention:   time.Hour,
 			},
-			existing: []datatypes.DIP{cached},
+			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery("SELECT .* FROM `dip` WHERE .* ORDER BY `dip`.`created_at` DESC FOR UPDATE").
+					WithArgs("CH-000001", enums.DIPStatusQueued.String(), enums.DIPStatusInProgress.String(), enums.DIPStatusDone.String()).
+					WillReturnRows(rows(cached))
+				mock.ExpectExec("INSERT INTO `dip`").
+					WithArgs(dipUUID.String(), "CH-000001", enums.DIPStatusQueued.String(), approximateTime{now}).
+					WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectCommit()
+			},
 			want: &datatypes.DIP{
 				DBID:      1,
 				UUID:      dipUUID,
@@ -249,7 +327,16 @@ func TestRequestDIP(t *testing.T) {
 				DocKey:    "CH-000001",
 				Retention: time.Hour,
 			},
-			existing: []datatypes.DIP{expired},
+			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery("SELECT .* FROM `dip` WHERE .* ORDER BY `dip`.`created_at` DESC FOR UPDATE").
+					WithArgs("CH-000001", enums.DIPStatusQueued.String(), enums.DIPStatusInProgress.String(), enums.DIPStatusDone.String()).
+					WillReturnRows(rows(expired))
+				mock.ExpectExec("INSERT INTO `dip`").
+					WithArgs(dipUUID.String(), "CH-000001", enums.DIPStatusQueued.String(), approximateTime{now}).
+					WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectCommit()
+			},
 			want: &datatypes.DIP{
 				DBID:      1,
 				UUID:      dipUUID,
@@ -265,7 +352,13 @@ func TestRequestDIP(t *testing.T) {
 				DocKey:    "CH-000001",
 				Retention: time.Minute,
 			},
-			existing: []datatypes.DIP{expired, cached},
+			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery("SELECT .* FROM `dip` WHERE .* ORDER BY `dip`.`created_at` DESC FOR UPDATE").
+					WithArgs("CH-000001", enums.DIPStatusQueued.String(), enums.DIPStatusInProgress.String(), enums.DIPStatusDone.String()).
+					WillReturnRows(rows(expired, cached))
+				mock.ExpectRollback()
+			},
 			want: &datatypes.DIP{
 				DBID:        1,
 				UUID:        uuid.MustParse("c822307a-b224-4c6d-a03e-9bc24345dc2b"),
@@ -304,41 +397,79 @@ func TestRequestDIP(t *testing.T) {
 			},
 			wantErr: "invalid data error: retention must not be negative",
 		},
+		{
+			name: "Recovers a newly created DIP after a commit error",
+			req: persistence.RequestDIPParams{
+				UUID:   dipUUID,
+				DocKey: "CH-000001",
+			},
+			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery("SELECT .* FROM `dip` WHERE .* FOR UPDATE").
+					WithArgs("CH-000001", enums.DIPStatusQueued.String(), enums.DIPStatusInProgress.String(), enums.DIPStatusDone.String()).
+					WillReturnRows(rows())
+				mock.ExpectExec("INSERT INTO `dip`").
+					WithArgs(dipUUID.String(), "CH-000001", enums.DIPStatusQueued.String(), approximateTime{now}).
+					WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectCommit().WillReturnError(fmt.Errorf("commit failed"))
+				mock.ExpectQuery("SELECT .* FROM `dip` WHERE").WithArgs(dipUUID.String()).
+					WillReturnRows(rows(created))
+			},
+			want: &datatypes.DIP{
+				DBID:      1,
+				UUID:      dipUUID,
+				DocKey:    "CH-000001",
+				Status:    enums.DIPStatusQueued,
+				CreatedAt: now,
+			},
+		},
+		{
+			name: "Returns the commit error if the new DIP cannot be found",
+			req: persistence.RequestDIPParams{
+				UUID:   dipUUID,
+				DocKey: "CH-000001",
+			},
+			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery("SELECT .* FROM `dip` WHERE .* FOR UPDATE").
+					WithArgs("CH-000001", enums.DIPStatusQueued.String(), enums.DIPStatusInProgress.String(), enums.DIPStatusDone.String()).
+					WillReturnRows(rows())
+				mock.ExpectExec("INSERT INTO `dip`").
+					WithArgs(dipUUID.String(), "CH-000001", enums.DIPStatusQueued.String(), approximateTime{now}).
+					WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectCommit().WillReturnError(fmt.Errorf("commit failed"))
+				mock.ExpectQuery("SELECT .* FROM `dip` WHERE").WithArgs(dipUUID.String()).
+					WillReturnRows(rows())
+			},
+			wantErr: "internal error: commit failed",
+		},
+		{
+			name: "Does not recover a cached DIP after a commit error",
+			req: persistence.RequestDIPParams{
+				UUID:   dipUUID,
+				DocKey: "CH-000001",
+			},
+			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery("SELECT .* FROM `dip` WHERE .* FOR UPDATE").
+					WithArgs("CH-000001", enums.DIPStatusQueued.String(), enums.DIPStatusInProgress.String(), enums.DIPStatusDone.String()).
+					WillReturnRows(rows(cached))
+				mock.ExpectExec("UPDATE `dip` SET `expires_at` = NULL WHERE `id` = ").
+					WithArgs(cached.DBID).WillReturnResult(sqlmock.NewResult(0, 1))
+				mock.ExpectQuery("SELECT .* FROM `dip` WHERE `id` = ").WithArgs(cached.DBID).
+					WillReturnRows(rows(indefinite))
+				mock.ExpectCommit().WillReturnError(fmt.Errorf("commit failed"))
+			},
+			wantErr: "internal error: commit failed",
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
 			svc, mock := setUpMockClient(t, logr.Discard())
-			rows := func(ds ...datatypes.DIP) *sqlmock.Rows {
-				r := sqlmock.NewRows(dip.Columns)
-				for _, d := range ds {
-					r.AddRow(d.DBID, d.UUID.String(), d.DocKey, d.Status.String(), d.ErrorMessage,
-						d.CreatedAt, d.StartedAt, d.CompletedAt, d.ExpiresAt, d.ObjectKey, d.WorkflowID)
-				}
-				return r
-			}
-			if tt.wantErr == "" {
-				mock.ExpectBegin()
-				mock.ExpectQuery("SELECT .* FROM `dip` WHERE .* ORDER BY `dip`.`created_at` DESC FOR UPDATE").
-					WithArgs(tt.req.DocKey, enums.DIPStatusQueued.String(), enums.DIPStatusInProgress.String(), enums.DIPStatusDone.String()).
-					WillReturnRows(rows(tt.existing...))
-				if tt.want.UUID == tt.req.UUID {
-					mock.ExpectExec("INSERT INTO `dip`").
-						WithArgs(tt.req.UUID.String(), tt.req.DocKey, enums.DIPStatusQueued.String(), approximateTime{now}).
-						WillReturnResult(sqlmock.NewResult(1, 1))
-				} else if tt.update {
-					if tt.want.ExpiresAt.IsZero() {
-						mock.ExpectExec("UPDATE `dip` SET `expires_at` = NULL WHERE `id` = ").WithArgs(tt.want.DBID).
-							WillReturnResult(sqlmock.NewResult(0, 1))
-					} else {
-						mock.ExpectExec("UPDATE `dip` SET `expires_at` = .* WHERE `id` = ").
-							WithArgs(approximateTime{tt.want.ExpiresAt}, tt.want.DBID).
-							WillReturnResult(sqlmock.NewResult(0, 1))
-					}
-					mock.ExpectQuery("SELECT .* FROM `dip` WHERE `id` = ").WithArgs(tt.want.DBID).
-						WillReturnRows(rows(*tt.want))
-				}
-				mock.ExpectCommit()
+
+			if tt.setupMock != nil {
+				tt.setupMock(mock)
 			}
 
 			d, err := svc.RequestDIP(t.Context(), tt.req)

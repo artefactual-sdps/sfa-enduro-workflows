@@ -63,6 +63,7 @@ func (c *client) RequestDIP(ctx context.Context, req persistence.RequestDIPParam
 	}
 
 	// If the selected generation is cached, update its expiration without reducing it.
+	selectedUpdated := false
 	if selected != nil && selected.Status == enums.DIPStatusDone && !selected.ExpiresAt.IsZero() {
 		next := now.Add(req.Retention)
 		if req.Retention == 0 || next.After(selected.ExpiresAt) {
@@ -76,37 +77,42 @@ func (c *client) RequestDIP(ctx context.Context, req persistence.RequestDIPParam
 			if err != nil {
 				return nil, rollback(tx, newDBError(err))
 			}
+			selectedUpdated = true
 		}
 	}
 
-	// If no pending or cached generation was selected, create a new DIP.
-	if selected == nil {
-		selected, err = tx.DIP.Create().
-			SetUUID(req.UUID).
-			SetDocKey(req.DocKey).
-			SetStatus(enums.DIPStatusQueued).
-			SetCreatedAt(now).
-			Save(ctx)
-		if err != nil {
-			return nil, rollback(tx, newDBError(err))
+	if selected != nil {
+		// Commit expiry changes; otherwise just release the locks.
+		if selectedUpdated {
+			if err := tx.Commit(); err != nil {
+				return nil, newDBError(err)
+			}
+		} else {
+			if err := rollback(tx, nil); err != nil {
+				return nil, err
+			}
 		}
+		return datatypes.NewDIP(selected), nil
+	}
+
+	// If no pending or cached generation was selected, create a new DIP.
+	selected, err = tx.DIP.Create().
+		SetUUID(req.UUID).
+		SetDocKey(req.DocKey).
+		SetStatus(enums.DIPStatusQueued).
+		SetCreatedAt(now).
+		Save(ctx)
+	if err != nil {
+		return nil, rollback(tx, newDBError(err))
 	}
 
 	if err := tx.Commit(); err != nil {
 		// MySQL may commit successfully even if the driver fails to read its response.
-		// Confirm the selected generation is still pending, or that its cached object
-		// remains usable with at least the expiry saved in this transaction.
-		d, readErr := c.ReadDIP(ctx, selected.UUID)
+		// Recover a newly created DIP so its workflow is still submitted; otherwise
+		// later requests would keep reusing a queued DIP with no workflow.
+		d, readErr := c.ReadDIP(ctx, req.UUID)
 		if readErr == nil {
-			if selected.Status != enums.DIPStatusDone &&
-				(d.Status == enums.DIPStatusQueued || d.Status == enums.DIPStatusInProgress) {
-				return d, nil
-			}
-			if selected.Status == enums.DIPStatusDone && d.Status == enums.DIPStatusDone &&
-				(d.ExpiresAt.IsZero() || (!selected.ExpiresAt.IsZero() &&
-					!d.ExpiresAt.Before(selected.ExpiresAt) && d.ExpiresAt.After(time.Now()))) {
-				return d, nil
-			}
+			return d, nil
 		}
 
 		// database/sql marks the transaction done before calling the driver's Commit;
