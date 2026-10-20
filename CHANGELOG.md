@@ -8,6 +8,21 @@ requests.
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-10-20
+
+### Fixed
+
+- Recover from expired or revoked ACTApro refresh tokens ([#229])
+
+### Added
+
+- Full DIP creation and delivery workflow implementation ([#229])
+- Include `deleted` status and `expires_at` field for DIPs ([#229])
+
+### Changed
+
+- Rename DIP status from `done` to `stored` ([#229])
+
 ## [0.24.0] - 2026-09-24
 
 ### Fixed
@@ -221,7 +236,8 @@ requests.
 
 Initial release.
 
-[unreleased]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.24.0...HEAD
+[unreleased]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.25.0...HEAD
+[0.25.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.21.0...v0.22.0
