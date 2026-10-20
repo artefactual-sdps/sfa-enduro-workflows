@@ -89,7 +89,7 @@ func (w *CreateDIP) Execute(ctx temporalsdk_workflow.Context, params *CreateDIPP
 
 		params := activities.UpdateDIPParams{
 			UUID:      state.dip.UUID,
-			Status:    enums.DIPStatusDone,
+			Status:    enums.DIPStatusStored,
 			ObjectKey: state.objectKey,
 			Retention: max(0, w.retentionPeriod),
 		}
@@ -257,7 +257,7 @@ func (w *CreateDIP) deleteDIPAfterRetention(ctx temporalsdk_workflow.Context, id
 		switch result.DIP.Status {
 		case enums.DIPStatusDeleted, enums.DIPStatusFailed:
 			return deleteDIP(ctx, id, key)
-		case enums.DIPStatusDone:
+		case enums.DIPStatusStored:
 			if result.DIP.ExpiresAt.IsZero() {
 				return nil
 			}

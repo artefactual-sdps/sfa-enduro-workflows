@@ -190,7 +190,7 @@ func TestCreate(t *testing.T) {
 		{
 			name:           "Reuses a stored DIP",
 			docKey:         "CH-000001",
-			existingStatus: enums.DIPStatusDone,
+			existingStatus: enums.DIPStatusStored,
 			wantRequest:    true,
 			want: func(uuid.UUID) *goadips.CreateResult {
 				return &goadips.CreateResult{ID: goadips.DIPID(existingID.String())}

@@ -48,12 +48,12 @@ func (a *UpdateDIP) Execute(ctx context.Context, params *UpdateDIPParams) (*Upda
 		}
 
 		// The database update may succeed even if Temporal does not receive the result.
-		// On retry, leave completed generations unchanged: marking the DIP done again would reset
+		// On retry, leave completed generations unchanged: marking the DIP stored again would reset
 		// completion and expiry times, possibly overwriting an API renewal. Likewise,
 		// do not overwrite a failed or deleted generation. Deletion is handled below
 		// because it must still check whether a completed generation has expired.
 		if params.Status != enums.DIPStatusDeleted &&
-			(d.Status == enums.DIPStatusDone || d.Status == enums.DIPStatusFailed || d.Status == enums.DIPStatusDeleted) {
+			(d.Status == enums.DIPStatusStored || d.Status == enums.DIPStatusFailed || d.Status == enums.DIPStatusDeleted) {
 			return d, nil
 		}
 
@@ -63,16 +63,16 @@ func (a *UpdateDIP) Execute(ctx context.Context, params *UpdateDIPParams) (*Upda
 			d.Status = params.Status
 			d.StartedAt = now
 			d.WorkflowID = params.WorkflowID
-		case enums.DIPStatusDone:
+		case enums.DIPStatusStored:
 			if params.ObjectKey == "" {
 				return nil, fmt.Errorf(
-					"%w: update DIP status to \"done\": ObjectKey is required",
+					"%w: update DIP status to \"stored\": ObjectKey is required",
 					persistence.ErrNotValid,
 				)
 			}
 			if params.Retention < 0 {
 				return nil, fmt.Errorf(
-					"%w: update DIP status to \"done\": Retention must not be negative (got %s)",
+					"%w: update DIP status to \"stored\": Retention must not be negative (got %s)",
 					persistence.ErrNotValid, params.Retention,
 				)
 			}
@@ -90,7 +90,7 @@ func (a *UpdateDIP) Execute(ctx context.Context, params *UpdateDIPParams) (*Upda
 		case enums.DIPStatusDeleted:
 			// Check expiry under the row lock to avoid racing with API renewals.
 			// Return the DIP unchanged if it is not eligible for deletion.
-			if d.Status == enums.DIPStatusDone && !d.ExpiresAt.IsZero() && !d.ExpiresAt.After(now) {
+			if d.Status == enums.DIPStatusStored && !d.ExpiresAt.IsZero() && !d.ExpiresAt.After(now) {
 				d.Status = params.Status
 			}
 		default:

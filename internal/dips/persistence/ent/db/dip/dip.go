@@ -72,7 +72,7 @@ var (
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
 func StatusValidator(s enums.DIPStatus) error {
 	switch s.String() {
-	case "queued", "in progress", "done", "failed", "deleted":
+	case "queued", "in progress", "stored", "failed", "deleted":
 		return nil
 	default:
 		return fmt.Errorf("dip: invalid enum value for status field: %q", s)

@@ -107,7 +107,7 @@ activity error is retryable. Other failure handling is described below.
     using the object key `DIP_<DIP UUID>.zip`. An upload failure fails the workflow.
 14. `remove-paths`: removes the DIP working directory on session exit, including
     on failure. Cleanup errors are logged without failing the workflow.
-15. `update-dip`: records completion time and `done` or `failed`, with the
+15. `update-dip`: records completion time and `stored` or `failed`, with the
     object key or error message. A successful DIP generation also records an
     expiry date when retention is finite.
 16. After successful DIP creation and the final update, wait until the DIP
@@ -147,7 +147,7 @@ DIP generation also triggers deletion if an upload was attempted. Cancellation
 stops the retention wait and deletion for a successfully completed DIP.
 
 Successful upload sets the DIP's object key to `DIP_<DIP UUID>.zip` and
-completes with `done`. Session cleanup removes the local ZIP. The uploaded
+completes with `stored`. Session cleanup removes the local ZIP. The uploaded
 archive remains in the configured bucket until its expiry date, which later
 POST requests may extend.
 

@@ -14,7 +14,7 @@ import (
 const (
 	DIPStatusQueued     DIPStatus = "queued"
 	DIPStatusInProgress DIPStatus = "in progress"
-	DIPStatusDone       DIPStatus = "done"
+	DIPStatusStored     DIPStatus = "stored"
 	DIPStatusFailed     DIPStatus = "failed"
 	DIPStatusDeleted    DIPStatus = "deleted"
 )
@@ -24,7 +24,7 @@ var ErrInvalidDIPStatus = fmt.Errorf("not a valid DIPStatus, try [%s]", strings.
 var _DIPStatusNames = []string{
 	string(DIPStatusQueued),
 	string(DIPStatusInProgress),
-	string(DIPStatusDone),
+	string(DIPStatusStored),
 	string(DIPStatusFailed),
 	string(DIPStatusDeleted),
 }
@@ -51,7 +51,7 @@ func (x DIPStatus) IsValid() bool {
 var _DIPStatusValue = map[string]DIPStatus{
 	"queued":      DIPStatusQueued,
 	"in progress": DIPStatusInProgress,
-	"done":        DIPStatusDone,
+	"stored":      DIPStatusStored,
 	"failed":      DIPStatusFailed,
 	"deleted":     DIPStatusDeleted,
 }

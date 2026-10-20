@@ -688,7 +688,7 @@ func (s *CreateDIPTestSuite) testSessionResult(
 					&archivezip.Params{SourceDir: dipPath},
 				).Return(&archivezip.Result{Path: dipPath + ".zip"}, archiveErr).Once().NotBefore(previousActivity)
 				if archiveErr == nil {
-					// Upload uses the key held in workflow state before the DIP is marked done.
+					// Upload uses the key held in workflow state before the DIP is marked stored.
 					previousActivity = s.env.OnActivity(
 						bucketupload.Name,
 						mock.AnythingOfType("*context.timerCtx"),
@@ -709,7 +709,7 @@ func (s *CreateDIPTestSuite) testSessionResult(
 		&removepaths.Params{Paths: []string{filepath.Join(s.workingDir, s.dip.UUID.String())}},
 	).Return(&removepaths.Result{}, cleanupErr).After(cleanupDelay).Once().NotBefore(previousActivity)
 
-	wDIP.Status = enums.DIPStatusDone
+	wDIP.Status = enums.DIPStatusStored
 	if parseErr != nil {
 		wDIP.Status = enums.DIPStatusFailed
 		wDIP.ErrorMessage = "DIP metadata parsing failed: " + parseErr.Error()
@@ -744,11 +744,11 @@ func (s *CreateDIPTestSuite) testSessionResult(
 		wDIP.ObjectKey = s.objectKey
 	}
 	wDIP.CompletedAt = createDIPTestTime.Add(cleanupDelay + exportRetryDelay)
-	if wDIP.Status == enums.DIPStatusDone && s.retention.period > 0 {
+	if wDIP.Status == enums.DIPStatusStored && s.retention.period > 0 {
 		wDIP.ExpiresAt = wDIP.CompletedAt.Add(s.retention.period)
 	}
 	finalParams := updateParams(wDIP)
-	if finalParams.Status == enums.DIPStatusDone {
+	if finalParams.Status == enums.DIPStatusStored {
 		finalParams.Retention = max(0, s.retention.period)
 	}
 	finalUpdate := s.env.OnActivity(activities.UpdateDIPName, mock.Anything, finalParams).
@@ -759,7 +759,7 @@ func (s *CreateDIPTestSuite) testSessionResult(
 		(uploadErr != nil || s.retention.cancelDuringCleanup || s.retention.finalUpdateErr != nil)
 
 	if s.retention.finalUpdateErr == nil &&
-		wDIP.Status == enums.DIPStatusDone && !s.retention.cancelAfterPublication {
+		wDIP.Status == enums.DIPStatusStored && !s.retention.cancelAfterPublication {
 		claim := &activities.UpdateDIPParams{
 			UUID:   wDIP.UUID,
 			Status: enums.DIPStatusDeleted,
@@ -826,7 +826,7 @@ func (s *CreateDIPTestSuite) testSessionResult(
 			}
 			var result activities.UpdateDIPResult
 			s.Require().NoError(value.Get(&result))
-			if result.DIP.Status == enums.DIPStatusDone {
+			if result.DIP.Status == enums.DIPStatusStored {
 				// Cancel after publication commits, before retention can claim deletion.
 				cancel()
 			}
@@ -853,14 +853,14 @@ func (s *CreateDIPTestSuite) testSessionResult(
 		s.env.AssertNotCalled(s.T(), activities.UpdateDIPName, mock.Anything,
 			&activities.UpdateDIPParams{
 				UUID:      wDIP.UUID,
-				Status:    enums.DIPStatusDone,
+				Status:    enums.DIPStatusStored,
 				ObjectKey: s.objectKey,
 			})
 	}
 	if !shouldDelete {
 		s.env.AssertNotCalled(s.T(), bucketdelete.Name, mock.Anything, mock.Anything)
 	}
-	if wDIP.Status == enums.DIPStatusDone {
+	if wDIP.Status == enums.DIPStatusStored {
 		s.Equal(wantFinish, s.env.Now().UTC())
 	}
 	if s.retention.finalUpdateErr != nil {
@@ -1021,7 +1021,7 @@ func (s *CreateDIPTestSuite) TestSessionRecoveryClearsDownloadError() {
 	).Return(&removepaths.Result{}, nil).Once().NotBefore(archiveDIP)
 
 	wDIP.ObjectKey = "DIP_9390594f-84c2-457d-bd6a-618f21f7c954.zip"
-	wDIP.Status = enums.DIPStatusDone
+	wDIP.Status = enums.DIPStatusStored
 	wDIP.CompletedAt = createDIPTestTime.Add(10 * time.Second)
 	s.env.OnActivity(
 		activities.UpdateDIPName,
@@ -1693,7 +1693,7 @@ func (s *CreateDIPTestSuite) TestCancellationPersistsFinalStatus() {
 			wDIP.Status = tt.wantStatus
 			wDIP.CompletedAt = createDIPTestTime.Add(time.Second)
 			wDIP.ErrorMessage = tt.wantErrorMessage
-			if tt.wantStatus == enums.DIPStatusDone {
+			if tt.wantStatus == enums.DIPStatusStored {
 				wDIP.ObjectKey = "DIP_9390594f-84c2-457d-bd6a-618f21f7c954.zip"
 			}
 			s.env.OnActivity(
@@ -1701,11 +1701,11 @@ func (s *CreateDIPTestSuite) TestCancellationPersistsFinalStatus() {
 				mock.AnythingOfType("*context.timerCtx"),
 				updateParams(wDIP),
 			).Return(&activities.UpdateDIPResult{DIP: wDIP}, nil).After(2 * time.Second).Once()
-			if wDIP.Status == enums.DIPStatusDone {
+			if wDIP.Status == enums.DIPStatusStored {
 				s.expectDIPCleanup(wDIP)
 			}
 
-			if wDIP.Status == enums.DIPStatusDone && s.retention.finalUpdateErr == nil &&
+			if wDIP.Status == enums.DIPStatusStored && s.retention.finalUpdateErr == nil &&
 				(s.retention.deleteErr != nil || s.retention.cancelAfter > 0 || s.retention.cancelAfterPublication) {
 				stored := wDIP
 				if s.retention.deleteErr != nil {
@@ -1755,7 +1755,7 @@ func (s *CreateDIPTestSuite) TestCancellationPersistsFinalStatus() {
 
 			s.True(s.env.IsWorkflowCompleted())
 			s.env.AssertExpectations(s.T())
-			if tt.wantStatus == enums.DIPStatusDone {
+			if tt.wantStatus == enums.DIPStatusStored {
 				s.NoError(s.env.GetWorkflowError())
 				var result workflows.CreateDIPResult
 				s.Require().NoError(s.env.GetWorkflowResult(&result))

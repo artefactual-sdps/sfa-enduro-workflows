@@ -388,8 +388,8 @@ func ValidateShowResponseBody(body *ShowResponseBody) (err error) {
 		}
 	}
 	if body.Status != nil {
-		if !(*body.Status == "queued" || *body.Status == "in progress" || *body.Status == "done" || *body.Status == "failed" || *body.Status == "deleted") {
-			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.status", *body.Status, []any{"queued", "in progress", "done", "failed", "deleted"}))
+		if !(*body.Status == "queued" || *body.Status == "in progress" || *body.Status == "stored" || *body.Status == "failed" || *body.Status == "deleted") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.status", *body.Status, []any{"queued", "in progress", "stored", "failed", "deleted"}))
 		}
 	}
 	if body.CreatedAt != nil {

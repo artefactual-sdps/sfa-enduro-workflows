@@ -40,7 +40,7 @@ func (c *client) RequestDIP(ctx context.Context, req persistence.RequestDIPParam
 	// Lock candidates before selecting a pending or usable cached generation.
 	rows, err := tx.DIP.Query().Where(
 		dip.DocKey(req.DocKey),
-		dip.StatusIn(enums.DIPStatusQueued, enums.DIPStatusInProgress, enums.DIPStatusDone),
+		dip.StatusIn(enums.DIPStatusQueued, enums.DIPStatusInProgress, enums.DIPStatusStored),
 	).Order(db.Desc(dip.FieldCreatedAt)).ForUpdate().All(ctx)
 	if err != nil {
 		return nil, rollback(tx, newDBError(err))
@@ -50,7 +50,7 @@ func (c *client) RequestDIP(ctx context.Context, req persistence.RequestDIPParam
 	var selected *db.DIP
 	for _, d := range rows {
 		// Skip expired cached DIPs, or all cached DIPs when ignoring the cache.
-		if d.Status == enums.DIPStatusDone &&
+		if d.Status == enums.DIPStatusStored &&
 			(req.IgnoreCache || (!d.ExpiresAt.IsZero() && !d.ExpiresAt.After(now))) {
 			continue
 		}
@@ -60,7 +60,7 @@ func (c *client) RequestDIP(ctx context.Context, req persistence.RequestDIPParam
 
 	// If the selected generation is cached, update its expiration without reducing it.
 	selectedUpdated := false
-	if selected != nil && selected.Status == enums.DIPStatusDone && !selected.ExpiresAt.IsZero() {
+	if selected != nil && selected.Status == enums.DIPStatusStored && !selected.ExpiresAt.IsZero() {
 		next := now.Add(req.Retention)
 		if req.Retention == 0 || next.After(selected.ExpiresAt) {
 			q := tx.DIP.UpdateOne(selected)

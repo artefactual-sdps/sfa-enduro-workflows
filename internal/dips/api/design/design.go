@@ -66,7 +66,7 @@ var DocKey = Type("DocKey", String, func() {
 var DIPStatus = Type("DIPStatus", String, func() {
 	Description("DIPStatus represents the current status of a DIP.")
 	Enum(enums.DIPStatusInterfaces()...)
-	Example(enums.DIPStatusDone.String())
+	Example(enums.DIPStatusStored.String())
 })
 
 var DateTime = Type("DateTime", String, func() {

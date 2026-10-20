@@ -101,7 +101,7 @@ paths:
                                 id: 3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb
                                 object_key: DIP_3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb.zip
                                 started_at: "2026-05-27T15:04:05Z"
-                                status: done
+                                status: stored
                 "400":
                     description: 'bad_request: Bad Request response.'
                     content:
@@ -247,11 +247,11 @@ components:
                 status:
                     type: string
                     description: The status field contains the current DIP status.
-                    example: done
+                    example: stored
                     enum:
                         - queued
                         - in progress
-                        - done
+                        - stored
                         - failed
                         - deleted
             example:
@@ -263,7 +263,7 @@ components:
                 id: 3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb
                 object_key: DIP_3f38d6f4-7b19-4db8-8d7d-693b84a9a2fb.zip
                 started_at: "2026-05-27T15:04:05Z"
-                status: done
+                status: stored
             required:
                 - id
                 - docKey

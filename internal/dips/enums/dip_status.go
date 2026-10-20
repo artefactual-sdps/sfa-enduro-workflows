@@ -3,7 +3,7 @@ package enums
 // ENUM(
 // queued,
 // in progress,
-// done,
+// stored,
 // failed,
 // deleted,
 // ).
