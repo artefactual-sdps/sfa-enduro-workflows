@@ -8,6 +8,10 @@ requests.
 
 ## [Unreleased]
 
+## [0.25.2] - 2026-10-23
+
+No functional changes.
+
 ## [0.25.1] - 2026-10-22
 
 No functional changes.
@@ -240,7 +244,8 @@ No functional changes.
 
 Initial release.
 
-[unreleased]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.25.0...HEAD
+[unreleased]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.25.2...HEAD
+[0.25.2]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.25.1...v0.25.2
 [0.25.1]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.25.0...v0.25.1
 [0.25.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.23.0...v0.24.0
