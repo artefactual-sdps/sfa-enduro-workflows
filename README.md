@@ -519,8 +519,8 @@ the bundle in the configured bucket.
 
 This project also contains `sfa-dips`, a separate application that runs an HTTP
 API and a Temporal worker for Dissemination Information Package (DIP) creation.
-See the [DIPs package README](internal/dips/README.md) for the API and workflow
-documentation.
+See the [DIPs package README](internal/dips/README.md) for configuration, API,
+and workflow documentation.
 
 [bucket configuration options]: https://enduro.readthedocs.io/admin-manual/configuration/#bucket-configuration-options
 [Enduro development manual]: https://enduro.readthedocs.io/dev-manual/devel/
