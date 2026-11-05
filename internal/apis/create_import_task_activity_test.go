@@ -37,6 +37,22 @@ func TestCreateImportTaskActivity(t *testing.T) {
 	).Path())
 	assert.NilError(t, err)
 
+	aipValue, err := sip.New(fs.NewDir(t, "",
+		fs.WithDir("additional",
+			fs.WithFile("UpdatedAreldaMetadata.xml", "updated-metadata-body"),
+		),
+		fs.WithDir("content",
+			fs.WithDir("header",
+				fs.WithDir("old",
+					fs.WithDir("SIP",
+						fs.WithFile("metadata.xml", "original-metadata-body"),
+					),
+				),
+			),
+		),
+	).Path())
+	assert.NilError(t, err)
+
 	tests := []struct {
 		name    string
 		params  apis.CreateImportTaskParams
@@ -72,6 +88,31 @@ func TestCreateImportTaskActivity(t *testing.T) {
 				)
 			},
 			want: apis.CreateImportTaskResult{TaskID: "task-000001"},
+		},
+		{
+			name: "prefers UpdatedAreldaMetadata.xml",
+			params: apis.CreateImportTaskParams{
+				SIP:      aipValue,
+				Username: "archivist@example.com",
+			},
+			expect: func(m *fake_apis.MockClientMockRecorder) {
+				m.APIImporttasksPost(gomock.Any(), gomock.Any()).DoAndReturn(
+					func(_ context.Context, req apisgen.OptAPIImporttasksPostReq) (apisgen.APIImporttasksPostRes, error) {
+						payload, ok := req.Get()
+						assert.Assert(t, ok)
+						assert.Equal(t, payload.Username, "archivist@example.com")
+						assert.Equal(t, payload.SipType, apisgen.SipTypeBornDigitalAIP)
+						assert.Equal(t, payload.File.Name, "UpdatedAreldaMetadata.xml")
+
+						body, err := io.ReadAll(payload.File.File)
+						assert.NilError(t, err)
+						assert.Equal(t, string(body), "updated-metadata-body")
+
+						return &apisgen.CreateImportTaskResponse{ImportTaskId: "task-000003"}, nil
+					},
+				)
+			},
+			want: apis.CreateImportTaskResult{TaskID: "task-000003"},
 		},
 		{
 			name: "passes empty username through",

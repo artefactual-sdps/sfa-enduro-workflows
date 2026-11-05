@@ -40,15 +40,21 @@ func NewCreateImportTaskActivity(client Client) *CreateImportTaskActivity {
 	return &CreateImportTaskActivity{client: client}
 }
 
-// Execute uploads the SIP metadata.xml file to APIS and returns the created
-// import-task identifier for later polling and post-storage work.
+// Execute uploads the SIP metadata file to APIS, preferring UpdatedAreldaMetadata.xml
+// when available, and returns the created import-task identifier for later polling and
+// post-storage work.
 func (a *CreateImportTaskActivity) Execute(
 	ctx context.Context,
 	params *CreateImportTaskParams,
 ) (*CreateImportTaskResult, error) {
-	metadata, err := os.Open(params.SIP.MetadataPath)
+	metadataPath := params.SIP.MetadataPath
+	if params.SIP.UpdatedAreldaMDPath != "" {
+		metadataPath = params.SIP.UpdatedAreldaMDPath
+	}
+	metadataName := filepath.Base(metadataPath)
+	metadata, err := os.Open(metadataPath)
 	if err != nil {
-		return nil, temporal.NewNonRetryableError(fmt.Errorf("open metadata.xml: %v", err))
+		return nil, temporal.NewNonRetryableError(fmt.Errorf("open %s: %v", metadataName, err))
 	}
 	defer metadata.Close()
 
@@ -61,7 +67,7 @@ func (a *CreateImportTaskActivity) Execute(
 
 	req := gen.APIImporttasksPostReq{
 		File: ogenhttp.MultipartFile{
-			Name: filepath.Base(params.SIP.MetadataPath),
+			Name: metadataName,
 			File: metadata,
 		},
 		SipType:  sipType,
