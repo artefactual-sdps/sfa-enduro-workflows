@@ -63,7 +63,7 @@ require (
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.6.0 // indirect
 	github.com/STARRY-S/zip v0.2.3 // indirect
 	github.com/agext/levenshtein v1.2.3 // indirect
-	github.com/andybalholm/brotli v1.2.0 // indirect
+	github.com/andybalholm/brotli v1.3.0 // indirect
 	github.com/antchfx/xpath v1.3.6 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/artefactual-labs/bine v0.28.3 // indirect
