@@ -8,6 +8,10 @@ requests.
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-11-19
+
+- Prefer UpdatedAreldaMetadata.xml for APIS tasks ([#287])
+
 ## [0.25.2] - 2026-10-23
 
 No functional changes.
@@ -244,7 +248,8 @@ No functional changes.
 
 Initial release.
 
-[unreleased]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.25.2...HEAD
+[unreleased]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.26.0...HEAD
+[0.26.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.25.2...v0.26.0
 [0.25.2]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.25.1...v0.25.2
 [0.25.1]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.25.0...v0.25.1
 [0.25.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.24.0...v0.25.0
@@ -272,6 +277,7 @@ Initial release.
 [0.3.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/artefactual-sdps/sfa-enduro-workflows/releases/tag/v0.1.0
+[#287]: https://github.com/artefactual-sdps/sfa-enduro-workflows/pull/287
 [#255]: https://github.com/artefactual-sdps/sfa-enduro-workflows/issues/255
 [#246]: https://github.com/artefactual-sdps/sfa-enduro-workflows/pull/246
 [#241]: https://github.com/artefactual-sdps/sfa-enduro-workflows/issues/241
